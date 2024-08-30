@@ -10,6 +10,7 @@ export interface WebSocketConnection {
   isConnected: boolean;
   sendMessage: (message: string) => void;
   disconnect: () => void;
+  reconnect: () => void;
 }
 
 const useWebSocket = ({ url, binaryType, onMessage }: UseWebSocketProps) : WebSocketConnection => {
@@ -27,11 +28,26 @@ const useWebSocket = ({ url, binaryType, onMessage }: UseWebSocketProps) : WebSo
  */
   const socketRef = useRef<WebSocket | null>(null);
   const [isConnected, setIsConnected] = useState(false);
+  // the websocket will try to reconnect if the connectCount is incremented
+  const [connectCount, setConnectCount] = useState(0);
 
-  useEffect(() => {
-    if (!url) return;
+  // Optional: Send messages through WebSocket
+  const sendMessage = (message: string) => {
+    if (socketRef.current && socketRef.current.readyState === WebSocket.OPEN) {
+      socketRef.current.send(message);
+    }
+  };
 
-    // Establish WebSocket connection
+  const disconnect = () => {
+    if (socketRef.current && isConnected) {
+      socketRef.current.close();
+    }
+  }
+
+  const connect = () => {
+    // close the websocket if it is already connected
+    disconnect();
+
     const socket = new WebSocket(url);
     socket.binaryType = binaryType
     socketRef.current = socket;
@@ -44,8 +60,6 @@ const useWebSocket = ({ url, binaryType, onMessage }: UseWebSocketProps) : WebSo
 
     // Handle incoming messages
     socket.onmessage = (event) => {
-      // const data = JSON.parse(event.data);
-      // onMessage(data);
       onMessage(event);
     };
 
@@ -54,26 +68,30 @@ const useWebSocket = ({ url, binaryType, onMessage }: UseWebSocketProps) : WebSo
       setIsConnected(false);
     };
 
+    return socket;
+  }
+
+  const reconnect = () => {
+    if (!isConnected) {
+      setConnectCount(connectCount+ 1);
+    }
+  }
+
+  useEffect(() => {
+    if (!url) return;
+
+    // Establish WebSocket connection
+    const socket = connect();
+
     // Cleanup WebSocket when the component unmounts or host changes
     return () => {
       socket.close();
     };
-  }, [url, onMessage]);
+  }, [url, binaryType, onMessage, connectCount]);
 
-  // Optional: Send messages through WebSocket
-  const sendMessage = (message: string) => {
-    if (socketRef.current && socketRef.current.readyState === WebSocket.OPEN) {
-      socketRef.current.send(message);
-    }
-  };
 
-  const disconnect = () => {
-    if (socketRef.current) {
-      socketRef.current.close();
-    }
-  }
 
-  return { isConnected, sendMessage, disconnect };
+  return { isConnected, sendMessage, disconnect, reconnect };
 };
 
 export default useWebSocket;

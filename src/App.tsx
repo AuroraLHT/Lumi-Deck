@@ -4,6 +4,8 @@
 // import  DemoComponent  from "./components/Demo"
 import VideoMain from "./components/VideoPlayer/VideoMain"
 import HostSelector from "./components/HostSelector"
+import MainController from "./components/MainController"
+// import MainControllerSimulator from "./components/MainControlSimulator"
 // import './App.css'
 
 function App() {
@@ -13,6 +15,8 @@ function App() {
     <>
       <HostSelector></HostSelector>
       <VideoMain></VideoMain>
+      <MainController></MainController>
+      {/* <MainControllerSimulator></MainControllerSimulator> */}
       {/* <DemoComponent></DemoComponent> */}
     </>
   )

@@ -1,6 +1,7 @@
-import { useCallback, useState } from "react";
-import { useAppStore } from "../stores/app";
-import { useWebSocketStore } from "../stores/websocket";
+import { useCallback, useEffect, useState } from "react";
+import useAppStore from "../stores/app";
+import useWebSocketStore from "../stores/websocket";
+import useDetectorNodeStore from "../stores/nodes/detector";
 
 interface DetectionBBox {
     bbox:number[];
@@ -26,6 +27,7 @@ interface DetectionHeader {
 
 const useDetection = () => {
   const { selectedHost } = useAppStore();
+  // const detectorNodeState  = useDetectorNodeStore( s => s.state );
   const [bboxes, setBboxes] = useState<Bboxes>({} as Bboxes);
   const [cropSetup, setCropSetup] = useState<{
     sx: number;
@@ -35,7 +37,13 @@ const useDetection = () => {
   } | null>(null);
 
   const handleDetectionMessage = useCallback((event: MessageEvent) => {
+    // console.log(!detectorNodeState.is_streaming, !detectorNodeState.is_running, !detectorNodeState.is_available);
+    // if (!detectorNodeState.is_streaming || !detectorNodeState.is_running || !detectorNodeState.is_available) {
+    //   console.log("return");
+    //   return;
+    // }
     // console.log(event);
+
     const arrayBuffer = event.data;
 
     // Read the header length (4 bytes)
@@ -62,8 +70,9 @@ const useDetection = () => {
     // console.log("after", detectionPayload, typeof detectionPayload);
 
     var bboxes = detectionPayload.bboxes;
-    setBboxes(bboxes);
 
+
+    setBboxes(bboxes);    
     setCropSetup({
       sx: detectionHeader.crop_setup_sx,
       sy: detectionHeader.crop_setup_sy,
@@ -74,13 +83,20 @@ const useDetection = () => {
   }, []);
 
   const connectWS = useWebSocketStore(s => s.connect);
-  const { isConnected } = connectWS("detection", {
+  const { isConnected, sendMessage } = connectWS("detection", {
     url: (selectedHost && `ws://${selectedHost}/RHEED/detection/live`) || "",
     binaryType: "arraybuffer",
     onMessage: handleDetectionMessage,
   });
 
-  return { bboxes, cropSetup, isConnected };
+  // if the websocket is disconnected, clear the bboxes
+  // useEffect(() => {
+  //   if (!isConnected || !detectorNodeState.is_streaming || !detectorNodeState.is_running || !detectorNodeState.is_available) {
+  //       setBboxes({} as Bboxes);
+  //   }
+  // }, [isConnected, detectorNodeState, bboxes]);
+
+  return { bboxes, cropSetup, isConnected, sendMessage };
 };
 
 export default useDetection;

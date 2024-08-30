@@ -1,5 +1,5 @@
 import React, { useState, useCallback } from 'react';
-import { useAppStore } from '../stores/app';
+import useAppStore from '../stores/app';
 import useWebSocket from '../hooks/useWebsocket';
 
 const DemoComponent: React.FC = () => {

@@ -1,6 +1,6 @@
 import { useRef, useEffect, useState, useCallback } from "react";
-import { useAppStore } from "../stores/app";
-import { useWebSocketStore } from "../stores/websocket";
+import useAppStore from "../stores/app";
+import useWebSocketStore from "../stores/websocket";
 
 const useRHEED = () => {
   const { selectedHost } = useAppStore();
@@ -35,7 +35,7 @@ const useRHEED = () => {
       }
     }
   }, []);
-
+  
   const connectWS = useWebSocketStore((s) => s.connect);
   const { isConnected, sendMessage, disconnect } = connectWS("rheed", {
     url: (selectedHost && `ws://${selectedHost}/RHEED/cam/live`) || "",

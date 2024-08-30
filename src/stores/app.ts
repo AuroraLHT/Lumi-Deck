@@ -6,7 +6,10 @@ interface AppState {
   setSelectedHost: (host: string) => void;
 }
 
-export const useAppStore = create<AppState>((set) => ({
+const useAppStore = create<AppState>((set) => ({
   selectedHost: "",
   setSelectedHost: (host) => set({ selectedHost: host }),
 }));
+
+
+export default useAppStore;
