@@ -1,6 +1,5 @@
-import { useCallback, useState } from "react";
-import useAppStore from "../stores/app";
-import useWebSocketStore from "../stores/websocket";
+import { useCallback, useEffect, useState } from "react";
+import useWebSocketStore from "../stores/websocket_v2";
 
 interface DetectionBBox {
     bbox:number[];
@@ -25,9 +24,9 @@ interface DetectionHeader {
 }
 
 const useDetection = () => {
-  const { selectedHost } = useAppStore();
   // const detectorNodeState  = useDetectorNodeStore( s => s.state );
   const [bboxes, setBboxes] = useState<Bboxes>({} as Bboxes);
+  const [isConnected, setIsConnected] = useState(false);
   const [cropSetup, setCropSetup] = useState<{
     sx: number;
     sy: number;
@@ -81,13 +80,21 @@ const useDetection = () => {
 
   }, []);
 
-  const connectWS = useWebSocketStore(s => s.connect);
-  const { isConnected, sendMessage } = connectWS("detection", {
-    url: (selectedHost && `ws://${selectedHost}/RHEED/detection/live`) || "",
-    binaryType: "arraybuffer",
-    onMessage: handleDetectionMessage,
-  });
+  const getWebSocket = useWebSocketStore( s => s.getWebSocket );
+  const socket = getWebSocket('detect');
 
+  useEffect(() => {    
+    if (socket) {
+      socket.socket.onmessage = handleDetectionMessage;
+      socket.socket.onopen = () => {
+        socket.socket.send("start_streaming");
+        setIsConnected(true);
+      };
+      socket.socket.onclose = () => {
+        setIsConnected(false);
+      };
+    }
+  }, [socket]);
   // if the websocket is disconnected, clear the bboxes
   // useEffect(() => {
   //   if (!isConnected || !detectorNodeState.is_streaming || !detectorNodeState.is_running || !detectorNodeState.is_available) {
@@ -95,7 +102,7 @@ const useDetection = () => {
   //   }
   // }, [isConnected, detectorNodeState, bboxes]);
 
-  return { bboxes, cropSetup, isConnected, sendMessage };
+  return { bboxes, cropSetup, socket, isConnected };
 };
 
 export default useDetection;
