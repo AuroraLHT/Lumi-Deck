@@ -1,14 +1,14 @@
 import { useRef, useEffect, useState, useCallback } from "react";
-import useAppStore from "../stores/app";
 import useWebSocketStore from "../stores/websocket";
 
 const useRHEED = () => {
-  const { selectedHost } = useAppStore();
+  const { getWebSocket } = useWebSocketStore();
 
   const videoRef = useRef<HTMLVideoElement>(null);
   const mediaRef = useRef<MediaSource | null>(null);
   const sourceBufferRef = useRef<SourceBuffer | null>(null);
   const [isReady, setIsReady] = useState(false);
+  const [isConnected, setIsConnected] = useState(false);
 
   const queueRef = useRef<ArrayBuffer[]>([]);
   //   const queue: ArrayBuffer[] = [];
@@ -20,6 +20,7 @@ const useRHEED = () => {
         // Append the received data to the SourceBuffer
         // console.log("add to queue");
         queueRef.current.push(event.data);
+        // console.log( event.data );
         // sourceBuffer.appendBuffer(event.data);
 
         if (queueRef.current.length > 0 && !sourceBufferRef.current?.updating) {
@@ -35,19 +36,22 @@ const useRHEED = () => {
       }
     }
   }, []);
+
+  const socket = getWebSocket("rheed");
+
+  useEffect( () => {
+    if (socket) {
+      socket.socket.onmessage = handleWebSocketMessage;
+      socket.socket.onopen = () => { setIsConnected(true); }
+      socket.socket.onclose = () => { setIsConnected(false); }
+    }
+  }, [socket] )
   
-  const connectWS = useWebSocketStore((s) => s.connect);
-  const { isConnected, sendMessage, disconnect } = connectWS("rheed", {
-    url: (selectedHost && `ws://${selectedHost}/RHEED/cam/live`) || "",
-    binaryType: "arraybuffer",
-    onMessage: handleWebSocketMessage,
-  });
 
   useEffect(() => {
     // console.log("videoRef.current", videoRef.current);
 
     if (videoRef.current) {
-    //   console.log("videoRef.current", videoRef.current);
       if (isConnected) {
         // console.log("isConnected", isConnected);
         var mediaSource = new MediaSource();
@@ -72,19 +76,22 @@ const useRHEED = () => {
           sourceBuffer.addEventListener("error", (event) => {
             console.error("SourceBuffer error:", event);
           });
-
+          
+          socket?.socket.send("start_streaming")
           setIsReady(true);
         });
       } else {
         videoRef.current.src = "";
         mediaRef.current = null;
         sourceBufferRef.current = null;
+                
+        isConnected && socket?.socket.send("end_streaming")
         setIsReady(false);
       }
     }
-  }, [isConnected, videoRef]);
+  }, [isConnected, socket, videoRef]);
 
-  return { videoRef, isReady, isConnected, sendMessage, disconnect };
+  return { videoRef, isReady };
 };
 
 export default useRHEED;

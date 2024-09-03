@@ -1,66 +1,67 @@
-import { create } from "zustand";
-import useWebSocket, {
-  WebSocketConnection,
-  UseWebSocketProps,
-} from "../hooks/useWebsocket";
+// websocketStore.ts
+import { create } from 'zustand';
+import { immer } from 'zustand/middleware/immer';
 
-interface WebSocketStore {
-  connections: Map<string, WebSocketConnection>;
-  connect: (name: string, props: UseWebSocketProps) => WebSocketConnection;
-  disconnect: (name: string) => void;
-  sendMessage: (name: string, message: string) => void;
-  isConnected: (name: string) => boolean;
-  getConnection: (name: string) => WebSocketConnection | undefined;
+interface WebSocketInfo {
+  socket: WebSocket;
+  host: string;
+  binaryType : "arraybuffer" | "blob"
 }
 
-const useWebSocketStore = create<WebSocketStore>((set, get) => ({
-  connections: new Map(),
-  connect: (name, props: UseWebSocketProps) => {
-    const { isConnected, sendMessage, disconnect, reconnect } = useWebSocket(props);
+interface WebSocketState {
+  websockets: Record<string, WebSocketInfo>; // Map of WebSocket connections
+  getWebSocket: (id: string) => WebSocketInfo | undefined;
+  addWebSocket: (id: string, host: string, binaryType : "arraybuffer" | "blob") => void;
+  removeWebSocket: (id: string) => void;
+  disconnectAll: () => void;
+}
 
-    set((state) => ({
-      connections: new Map(state.connections).set(name, {
-        isConnected,
-        sendMessage,
-        disconnect,
-        reconnect,
-      }),
-    }));
-    return {
-      isConnected,
-      sendMessage,
-      disconnect,
-      reconnect,
-    };
-  },
-  getConnection: (name) => {
-    if (get().connections.has(name)) {
-      return get().connections.get(name);
-    } else {
-      return { isConnected: false } as WebSocketConnection;
-    }
-  },
-  disconnect: (name) => {
-    const connection = get().connections.get(name);
-    if (connection) {
-      connection.disconnect();
+const useWebSocketStore = create(
+  immer<WebSocketState>((set, get) => ({
+    websockets: {},
+
+    getWebSocket: (id: string) => {
+      return get().websockets[id];
+    },
+
+    addWebSocket: (id: string, host: string, binaryType: "arraybuffer" | "blob"
+    ) => {
       set((state) => {
-        const newConnections = new Map(state.connections);
-        newConnections.delete(name);
-        return { connections: newConnections };
+        // Close existing WebSocket if it exists for this ID
+        const existingWebSocket = state.websockets[id];
+        if (existingWebSocket) {
+          existingWebSocket.socket.close();
+        }
+
+        // Create a new WebSocket connection
+        const newSocket = new WebSocket(host);
+        newSocket.binaryType = binaryType
+
+        newSocket.onopen = () => console.log(`WebSocket ${id} connected to ${host}`);
+        newSocket.onclose = () => console.log(`WebSocket ${id} disconnected`);
+        newSocket.onerror = (error) => console.error(`WebSocket ${id} error:`, error);
+
+        state.websockets[id] = { socket: newSocket, host, binaryType }; // Use Immer to mutate state
       });
-    }
-  },
-  sendMessage: (name, message) => {
-    const connection = get().connections.get(name);
-    if (connection) {
-      connection.sendMessage(message);
-    }
-  },
-  isConnected: (name) => {
-    const connection = get().connections.get(name);
-    return connection ? connection.isConnected : false;
-  },
-}));
+    },
+
+    removeWebSocket: (id: string) => {
+      set((state) => {
+        const webSocketInfo = state.websockets[id];
+        if (webSocketInfo) {
+          webSocketInfo.socket.close();
+        }
+        delete state.websockets[id]; // Immer allows direct mutation
+      });
+    },
+
+    disconnectAll: () => {
+      set((state) => {
+        Object.values(state.websockets).forEach(({ socket }) => socket.close());
+        state.websockets = {}; // Clear all WebSockets
+      });
+    },
+  }))
+);
 
 export default useWebSocketStore;

@@ -1,6 +1,6 @@
 // MyComponent.tsx
 import React, { useEffect } from 'react';
-import useWebSocketStore from '../stores/websocket_v2';
+import useWebSocketStore from '../stores/websocket';
 import useAppStore from '../stores/app';
 
 interface MainWebsocketsProps {

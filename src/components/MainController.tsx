@@ -4,7 +4,7 @@ import { Box, Flex, FormLabel, Heading, Switch } from "@chakra-ui/react";
 // import useLog from "../hooks/useChamberLog";
 // import useDetection from "../hooks/useDetection";
 
-import useWebSocketStore from "../stores/websocket_v2";
+import useWebSocketStore from "../stores/websocket";
 
 import { ChangeEvent, useEffect } from "react";
 import { useRef } from "react";

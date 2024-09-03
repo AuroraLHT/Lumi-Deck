@@ -1,11 +1,9 @@
-import { useCallback, useState } from "react";
-import useAppStore from "../stores/app";
+import { useCallback, useEffect, useState } from "react";
 import useWebSocketStore from "../stores/websocket";
 
 type Log = {string: string}
 
 const useLog = () => {
-  const { selectedHost } = useAppStore();
   const [log, setLog] = useState<Log>({} as Log);
 
   const handleLogMessage = useCallback((event: MessageEvent) => {
@@ -19,14 +17,16 @@ const useLog = () => {
     setLog(logPayload);
   }, []);
 
-  const connectWS = useWebSocketStore(s => s.connect);
-  const { isConnected, sendMessage } = connectWS("log", {
-    url: (selectedHost && `ws://${selectedHost}/chamber/log/live`) || "",
-    binaryType: "blob",
-    onMessage: handleLogMessage,
-  });
+  const getWebSocket  = useWebSocketStore( s => s.getWebSocket );
+  const socket = getWebSocket('log');
+  
+  useEffect(() => {
+    if (socket) {
+      socket.socket.onmessage = handleLogMessage;
+    }
+  }, [socket]);
 
-  return { log, isConnected, sendMessage };
+  return { log };
 };
 
 export default useLog;
