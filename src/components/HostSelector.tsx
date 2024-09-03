@@ -15,6 +15,8 @@ const HostSelector: React.FC = () => {
     >
       {/* <option value="localhost:8000">localhost:8000</option> */}
       <option value="127.0.0.1:8000">127.0.0.1:8000</option>
+      <option value="localhost:8000">localhost:8000</option>
+
       <option value="10.229.54.118:8000">10.229.54.118:8000</option>
     </Select>
   );
