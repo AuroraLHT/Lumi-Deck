@@ -5,6 +5,7 @@
 import VideoMain from "./components/VideoPlayer/VideoMain"
 import HostSelector from "./components/HostSelector"
 import MainController from "./components/MainController"
+import MainWebsocketsProvider from "./components/MainWebSockets"
 // import MainControllerSimulator from "./components/MainControlSimulator"
 // import './App.css'
 
@@ -13,9 +14,11 @@ function App() {
 
   return (
     <>
-      <HostSelector></HostSelector>
-      <VideoMain></VideoMain>
-      <MainController></MainController>
+      <MainWebsocketsProvider >
+        <HostSelector></HostSelector>
+        <VideoMain></VideoMain>
+        <MainController></MainController>
+      </MainWebsocketsProvider>
       {/* <MainControllerSimulator></MainControllerSimulator> */}
       {/* <DemoComponent></DemoComponent> */}
     </>
