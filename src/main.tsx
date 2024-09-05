@@ -12,6 +12,7 @@ import App from "./App.tsx";
 // import "./index.css";
 
 const queryClient = new QueryClient();
+// console.log(theme.config.initialColorMode, "initial color mode");
 
 createRoot(document.getElementById("root")!).render(
   <StrictMode>

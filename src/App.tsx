@@ -6,6 +6,7 @@ import VideoMain from "./components/VideoPlayer/VideoMain"
 import HostSelector from "./components/HostSelector"
 import MainController from "./components/MainController"
 import MainWebsocketsProvider from "./components/MainWebSockets"
+import RealTImePressure from "./components/ChamberStatus/RealTImePressure"
 // import MainControllerSimulator from "./components/MainControlSimulator"
 // import './App.css'
 
@@ -17,6 +18,7 @@ function App() {
       <MainWebsocketsProvider >
         <HostSelector></HostSelector>
         <VideoMain></VideoMain>
+        <RealTImePressure></RealTImePressure>
         <MainController></MainController>
       </MainWebsocketsProvider>
       {/* <MainControllerSimulator></MainControllerSimulator> */}
