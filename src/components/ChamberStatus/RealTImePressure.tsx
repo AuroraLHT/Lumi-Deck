@@ -1,14 +1,16 @@
 import { useEffect, useState } from "react";
 import RealTimeLineComponent from "./RealTimeLineChart";
 import { Serie } from "@nivo/line";
-import { Logs, Log } from "../../hooks/useChamberLog";
+import useLog from "../../hooks/useChamberLog_v2";
 
-interface RealTImePressureProps {
-  logs: Logs;
-  recentLog: Log;
-}
+// interface RealTImePressureProps {
+//   logs: Logs;
+//   recentLog: Log;
+// }
 
-const RealTImePressure = ({ logs, recentLog }: RealTImePressureProps) => {
+// const RealTImePressure = ({ logs, recentLog }: RealTImePressureProps) => {
+const RealTImePressure = () => {
+  const { logs, recentLog } = useLog();
   const [data, setData] = useState<Serie[]>([
     {
       id: "Vac Pres L/L",

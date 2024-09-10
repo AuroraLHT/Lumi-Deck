@@ -6,8 +6,9 @@ import { Box, Flex, FormLabel, Heading, Switch } from "@chakra-ui/react";
 
 import useWebSocketStore from "../stores/websocket";
 import useDetectorStore from "../clients/detector";
+import useChamberLogStore from "../clients/chamberLog";
 
-import { ChangeEvent, useEffect } from "react";
+import { ChangeEvent } from "react";
 import { useRef } from "react";
 import useRheedNodeStore from "../stores/nodes/rheed";
 import useChamberLogNodeStore from "../stores/nodes/chamberLog";
@@ -57,8 +58,9 @@ const MainController = () => {
   // const { sendMessage: sendLogMessage } = useLog();
   // const { sendMessage: sendDetectionMessage } = useDetection();
   const rheedSocket = useWebSocketStore(s=>s.getWebSocket('rheed'));
-  const logSocket = useWebSocketStore(s=>s.getWebSocket('log'));
+  // const logSocket = useWebSocketStore(s=>s.getWebSocket('log'));
   // const detectionSocket = useWebSocketStore(s=>s.getWebSocket('detect'));
+  const logSocket = useChamberLogStore(s=>s.socket);
   const detectionSocket = useDetectorStore(s=>s.socket);
 
   // console.log(sendRheedMessage, sendLogMessage, sendDetectionMessage);
@@ -84,9 +86,14 @@ const MainController = () => {
 
   const handleChamberLogSwitch = (event: ChangeEvent<HTMLInputElement>) => {
     // console.log("Chamber log switch", event.target.checked);
-    if (logSocket && logSocket.socket.readyState == WebSocket.OPEN){
-      logSocket.socket.send(event.target.checked ? "start_server" : "stop_server")
+    // if (logSocket && logSocket.socket.readyState == WebSocket.OPEN){
+    //   logSocket.socket.send(event.target.checked ? "start_server" : "stop_server")
+    // }
+
+    if (logSocket && logSocket.readyState == WebSocket.OPEN){
+      logSocket.send(event.target.checked ? "start_server" : "stop_server")
     }
+
     setChamberNodeStreaming(event.target.checked);
   };
 

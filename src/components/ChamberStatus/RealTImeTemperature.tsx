@@ -1,14 +1,17 @@
 import { useEffect, useState } from "react";
 import RealTimeLineComponent from "./RealTimeLineChart";
-import { Log, Logs } from "../../hooks/useChamberLog";
+// import { Log, Logs } from "../../hooks/useChamberLog";
 import { Serie } from "@nivo/line";
+import useLog from "../../hooks/useChamberLog_v2";
 
-interface RealTImeTemperatureProps {
-  logs: Logs;
-  recentLog: Log;
-}
+// interface RealTImeTemperatureProps {
+//   logs: Logs;
+//   recentLog: Log;
+// }
 
-const RealTImeTemperature = ({ logs, recentLog }: RealTImeTemperatureProps) => {
+const RealTImeTemperature = () => {
+  const { logs, recentLog } = useLog();
+// const RealTImeTemperature = ({ logs, recentLog }: RealTImeTemperatureProps) => {
   const [data, setData] = useState<Serie[]>([
     {
       id: "HT Temp set",

@@ -5,6 +5,7 @@ export interface WebSocketStore {
   host: string;
   binaryType : "arraybuffer" | "blob"
   isConnected: boolean;
+  setIsConnected: (isConnected: boolean) => void;
   connectWebSocket: (host: string, binaryType : "arraybuffer" | "blob") => void;
   disconnectWebSocket: () => void;
 }
