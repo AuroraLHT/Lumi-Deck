@@ -24,7 +24,6 @@ const appendBuffer = (videoRef: React.RefObject<HTMLVideoElement>, sourceBufferR
 };
 
 const useRHEED = () => {
-  const { getWebSocket } = useWebSocketStore();
 
   const videoRef = useRef<HTMLVideoElement>(null);
   const mediaRef = useRef<MediaSource | null>(null);
@@ -62,8 +61,9 @@ const useRHEED = () => {
     }
   }, []);
 
-  const socket = getWebSocket("rheed");
-
+  // const { getWebSocket } = useWebSocketStore();
+  // const socket = getWebSocket("rheed");
+  const socket = useWebSocketStore((state) => state.websockets["rheed"]);
   useEffect( () => {
     if (socket) {
       socket.socket.onmessage = handleWebSocketMessage;

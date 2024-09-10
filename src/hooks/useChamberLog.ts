@@ -31,9 +31,9 @@ const useLog = () => {
 
   // socket created by this getWebsocket would not be updated by React 
   // const getWebSocket  = useWebSocketStore( s => s.getWebSocket );
-  const { getWebSocket } = useWebSocketStore();
-  const socket = getWebSocket('log');
-  
+  // const { getWebSocket } = useWebSocketStore();
+  // const socket = getWebSocket('log');
+  const socket = useWebSocketStore((state) => state.websockets["log"]);
   useEffect(() => {
     console.log("log socket", socket, Math.random());
     if (socket) {

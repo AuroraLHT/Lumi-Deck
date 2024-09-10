@@ -80,8 +80,9 @@ const useDetection = () => {
 
   }, []);
 
-  const { getWebSocket } = useWebSocketStore();
-  const socket = getWebSocket('detect');
+  // const { getWebSocket } = useWebSocketStore();
+  // const socket = getWebSocket('detect');
+  const socket = useWebSocketStore((state) => state.websockets["detect"]);
 
   useEffect(() => {    
     if (socket) {
