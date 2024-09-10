@@ -1,6 +1,28 @@
 import { useRef, useEffect, useState, useCallback } from "react";
 import useWebSocketStore from "../stores/websocket";
 
+const appendBuffer = (videoRef: React.RefObject<HTMLVideoElement>, sourceBufferRef: React.RefObject<SourceBuffer>, content: ArrayBuffer) => {
+  let success = false;
+  try {
+    sourceBufferRef.current?.appendBuffer(content!);
+    success = true;
+  } catch (error) {
+    if (error instanceof DOMException && error.name === 'QuotaExceededError') {
+      // Buffer is full, remove old data
+      if (sourceBufferRef.current && sourceBufferRef.current.buffered.length > 0) {
+        const removeStart = sourceBufferRef.current.buffered.start(0);
+        const removeEnd = videoRef.current?.buffered.end(videoRef.current.buffered.length - 1) || 0;
+        if (removeEnd > removeStart) {
+          sourceBufferRef.current.remove(removeStart, removeEnd);
+        }
+      }
+    } else {
+      console.error('Error appending buffer:', error);
+    }
+  }
+  return success;
+};
+
 const useRHEED = () => {
   const { getWebSocket } = useWebSocketStore();
 
@@ -26,7 +48,10 @@ const useRHEED = () => {
         if (queueRef.current.length > 0 && !sourceBufferRef.current?.updating) {
           let content = queueRef.current.shift();
         //   console.log("append", content?.byteLength);
-          sourceBufferRef.current?.appendBuffer(content!);
+          // sourceBufferRef.current?.appendBuffer(content!);
+          let success = appendBuffer(videoRef, sourceBufferRef, content!);
+          // console.log("appendBuffer success", success);
+          if (!success) { console.log("appendBuffer fail. buffer is full"), queueRef.current.push(content!); }
         }
       } else {
         console.log(
