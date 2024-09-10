@@ -6,6 +6,7 @@ interface WebSocketInfo {
   socket: WebSocket;
   host: string;
   binaryType : "arraybuffer" | "blob"
+  isConnected: boolean;
 }
 
 interface WebSocketState {
@@ -36,12 +37,21 @@ const useWebSocketStore = create(
         // Create a new WebSocket connection
         const newSocket = new WebSocket(host);
         newSocket.binaryType = binaryType
+        state.websockets[id] = { socket: newSocket, host, binaryType, isConnected: false }; // Use Immer to mutate state
 
-        newSocket.onopen = () => console.log(`WebSocket ${id} connected to ${host}`);
-        newSocket.onclose = () => console.log(`WebSocket ${id} disconnected`);
+        newSocket.onopen = () => {
+          console.log(`WebSocket ${id} connected to ${host}`);
+          set((state) => {
+            state.websockets[id].isConnected = true;
+          });
+        };
+        newSocket.onclose = () => {
+          console.log(`WebSocket ${id} disconnected`);
+          set((state) => {
+            state.websockets[id].isConnected = false;
+          });
+        };
         newSocket.onerror = (error) => console.error(`WebSocket ${id} error:`, error);
-
-        state.websockets[id] = { socket: newSocket, host, binaryType }; // Use Immer to mutate state
       });
     },
 

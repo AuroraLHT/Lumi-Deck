@@ -2,6 +2,7 @@
 import React, { useEffect } from 'react';
 import useWebSocketStore from '../stores/websocket';
 import useAppStore from '../stores/app';
+import useDetectorStore from '../clients/detector';
 
 interface MainWebsocketsProps {
   children: React.ReactNode;
@@ -12,6 +13,7 @@ export const WebSocketContext = React.createContext<WebSocket | null>(null);
 const MainWebsocketsProvider: React.FC<MainWebsocketsProps> = ({ children }) => {
   const { addWebSocket, disconnectAll  } = useWebSocketStore();
   const { selectedHost } = useAppStore();
+  const connect_detector = useDetectorStore(s=>s.connectWebSocket);
 
   // TODO: auto reload if the connect fail in some cases
   useEffect(() => {
@@ -20,7 +22,8 @@ const MainWebsocketsProvider: React.FC<MainWebsocketsProps> = ({ children }) => 
     disconnectAll();
     addWebSocket('rheed', `ws://${selectedHost}/RHEED/cam/live`, "arraybuffer");
     addWebSocket('log', `ws://${selectedHost}/chamber/log/live`, "blob");
-    addWebSocket('detect', `ws://${selectedHost}/RHEED/detection/live`, "arraybuffer");
+    // addWebSocket('detect', `ws://${selectedHost}/RHEED/detection/live`, "arraybuffer");
+    connect_detector((`ws://${selectedHost}/RHEED/detection/live`), "arraybuffer");
   }, [selectedHost]);
 
   return (

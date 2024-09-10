@@ -1,11 +1,12 @@
 import { useCallback, useRef } from "react";
 import DetectionRect from "./DetectionRect";
-import useDetection from "../../hooks/useDetection";
+// import useDetection from "../../hooks/useDetection";
+import useDetection from "../../hooks/useDetection_v2";
 
 import { Spinner } from "@chakra-ui/react";
 import styles from "./VideoPlayer.module.css";
 import useDetectorNodeStore from "../../stores/nodes/detector";
-import React from "react";
+// import React from "react";
 import useRheedNodeStore from "../../stores/nodes/rheed";
 
 

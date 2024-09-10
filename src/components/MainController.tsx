@@ -5,6 +5,7 @@ import { Box, Flex, FormLabel, Heading, Switch } from "@chakra-ui/react";
 // import useDetection from "../hooks/useDetection";
 
 import useWebSocketStore from "../stores/websocket";
+import useDetectorStore from "../clients/detector";
 
 import { ChangeEvent, useEffect } from "react";
 import { useRef } from "react";
@@ -57,10 +58,10 @@ const MainController = () => {
   // const { sendMessage: sendDetectionMessage } = useDetection();
   const rheedSocket = useWebSocketStore(s=>s.getWebSocket('rheed'));
   const logSocket = useWebSocketStore(s=>s.getWebSocket('log'));
-  const detectionSocket = useWebSocketStore(s=>s.getWebSocket('detect'));
+  // const detectionSocket = useWebSocketStore(s=>s.getWebSocket('detect'));
+  const detectionSocket = useDetectorStore(s=>s.socket);
+
   // console.log(sendRheedMessage, sendLogMessage, sendDetectionMessage);
-
-
   const handleRheedVideoSwitch = (event: ChangeEvent<HTMLInputElement>) => {
     // console.log("RHEED video switch:", event.target.checked);
     if (rheedSocket && rheedSocket.socket.readyState == WebSocket.OPEN){
@@ -71,9 +72,13 @@ const MainController = () => {
 
   const handleRheedAISwitch = (event: ChangeEvent<HTMLInputElement>) => {
     // console.log("RHEED AI switch:", event.target.checked);
-    if (detectionSocket && detectionSocket.socket.readyState == WebSocket.OPEN){
-      detectionSocket.socket.send(event.target.checked ? "start_server" : "stop_server")
+    // if (detectionSocket && detectionSocket.socket.readyState == WebSocket.OPEN){
+    //   detectionSocket.socket.send(event.target.checked ? "start_server" : "stop_server")
+    // }
+    if (detectionSocket && detectionSocket.readyState == WebSocket.OPEN){
+      detectionSocket.send(event.target.checked ? "start_server" : "stop_server")
     }
+
     setDetectorNodeStreaming(event.target.checked);
   };
 
