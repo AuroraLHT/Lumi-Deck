@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import { ResponsiveLine } from "@nivo/line";
 import { Box } from "@chakra-ui/react";
 import { useColorModeValue } from "@chakra-ui/react";
+import { Serie } from "@nivo/line";
 
 export interface DataPoint {
   x: number | Date;
@@ -9,12 +10,19 @@ export interface DataPoint {
 }
 
 interface Props {
-  data: DataPoint[];
+  // data: DataPoint[];
+  chartData: Serie[];
+  xaxisName: string;
+  yaxisName: string;
+  xaxisMin: Date | string;
+  xaxisMax: Date | string;
+  yaxisMin: number | "auto";
+  yaxisMax: number | "auto";
 }
 
-const RealTimeLineComponent: React.FC<Props> = ({ data }: Props) => {
+const RealTimeLineComponent: React.FC<Props> = ({ chartData, xaxisName, yaxisName, xaxisMin, xaxisMax, yaxisMin, yaxisMax }: Props) => {
   //   const [isPaused, setIsPaused] = useState(false);
-  const [windowedData, setWindowedData] = useState<DataPoint[]>([]);
+  const [windowedChartData, setWindowedChartData] = useState<Serie[]>([]);
 
   const bg = useColorModeValue("white", "white");
   const color = useColorModeValue("black", "black");
@@ -22,36 +30,42 @@ const RealTimeLineComponent: React.FC<Props> = ({ data }: Props) => {
   useEffect(() => {
     // TODO: add some ui for windows size selection
     // console.log("data", data);
-    const windowSize = 100;
-    // console.log("windowedData", data.slice(-windowSize));
-    setWindowedData(data.slice(-windowSize));
-  }, [data]);
 
-  const chartData = [
-    {
-      id: "realtime-data",
-      data: windowedData,
-    },
-  ];
+    const windowSize = 100;
+        
+    let _chartData = chartData.map(serie => ({
+      ...serie,
+      data: serie.data.slice(        
+        -windowSize)
+    }));
+    
+    
+    setWindowedChartData(_chartData);
+  }, [chartData]);
+
+  if (windowedChartData.length === 0) { return null; }
 
   return (
     <Box
-      boxSize={{
-        base: "300px",
-        sm: "400px",
-        md: "500px",
-        lg: "600px",
-        xl: "700px",
+      width="100%"
+      height={{
+        base: "150px",
+        sm: "200px",
+        md: "250px",
+        lg: "300px",
+        xl: "350px",
       }}
       bg={bg}
       color={color}
     >
       <ResponsiveLine
-        data={chartData}
-        margin={{ top: 50, right: 110, bottom: 50, left: 60 }}
+        // data={chartData}
+        data={windowedChartData}
+        margin={{ top: 30, right: 30, bottom: 50, left: 80 }}
         // xScale={{ type: "linear", min: "auto", max: "auto" }}
-        xScale={{ type: "time", min: "auto", max: "auto", format: "native" }}
-        yScale={{ type: "linear", min: "auto", max: "auto" }}
+        yFormat=" >-.4f"
+        xScale={{ type: "time", min: xaxisMin, max: xaxisMax, format: "native" }}
+        yScale={{ type: "linear", min: yaxisMin, max: yaxisMax }}
         // axisBottom={{
         //   legend: "Time",
         //   legendOffset: 36,
@@ -59,20 +73,21 @@ const RealTimeLineComponent: React.FC<Props> = ({ data }: Props) => {
         // }}
         axisTop={{
           format: "%H:%M:%S",
-          tickValues: 10,
+          tickValues: 5,
+          // tickValues: 'every 15 minutes',
         }}
         axisBottom={{
           format: "%H:%M:%S",
-          // tickValues: 'every 4 hours',
-          tickValues: 10,
+          // tickValues: 'every 15 minutes',
+          tickValues: 5,
           // legend: `${chartData[0].data[0]?.x} ——— ${chartData[0].data[chartData[0].data.length-1]?.x}}`,
-          legend: "Time",
+          legend: xaxisName,
           legendPosition: "middle",
           legendOffset: 46,
         }}
 
         axisLeft={{
-          legend: "Value",
+          legend: yaxisName,
           legendOffset: -60,
           legendPosition: "middle",
         }}
@@ -118,10 +133,10 @@ const RealTimeLineComponent: React.FC<Props> = ({ data }: Props) => {
 
         legends={[
           {
-            anchor: "bottom-right",
+            anchor: "top-right",
             direction: "column",
             justify: false,
-            translateX: 100,
+            translateX: 0,
             translateY: 0,
             itemsSpacing: 0,
             itemDirection: "left-to-right",

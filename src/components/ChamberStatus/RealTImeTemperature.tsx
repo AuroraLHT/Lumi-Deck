@@ -1,56 +1,54 @@
 import { useEffect, useState } from "react";
 import RealTimeLineComponent from "./RealTimeLineChart";
+import { Log, Logs } from "../../hooks/useChamberLog";
 import { Serie } from "@nivo/line";
-import { Logs, Log } from "../../hooks/useChamberLog";
 
-interface RealTImePressureProps {
+interface RealTImeTemperatureProps {
   logs: Logs;
   recentLog: Log;
 }
 
-const RealTImePressure = ({ logs, recentLog }: RealTImePressureProps) => {
+const RealTImeTemperature = ({ logs, recentLog }: RealTImeTemperatureProps) => {
   const [data, setData] = useState<Serie[]>([
     {
-      id: "Vac Pres L/L",
+      id: "HT Temp set",
       data: [{ x: new Date(), y: 0 }],
     },
 
     {
-      id: "Vac Pres Main",
+      id: "HT Temp moni",
       data: [{ x: new Date(), y: 0 }],
     },
   ]);
   useEffect(() => {
     // console.log(logsRef.current);
-    // console.log("update pressure");
+    // console.log(logs);
+    // console.log("update temperature");
     if (logs.length === 0) {
       return;
     }
 
-    let ll_vac_pres = logs.map((log) => ({
+    let HT_set = logs.map((log) => ({
       // x: new Date(log['Time']).getTime(),
       x: new Date(log["Time"]),
-      y: Math.log10(parseFloat(log["Vac Pres L/L"])),
+      y: (parseFloat(log["HT Temp set"])),
     }));
 
-    let main_vac_pres = logs.map((log) => ({
+    let HT_moni = logs.map((log) => ({
       // x: new Date(log['Time']).getTime(),
       x: new Date(log["Time"]),
-      y:
-        parseFloat(log["Vac Pres Main"]) === 0
-          ? 10
-          : Math.log10(parseFloat(log["Vac Pres Main"])),
+      y: parseFloat(log["HT Temp moni"]),
     }));
-    // console.log(ll_vac_pres);
+
     setData([
       {
-        id: "Vac Pres L/L",
-        data: ll_vac_pres,
+        id: "HT Temp set",
+        data: HT_set,
       },
 
       {
-        id: "Vac Pres Main",
-        data: main_vac_pres,
+        id: "HT Temp moni",
+        data: HT_moni,
       },
     ]);
   }, [logs, recentLog]);
@@ -59,13 +57,13 @@ const RealTImePressure = ({ logs, recentLog }: RealTImePressureProps) => {
     <RealTimeLineComponent
       chartData={data}
       xaxisName="Time"
-      yaxisName="log₁₀ Pressure (Torr)"
+      yaxisName="Temperature (°C)"
       xaxisMin="auto"
       xaxisMax="auto"
-      yaxisMin={-11}
-      yaxisMax={3}
+      yaxisMin={1000}
+      yaxisMax={0}
     />
   );
 };
 
-export default RealTImePressure;
+export default RealTImeTemperature;
