@@ -7,14 +7,10 @@ interface DetectorNodeState extends StreamNodeState {
   pattern_dim: number[];
   detection_metas: string[];
   classifier_classes: string[];
-  frame_dims: number[];
-  frame_metas: string[];
-  video_fps: number;
-  video_height: number;
-  video_width: number;
 }
 
-interface DetectorNode extends StreamNode<DetectorNodeState> {}
+interface DetectorNode extends StreamNode<DetectorNodeState> {
+}
 
 const useDetectorNodeStore = create<DetectorNode>()(
   immer((set) => ({
@@ -25,18 +21,13 @@ const useDetectorNodeStore = create<DetectorNode>()(
       pattern_dim: [],
       detection_metas: [],
       classifier_classes: [],
-      frame_dims: [],
-      frame_metas: [],
-      video_fps: 0,
-      video_height: 0,
-      video_width: 0,
     },
     setState: (newState) => set((state) => {
       Object.assign(state.state, newState);
     }),
     setStreaming: (isStreaming) => set((state) => {
       state.state.is_streaming = isStreaming;
-    })
+    }),
   }))
 );
 
