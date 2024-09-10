@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import useWebSocketStore from "../stores/websocket";
 
-type Log = { [key: string]: string}
-type Logs = Log[]
+export type Log = { [key: string]: string}
+export type Logs = Log[]
 
 const useLog = () => {
   const logLimit = 2000;
@@ -16,7 +16,7 @@ const useLog = () => {
     // console.log("before", payload, typeof payload);
 
     const logPayload = payload as Log
-    console.log("payload", logPayload, typeof logPayload);
+    // console.log("payload", logPayload, typeof logPayload);
 
     // console.log("#logs before", logsRef.current.length);
     // console.log("#logs before", logs.length);
