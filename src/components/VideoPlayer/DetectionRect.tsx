@@ -26,23 +26,6 @@ function correctBbox(
   return bbox_xyxy;
 }
 
-function correctFrameDims(
-  frameHeight: number,
-  frameWidth: number,
-  crop_setup: { sx: number; sy: number; ex: number; ey: number } | null
-) {
-  if (crop_setup === null) {
-    // console.log("crop_setup is null");
-    crop_setup = { sx: 0, sy: 0, ex: 0, ey: 0 };
-  }
-  // console.log("crop_setup",  crop_setup);
-
-  frameHeight += crop_setup.sx;
-  frameWidth += crop_setup.sy;
-  return { frameHeight, frameWidth };
-}
-
-
 const DetectionRect = ({ id, bbox, cropSetup, frameWidth, frameHeight }: DetectionRectangleProps) => {
   bbox = correctBbox(bbox, cropSetup);
   const [sx, sy, ex, ey] = bbox;
@@ -64,10 +47,6 @@ const DetectionRect = ({ id, bbox, cropSetup, frameWidth, frameHeight }: Detecti
       stroke={isHovered ? "yellow" : "purple"}
       strokeWidth={isHovered ? "3" : "2"}
       data-original-stroke="purple"
-      // x={sx}
-      // y={sy}
-      // width={w}
-      // height={h}
       x={`${relativeX}%`}
       y={`${relativeY}%`}
       width={`${relativeWidth}%`}

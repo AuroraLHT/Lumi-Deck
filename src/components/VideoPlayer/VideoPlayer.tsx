@@ -1,6 +1,5 @@
 import { Spinner } from "@chakra-ui/react";
-// import useRHEED from "../../hooks/useRHEED";
-import useRHEED from "../../hooks/useRHEED_v2";
+import useRHEED from "../../hooks/useRHEED";
 import styles from './VideoPlayer.module.css'
 
 const VideoPlayer = () => {

@@ -1,4 +1,3 @@
-// store.ts
 import { create } from "zustand";
 import { NodeState, Node } from "./base";
 import { immer } from "zustand/middleware/immer";
@@ -14,26 +13,6 @@ interface ChamberLogNode extends Node<ChamberLogNodeState> {
   setFilePath: (path: string) => void;
 }
 
-// const useChamberLogNodeStore = create<ChamberLogNode>((set) => ({
-//   state: {
-//     is_available: false,
-//     is_running: false,
-//     is_streaming: false,
-//     entries: [],
-//     file_path: null,
-//   },
-  
-//   setStreaming: (isStreaming: boolean) => set((state) => ({
-//     ...state,
-//     state: { ...state.state, is_streaming: isStreaming }
-//   })),
-
-//   setState: (newState: Partial<ChamberLogNodeState>) => set((prevState) => ({
-//     ...prevState,
-//     state: { ...prevState.state, ...newState }
-//   }))
-
-// }));
 
 const useChamberLogNodeStore = create<ChamberLogNode>()(
   immer((set) => ({

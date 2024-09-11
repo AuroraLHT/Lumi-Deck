@@ -1,20 +1,8 @@
 import { create } from 'zustand';
-// import useWebSocketStore from "./websocket";
 import { WebSocketStore } from './websocket';
 import { immer } from 'zustand/middleware/immer';
+import { RHEEDHeader, RHEEDFragmentBase } from '../entities/rheed';
 
-interface RHEEDHeader {
-    frag_idx: number;
-    frame_end: string;
-    frame_start: string;
-    index?: number;
-    size?: number;
-}
-
-type RHEEDFragmentBase = {
-    header: RHEEDHeader;
-    payload: ArrayBuffer;
-}
 
 interface RHEEDStore extends WebSocketStore {
     fragment: ArrayBuffer;
@@ -53,7 +41,7 @@ const useRHEEDStore = create<RHEEDStore>()(immer((set, get) => ({
             socket.onopen = () => {
                 console.log(`WebSocket ${host} connected`);
                 socket.send("start_streaming");
-                console.log(`WebSocket ${host} send start_streaming`);                
+                // console.log(`WebSocket ${host} send start_streaming`);                
                 get().setIsConnected(true);
             };
             socket.onclose = () => {
@@ -73,7 +61,7 @@ const useRHEEDStore = create<RHEEDStore>()(immer((set, get) => ({
                 arrayBuffer.slice(4, 4 + headerLength)
                 );
                 let header = JSON.parse(headerJson);
-                console.log(header);
+                // console.log(header);
 
                 const payload = arrayBuffer.slice(4 + headerLength);
                 get().updateFromPayload(payload, header);
@@ -110,7 +98,7 @@ const useRHEEDStore = create<RHEEDStore>()(immer((set, get) => ({
                 state.cache.push({header, payload});
             }
 
-            console.log(header);
+            // console.log(header);
             // Remove the first element if the cache size exceeds the limit
             if (state.cache.length > state.maxCacheSize){
                 state.cache.shift();

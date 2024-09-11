@@ -1,6 +1,4 @@
-// MyComponent.tsx
 import React, { useEffect } from 'react';
-import useWebSocketStore from '../stores/websocket';
 import useAppStore from '../stores/app';
 import useDetectorStore from '../clients/detector';
 import useChamberLogStore from '../clients/chamberLog';
@@ -13,7 +11,6 @@ interface MainWebsocketsProps {
 export const WebSocketContext = React.createContext<WebSocket | null>(null);
 
 const MainWebsocketsProvider: React.FC<MainWebsocketsProps> = ({ children }) => {
-  const { addWebSocket, disconnectAll  } = useWebSocketStore();
   const { selectedHost } = useAppStore();
   const connect_detector = useDetectorStore(s=>s.connectWebSocket);
   const connect_log = useChamberLogStore(s=>s.connectWebSocket);  
@@ -23,10 +20,6 @@ const MainWebsocketsProvider: React.FC<MainWebsocketsProps> = ({ children }) => 
   useEffect(() => {
     // remove all websockets if the Host is changed
     if (!selectedHost) return;
-    // disconnectAll();
-    // addWebSocket('rheed', `ws://${selectedHost}/RHEED/cam/live`, "arraybuffer");
-    // addWebSocket('log', `ws://${selectedHost}/chamber/log/live`, "blob");
-    // addWebSocket('detect', `ws://${selectedHost}/RHEED/detection/live`, "arraybuffer");
     connect_rheed((`ws://${selectedHost}/RHEED/cam/live`), "arraybuffer");
     connect_log((`ws://${selectedHost}/chamber/log/live`), "blob");
     connect_detector((`ws://${selectedHost}/RHEED/detection/live`), "arraybuffer");
