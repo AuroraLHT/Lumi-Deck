@@ -81,7 +81,7 @@ const useDetectionStore = create<DetectionStore>()(immer((set, get) => ({
           arrayBuffer.slice(4, 4 + headerLength)
         );
         let header = JSON.parse(headerJson);
-        console.log(header);
+        // console.log(header);
     
         const payloadJson = new TextDecoder().decode(
           arrayBuffer.slice(4 + headerLength)
