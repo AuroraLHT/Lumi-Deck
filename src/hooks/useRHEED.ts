@@ -12,13 +12,13 @@ const useRHEED = () => {
   const [isUpdating, setIsUpdating] = useState(false);
 
   const rheedStore = useRHEEDStore();
-
+  // console.log("rheedStore.cache length", rheedStore.cache.length);
 
   const appendBuffer = (videoRef: React.RefObject<HTMLVideoElement>, sourceBufferRef: React.RefObject<SourceBuffer>, content: ArrayBuffer) => {
     let success = false;
     try {
-      sourceBufferRef.current?.appendBuffer(content!);
       setIsUpdating(true);
+      sourceBufferRef.current?.appendBuffer(content!);
       success = true;
     } catch (error) {
       if (error instanceof DOMException && error.name === 'QuotaExceededError') {
@@ -77,7 +77,7 @@ const useRHEED = () => {
   }, [rheedStore.isConnected, rheedStore.socket, videoRef]);
 
   useEffect(() => {
-    if (!isUpdating && isReady) {
+    if (!isUpdating && isReady && !sourceBufferRef.current?.updating) {
       if (fragId.current < rheedStore.initialFragmentsLastId) {
         const fragment = rheedStore.initialFragments.filter((fragment) => fragment.header.frag_idx > fragId.current)[0];
         if (fragment) {

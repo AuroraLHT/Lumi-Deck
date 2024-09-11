@@ -115,16 +115,26 @@ const useDetectionStore = create<DetectionStore>()(immer((set, get) => ({
       state.maxCacheSize = maxCacheSize;
     }),
   updateFromPayload: (payload: DetectionPayload, header: DetectionHeader) => {
+    
     set((state) => {
-      state.bboxes = payload.bboxes;
-      state.classification = payload.classification;
-      state.region2tracks = payload.region2tracks;
+      state.bboxes = payload.bboxes as DetectionBboxes;
+      state.classification = payload.classification as DetectionClassification;
+      state.region2tracks = payload.region2tracks as DetectionRegion2Tracks;
       
+      // cache do not store the mask, other wise it will take too much memory
+      const cache_bboxes = Object.fromEntries(
+        Object.entries(payload.bboxes).map(([key, value]) => [key, { 
+          bbox: value.bbox,
+          label: value.label,
+          score: value.score
+        }])
+      );
+
       state.cache.push({
-        bboxes: payload.bboxes,
-        classification: payload.classification,
-        region2tracks: payload.region2tracks,
-        header: header
+        bboxes: cache_bboxes,
+        classification: payload.classification as DetectionClassification,
+        region2tracks: payload.region2tracks as DetectionRegion2Tracks,
+        header: header as DetectionHeader,
       });
   
       // Remove the first element if the cache size exceeds the limit

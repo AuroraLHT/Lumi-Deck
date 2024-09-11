@@ -9,7 +9,7 @@ const useLog = () => {
   const state = useChamberLogStore();
   const logs = state.cache;
   const recentLog = state.log;
-
+  // console.log("chamber log length:", logs.length);
   return { recentLog, logs };
 };
 

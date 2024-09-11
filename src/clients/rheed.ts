@@ -29,7 +29,7 @@ const useRHEEDStore = create<RHEEDStore>()(immer((set, get) => ({
     cache: [],
     readedCacheIndex :0,
     initialFragmentsLastId: 0,
-    maxCacheSize: 1000,
+    maxCacheSize: 100,
 
     connectWebSocket: (host: string, binaryType: "arraybuffer" | "blob") =>
         set((state) => {
