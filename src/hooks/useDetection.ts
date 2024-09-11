@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+// import { useCallback, useEffect, useState } from "react";
 // import useWebSocketStore from "../stores/websocket";
 import useDetectorStore from "../clients/detector";
 
@@ -10,6 +10,7 @@ const useDetection = () => {
   const cropSetup = store.cropSetup;
   const socket = store.socket;
   const isConnected = store.isConnected;
+  // console.log(store.cache);
   return { bboxes, cropSetup, socket, isConnected };
 };
 

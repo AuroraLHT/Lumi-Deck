@@ -1,14 +1,8 @@
 import { create } from 'zustand';
 // import useWebSocketStore from "./websocket";
 import { WebSocketStore } from './websocket';
-import { DetectionPayload, DetectionBboxes, DetectionClassification, DetectionRegion2Tracks, DetectionHeader } from '../entities/detector';
+import { DetectionPayload, DetectionBboxes, DetectionClassification, DetectionRegion2Tracks, DetectionHeader, DetectionBase } from '../entities/detector';
 
-interface DetectionBase {
-  bboxes: DetectionBboxes;
-  classification: DetectionClassification;
-  region2tracks: DetectionRegion2Tracks;
-  header: DetectionHeader;
-}
 
 interface DetectionStore extends WebSocketStore {
   bboxes: DetectionBboxes;
@@ -41,7 +35,7 @@ const useDetectionStore = create<DetectionStore>()(immer((set, get) => ({
   bboxes: {},
   classification: {},
   region2tracks: {},
-  cache: [],
+  cache: [] as DetectionBase[],
   cropSetup: null,
   maxCacheSize: 1000,
 

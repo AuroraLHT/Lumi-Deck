@@ -21,4 +21,14 @@ export interface DetectionHeader {
   crop_setup_sy: number;
   crop_setup_ex: number;
   crop_setup_ey: number;
+  time: number;
+  time_stamp: string;
+  uuid: string;
+}
+
+export interface DetectionBase {
+  bboxes: DetectionBboxes;
+  classification: DetectionClassification;
+  region2tracks: DetectionRegion2Tracks;
+  header: DetectionHeader;
 }
