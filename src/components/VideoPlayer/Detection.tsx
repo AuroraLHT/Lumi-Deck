@@ -32,7 +32,7 @@ const Detection = () => {
     // console.log("detectorNodeState", detectorNodeState);
 
     return Object.entries(bboxes).map(([id, bbox]) => (
-      <DetectionRect key={id} id={id} bbox={bbox.bbox} cropSetup={cropSetup} frameHeight={rheedNodeState.frame_dims[0]} frameWidth={rheedNodeState.frame_dims[1]}/>
+      <DetectionRect key={id} id={id} detection={bbox} cropSetup={cropSetup} frameHeight={rheedNodeState.frame_dims[0]} frameWidth={rheedNodeState.frame_dims[1]}/>
       // <MemoizedDetectionRect key={id} id={id} bbox={bbox.bbox} cropSetup={cropSetup} svgRef={svgRef} />
     ));
   }, [bboxes, cropSetup, detectorNodeState]);

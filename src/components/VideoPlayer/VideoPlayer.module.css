@@ -7,11 +7,15 @@
   pointer-events: none;
 }
 
+.rect-detection {
+  pointer-events: auto; /* Enable pointer events on rectangles */
+}
+
 .video-container {
   position: relative;
   display: inline-block;
 }
 
-/* .video-player {
+.video-player {
   display: block;
-} */
+}

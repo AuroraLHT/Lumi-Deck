@@ -9,6 +9,7 @@ import MainWebsocketsProvider from "./components/MainWebSockets";
 import Navbar from "./navbar";
 import { Text, Box, Grid, GridItem } from "@chakra-ui/react";
 import RealTimeMonitor from "./components/Monitor/RealTimeMonitor";
+import RealTimeDetectionAnalyzer from "./components/Monitor/RealTimeDetectionAnalyzer";
 // import MainControllerSimulator from "./components/MainControlSimulator"
 // import './App.css'
 
@@ -33,11 +34,12 @@ function App() {
             </GridItem>
 
             <GridItem area="ai">
-              <Box bg="red">
+              <RealTimeDetectionAnalyzer></RealTimeDetectionAnalyzer>
+              {/* <Box bg="red">
                 <Text fontSize="2xl" textAlign="center">
                   AI Placeholder Content
                 </Text>
-              </Box>
+              </Box> */}
             </GridItem>
 
             <GridItem area="vis">

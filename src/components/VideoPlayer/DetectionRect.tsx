@@ -1,8 +1,11 @@
 import { useState } from "react";
+import styles from "./VideoPlayer.module.css";
+import useLiveAnalysisStore from "../../stores/liveAnalysis";
+import { DetectionBBox } from "../../entities/detector";
 
 interface DetectionRectangleProps {
   id: string;
-  bbox: number[];
+  detection: DetectionBBox;
   cropSetup: { sx: number; sy: number; ex: number; ey: number } | null;
   frameWidth: number;
   frameHeight: number;
@@ -26,8 +29,12 @@ function correctBbox(
   return bbox_xyxy;
 }
 
-const DetectionRect = ({ id, bbox, cropSetup, frameWidth, frameHeight }: DetectionRectangleProps) => {
-  bbox = correctBbox(bbox, cropSetup);
+const DetectionRect = ({ id, detection, cropSetup, frameWidth, frameHeight }: DetectionRectangleProps) => {
+  // const store = useLiveAnalysisStore();
+  // const addSelectedDetection = store.addSelectedDetection;
+  const addSelectedDetection = useLiveAnalysisStore(state => state.addSelectedDetection);
+
+  const bbox = correctBbox(detection.bbox, cropSetup);
   const [sx, sy, ex, ey] = bbox;
   const w = ex - sx;
   const h = ey - sy;
@@ -42,7 +49,7 @@ const DetectionRect = ({ id, bbox, cropSetup, frameWidth, frameHeight }: Detecti
   return (
     <rect
       id={id}
-      className={`detection-bbox ${isHovered ? "hovered" : ""}`}
+      className={`${styles['rect-detection']} detection-bbox`}
       fill="none"
       stroke={isHovered ? "yellow" : "purple"}
       strokeWidth={isHovered ? "3" : "2"}
@@ -53,6 +60,14 @@ const DetectionRect = ({ id, bbox, cropSetup, frameWidth, frameHeight }: Detecti
       height={`${relativeHeight}%`}      
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
+      onClick={() => {
+        console.log(`Clicked on detection box ${id}`);
+        addSelectedDetection(detection);
+        // You can add more functionality here, such as:
+        // - Updating a state
+        // - Triggering a modal
+        // - Sending data to a parent component
+      }}
       
     />
   );
