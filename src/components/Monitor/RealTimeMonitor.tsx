@@ -1,7 +1,7 @@
 import { Grid, GridItem } from "@chakra-ui/react";
-import RealTImePressure from "./RealTImePressure";
-import RealTImeTemperature from "./RealTImeTemperature";
-import RealTImeClassification from "./RealTImeClassification";
+import RealTImePressure from "./Chamber/RealTImePressure";
+import RealTImeTemperature from "./Chamber/RealTImeTemperature";
+import RealTImeClassification from "./LiveAnalysis/RealTImeClassification";
 
 const RealTimeMonitor = () => {
   return (

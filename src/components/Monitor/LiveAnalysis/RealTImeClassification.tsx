@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
-import RealTimeLineComponent from "./RealTimeLineChart";
+import RealTimeLineComponent from "../RealTimeLineChart";
 import { Serie } from "@nivo/line";
-import useDetectionCache from "../../hooks/useDetectionCache";
+import useDetectionCache from "../../../hooks/useDetectionCache";
 
 
 const RealTImePressure = () => {

@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
-import RealTimeLineComponent from "./RealTimeLineChart";
+import RealTimeLineComponent from "../RealTimeLineChart";
 import { Serie } from "@nivo/line";
-import useLog from "../../hooks/useChamberLog";
+import useLog from "../../../hooks/useChamberLog";
 
 const RealTImePressure = () => {
   const { logs, recentLog } = useLog();
