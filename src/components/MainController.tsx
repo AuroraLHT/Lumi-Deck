@@ -52,6 +52,7 @@ const MainController = () => {
   const rheedSocket = useRHEEDStore(s=>s.socket);
   const logSocket = useChamberLogStore(s=>s.socket);
   const detectionSocket = useDetectorStore(s=>s.socket);
+  const detectionSendControlOperation = useDetectorStore(s=>s.sendControlOperation);
 
   // console.log(sendRheedMessage, sendLogMessage, sendDetectionMessage);
   const handleRheedVideoSwitch = (event: ChangeEvent<HTMLInputElement>) => {
@@ -64,7 +65,18 @@ const MainController = () => {
 
   const handleRheedAISwitch = (event: ChangeEvent<HTMLInputElement>) => {
     if (detectionSocket && detectionSocket.readyState == WebSocket.OPEN){
-      detectionSocket.send(event.target.checked ? "start_server" : "stop_server")
+      detectionSendControlOperation(event.target.checked ? "start_server" : "stop_server")      
+      // const message = packWebSocketMessage(
+      //   {
+      //     target: "Live Detection",
+      //     operation: "control",
+      //     payload_type: "bytes",
+      //   },
+      //   { type: event.target.checked ? "start_server" : "stop_server" },
+      //   new ArrayBuffer(0)
+      // );
+
+      // detectionSocket.send(message)
     }
 
     setDetectorNodeStreaming(event.target.checked);
