@@ -6,13 +6,17 @@ import useLiveAnalysisStore from "../../../stores/liveAnalysis";
 import styles from "./DetectionAnalyzer.module.css";
 
 const DetectionAnalyzerSidebar = () => {
-  const store = useLiveAnalysisStore();
-  const selectedDetections = store.selectedDetection; // Hook to fetch detections and remove action
-  const removeSelectedDetection = store.removeSelectedDetection;
+  const selectedDetections = useLiveAnalysisStore((s) => s.selectedDetection); // Hook to fetch detections and remove action
+  const removeSelectedDetection = useLiveAnalysisStore(
+    (s) => s.removeSelectedDetection
+  );
+  const setFocusedDetection = useLiveAnalysisStore(
+    (s) => s.setFocusedDetection
+  );
   console.log(selectedDetections);
 
   return (
-    <Box 
+    <Box
       className={styles.sidebar}
       color={"gray.100"}
       h={"20rem"}
@@ -20,23 +24,37 @@ const DetectionAnalyzerSidebar = () => {
       paddingRight={1}
       paddingLeft={2}
     >
-        <List spacing={1}>
-          {Object.values(selectedDetections).map((detection, index) => (
-            <ListItem key={index} className={styles.listItem} color={"gray.800"}>
-              <Flex alignItems="center" justifyContent="space-between">
-              <Text color={"gray.600"} size="sm" className={styles.detectionName}>{detection.name}</Text>
+      <List spacing={1}>
+        {Object.values(selectedDetections).map((detection, index) => (
+          <ListItem
+            key={index}
+            className={styles.listItem}
+            color={"gray.800"}
+            onClick={() => setFocusedDetection(detection)}
+          >
+            <Flex alignItems="center" justifyContent="space-between">
+              <Text
+                color={"gray.600"}
+                size="sm"
+                className={styles.detectionName}
+              >
+                {detection.name}
+              </Text>
               <IconButton
                 size="sm"
-                color={"red.500"} 
+                color={"red.500"}
                 aria-label="Remove detection"
                 icon={<CloseIcon />}
-                onClick={() => removeSelectedDetection(detection.id)}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  removeSelectedDetection(detection.id);
+                }}
                 variant="ghost"
               />
-              </Flex>
-            </ListItem>
-          ))}
-        </List>
+            </Flex>
+          </ListItem>
+        ))}
+      </List>
     </Box>
   );
 };
