@@ -7,7 +7,7 @@ import VideoMain from "./components/VideoPlayer/VideoMain";
 import MainController from "./components/MainController";
 import MainWebsocketsProvider from "./components/MainWebSockets";
 import Navbar from "./navbar";
-import { Text, Box, Grid, GridItem } from "@chakra-ui/react";
+import { Box, Grid, GridItem } from "@chakra-ui/react";
 import RealTimeMonitor from "./components/Monitor/RealTimeMonitor";
 import RealTimeDetectionAnalyzer from "./components/Monitor/RealTimeDetectionAnalyzer";
 // import MainControllerSimulator from "./components/MainControlSimulator"

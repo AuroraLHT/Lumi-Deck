@@ -1,4 +1,4 @@
-// websocketStore.ts
+// import { StateCreator } from "zustand";
 
 export interface WebSocketStore {
   socket: WebSocket | null;
@@ -9,3 +9,4 @@ export interface WebSocketStore {
   connectWebSocket: (host: string, binaryType : "arraybuffer" | "blob") => void;
   disconnectWebSocket: () => void;
 }
+
