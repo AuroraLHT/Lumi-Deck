@@ -1,11 +1,11 @@
 // import { useCallback, useEffect, useState } from "react";
 // import useWebSocketStore from "../stores/websocket";
-import useDetectorStore from "../clients/detector";
+import useLiveAnalysisClient from "../clients/liveAnalysis/detector";
 
 
 const useDetection = () => {
   // const detectorNodeState  = useDetectorNodeStore( s => s.state );
-  const store = useDetectorStore();
+  const store = useLiveAnalysisClient();
   const bboxes = store.bboxes;
   const cropSetup = store.cropSetup;
   const socket = store.socket;

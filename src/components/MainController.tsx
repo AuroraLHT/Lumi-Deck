@@ -1,6 +1,6 @@
 import { Box, Flex, FormLabel, Heading, Switch } from "@chakra-ui/react";
 
-import useDetectorStore from "../clients/detector";
+import useLiveAnalysisClient from "../clients/liveAnalysis/detector";
 import useChamberLogStore from "../clients/chamberLog";
 import useRHEEDStore from "../clients/rheed";
 
@@ -51,8 +51,8 @@ const MainController = () => {
 
   const rheedSocket = useRHEEDStore(s=>s.socket);
   const logSocket = useChamberLogStore(s=>s.socket);
-  const detectionSocket = useDetectorStore(s=>s.socket);
-  const detectionSendControlOperation = useDetectorStore(s=>s.sendControlOperation);
+  const detectionSocket = useLiveAnalysisClient(s=>s.socket);
+  const detectionSendControlOperation = useLiveAnalysisClient(s=>s.sendControlOperation);
 
   // console.log(sendRheedMessage, sendLogMessage, sendDetectionMessage);
   const handleRheedVideoSwitch = (event: ChangeEvent<HTMLInputElement>) => {

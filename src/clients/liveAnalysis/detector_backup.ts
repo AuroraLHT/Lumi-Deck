@@ -1,6 +1,6 @@
 import { create } from "zustand";
 // import useWebSocketStore from "./websocket";
-import { WebSocketStore } from "./websocket";
+import { WebSocketStore } from "../websocket";
 import {
   DetectionPayload,
   DetectionBboxes,
@@ -8,17 +8,19 @@ import {
   DetectionRegion2Tracks,
   DetectionHeader,
   DetectionBase,
-} from "../entities/detector";
+} from "../../entities/detector";
 import {
   parseWebSocketMessage,
   packWebSocketMessage,
-} from "../utils/websocket";
+} from "../../utils/websocket";
+
+// import useDetectionStore from "./detectionsSlice";
 
 //TODO: this websocket client would transform into a channel that receive live analysis data
 // which include bboxes, classification, region2tracks, intensity oscillation, live fft.
 // for now
 
-interface DetectionStore extends WebSocketStore {
+interface DetectionClient extends WebSocketStore {
   bboxes: DetectionBboxes;
   classification: DetectionClassification;
   region2tracks: DetectionRegion2Tracks;
@@ -45,7 +47,7 @@ interface DetectionStore extends WebSocketStore {
 
 import { immer } from "zustand/middleware/immer";
 
-const useDetectionStore = create<DetectionStore>()(
+const useDetectionClient = create<DetectionClient>()(
   immer((set, get) => ({
     socket: null,
     host: "",
@@ -123,6 +125,8 @@ const useDetectionStore = create<DetectionStore>()(
             const detectionPayload = payload as DetectionPayload;
             const detectionHeader = payload_header as DetectionHeader;
             console.log(detectionPayload);
+
+            // useDetectionStore( s => s.updateFromPayload )(detectionPayload, detectionHeader);
             get().updateFromPayload(detectionPayload, detectionHeader);
           }
           // console.log("after", detectionHeader, typeof detectionHeader);
@@ -201,4 +205,4 @@ const useDetectionStore = create<DetectionStore>()(
   }))
 );
 
-export default useDetectionStore;
+export default useDetectionClient;
