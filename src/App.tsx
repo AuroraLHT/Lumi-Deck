@@ -9,7 +9,7 @@ import MainWebsocketsProvider from "./components/MainWebSockets";
 import Navbar from "./navbar";
 import { Box, Grid, GridItem } from "@chakra-ui/react";
 import RealTimeMonitor from "./components/Monitor/RealTimeMonitor";
-import RealTimeDetectionAnalyzer from "./components/Monitor/RealTimeDetectionAnalyzer";
+import RealTimeDetectionAnalyzer from "./components/DetectionAnalyzer/RealTimeDetectionAnalyzer";
 // import MainControllerSimulator from "./components/MainControlSimulator"
 // import './App.css'
 

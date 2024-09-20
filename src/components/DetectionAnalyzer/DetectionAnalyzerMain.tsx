@@ -1,5 +1,5 @@
 import { Box, Grid, GridItem, Text, Button, Flex } from "@chakra-ui/react";
-import useLiveAnalysisStore from "../../../stores/liveAnalysis";
+import useLiveAnalysisStore from "../../stores/liveAnalysis";
 // import React from "react";
 
 const DetectionAnalyzerMain = () => {

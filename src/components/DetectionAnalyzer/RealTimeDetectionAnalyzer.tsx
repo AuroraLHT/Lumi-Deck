@@ -1,7 +1,7 @@
 // import React from 'react'
 import { Box, Grid, GridItem, Heading } from "@chakra-ui/react";
-import DetectionAnalyzerSidebar from "./DetectionAnalyzer/DetectionAnalyzerSidebar";
-import DetectionAnalyzerMain from "./DetectionAnalyzer/DetectionAnalyzerMain";
+import DetectionAnalyzerSidebar from "./DetectionAnalyzerSidebar";
+import DetectionAnalyzerMain from "./DetectionAnalyzerMain";
 
 const RealTimeDetectionAnalyzer = () => {
   return (

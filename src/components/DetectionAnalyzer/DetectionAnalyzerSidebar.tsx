@@ -2,7 +2,7 @@
 import { Box, List, ListItem, IconButton, Text, Flex } from "@chakra-ui/react";
 import { CloseIcon } from "@chakra-ui/icons";
 // Assuming you have a hook to connect to your store
-import useLiveAnalysisStore from "../../../stores/liveAnalysis";
+import useLiveAnalysisStore from "../../stores/liveAnalysis";
 import styles from "./DetectionAnalyzer.module.css";
 
 const DetectionAnalyzerSidebar = () => {

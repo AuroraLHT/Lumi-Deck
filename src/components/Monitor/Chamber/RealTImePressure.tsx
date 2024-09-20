@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import RealTimeLineComponent from "../RealTimeLineChart";
+import RealTimeLineComponent from "../../Plotting/RealTimeLineChart";
 import { Serie } from "@nivo/line";
 import useLog from "../../../hooks/useChamberLog";
 
