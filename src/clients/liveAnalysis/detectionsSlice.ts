@@ -41,7 +41,7 @@ const createDetectionSlice: StateCreator<
   region2tracks: {},
   cache: [] as DetectionBase[],
   cropSetup: null,
-  maxCacheSize: 50,
+  maxCacheSize: 200,
 
   setMaxCacheSize: (maxCacheSize: number) =>
     set((state) => {

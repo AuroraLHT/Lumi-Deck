@@ -1,6 +1,6 @@
 import React, { useEffect } from 'react';
 import useAppStore from '../stores/app';
-import useLiveAnalysisClient from '../clients/liveAnalysis/detector';
+import useLiveAnalysisClient from '../clients/liveAnalysis/analyzer';
 import useChamberLogStore from '../clients/chamberLog';
 import useRHEEDStore from '../clients/rheed';
 
@@ -12,7 +12,7 @@ export const WebSocketContext = React.createContext<WebSocket | null>(null);
 
 const MainWebsocketsProvider: React.FC<MainWebsocketsProps> = ({ children }) => {
   const { selectedHost } = useAppStore();
-  const connect_detector = useLiveAnalysisClient(s=>s.connectWebSocket);
+  const connect_analyzer = useLiveAnalysisClient(s=>s.connectWebSocket);
   const connect_log = useChamberLogStore(s=>s.connectWebSocket);  
   const connect_rheed = useRHEEDStore(s=>s.connectWebSocket);
 
@@ -22,7 +22,7 @@ const MainWebsocketsProvider: React.FC<MainWebsocketsProps> = ({ children }) => 
     if (!selectedHost) return;
     connect_rheed((`ws://${selectedHost}/RHEED/cam/live`), "arraybuffer");
     connect_log((`ws://${selectedHost}/chamber/log/live`), "blob");
-    connect_detector((`ws://${selectedHost}/RHEED/detection/live`), "arraybuffer");
+    connect_analyzer((`ws://${selectedHost}/RHEED/analysis/live`), "arraybuffer");
   }, [selectedHost]);
 
   return (

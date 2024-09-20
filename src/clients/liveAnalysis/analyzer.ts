@@ -3,9 +3,6 @@ import { create, StateCreator } from "zustand";
 import { WebSocketStore } from "../websocket";
 import {
   DetectionPayload,
-  DetectionBboxes,
-  DetectionClassification,
-  DetectionRegion2Tracks,
   DetectionHeader,
   DetectionBase,
 } from "../../entities/detector";
@@ -22,9 +19,35 @@ import createDetectionSlice, { DetectionStore } from "./detectionsSlice";
 
 import { immer } from "zustand/middleware/immer";
 
+const prepareControlMessage = (
+  target: string,
+  controlType: string,
+  controlPayload?: ArrayBuffer
+) => {
+  return packWebSocketMessage(
+    {
+      target: target,
+      operation: "control",
+      payload_type: "bytes",
+    },
+    { type: controlType },
+    controlPayload || new ArrayBuffer(0)
+  );
+};
 
 interface LiveAnalysisClientStore extends WebSocketStore {
-  sendControlOperation: (controlType: string, controlPayload?: ArrayBuffer) => void;
+  sendDetectorControlOperation: (
+    controlType: string,
+    controlPayload?: ArrayBuffer
+  ) => void;
+  sendIntegratorControlOperation: (
+    controlType: string,
+    controlPayload?: ArrayBuffer
+  ) => void;
+  sendSTFTControlOperation: (
+    controlType: string,
+    controlPayload?: ArrayBuffer
+  ) => void;
 }
 
 const createWebSocketSlice: StateCreator<
@@ -54,7 +77,9 @@ const createWebSocketSlice: StateCreator<
       socket.onopen = () => {
         console.log(`WebSocket ${host} connected`);
 
-        get().sendControlOperation("start_streaming");
+        get().sendDetectorControlOperation("start_streaming");
+        get().sendIntegratorControlOperation("start_streaming");
+        get().sendSTFTControlOperation("start_streaming");
 
         console.log("detection startup message sent");
         get().setIsConnected(true);
@@ -67,7 +92,6 @@ const createWebSocketSlice: StateCreator<
         console.error(`WebSocket ${host} error:`, error);
 
       const handleDetectionMessage = (event: MessageEvent) => {
-
         const arrayBuffer = event.data;
         const { websocket_header, payload_header, payload_content } =
           parseWebSocketMessage(arrayBuffer);
@@ -76,9 +100,7 @@ const createWebSocketSlice: StateCreator<
           websocket_header.target === "Live Detection" &&
           websocket_header.operation === "data"
         ) {
-          const payload = JSON.parse(
-            new TextDecoder().decode(payload_content)
-          );
+          const payload = JSON.parse(new TextDecoder().decode(payload_content));
           const detectionPayload = payload as DetectionPayload;
           const detectionHeader = payload_header as DetectionHeader;
           // console.log(detectionPayload);
@@ -98,15 +120,38 @@ const createWebSocketSlice: StateCreator<
       state.isConnected = false;
     }),
 
-  sendControlOperation: (controlType: string, controlPayload?: ArrayBuffer) => {
-    const message = packWebSocketMessage(
-      {
-        target: "Live Detection",
-        operation: "control",
-        payload_type: "bytes",
-      },
-      { type: controlType, },
-      controlPayload || new ArrayBuffer(0)
+  sendDetectorControlOperation: (
+    controlType: string,
+    controlPayload?: ArrayBuffer
+  ) => {
+    const message = prepareControlMessage(
+      "Live Detection",
+      controlType,
+      controlPayload
+    );
+    get().socket?.send(message);
+  },
+
+  sendIntegratorControlOperation: (
+    controlType: string,
+    controlPayload?: ArrayBuffer
+  ) => {
+    const message = prepareControlMessage(
+      "Live Integrator",
+      controlType,
+      controlPayload
+    );
+    get().socket?.send(message);
+  },
+
+  sendSTFTControlOperation: (
+    controlType: string,
+    controlPayload?: ArrayBuffer
+  ) => {
+    const message = prepareControlMessage(
+      "Live STFT",
+      controlType,
+      controlPayload
     );
     get().socket?.send(message);
   },
@@ -119,13 +164,15 @@ const createWebSocketSlice: StateCreator<
     set((state) => {
       state.maxCacheSize = maxCacheSize;
     }),
-})
+});
 
-const useLiveAnalysisClient = create<DetectionStore & LiveAnalysisClientStore>()(
+const useLiveAnalysisClient = create<
+  DetectionStore & LiveAnalysisClientStore
+>()(
   immer((...a) => ({
     ...createWebSocketSlice(...a),
     ...createDetectionSlice(...a),
   }))
-)
+);
 
 export default useLiveAnalysisClient;

@@ -1,6 +1,6 @@
 // import { useCallback, useEffect, useState } from "react";
 // import useWebSocketStore from "../stores/websocket";
-import useLiveAnalysisClient from "../clients/liveAnalysis/detector";
+import useLiveAnalysisClient from "../clients/liveAnalysis/analyzer";
 
 
 const useDetectionCache = () => {
