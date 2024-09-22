@@ -3,7 +3,7 @@ import RealTimeLineComponent from "../../Plotting/RealTimeLineChart";
 import { Serie } from "@nivo/line";
 import useLog from "../../../hooks/useChamberLog";
 
-const RealTImePressure = () => {
+const RealTimePressure = () => {
   const { logs, recentLog } = useLog();
   const [data, setData] = useState<Serie[]>([
     {
@@ -64,4 +64,4 @@ const RealTImePressure = () => {
   );
 };
 
-export default RealTImePressure;
+export default RealTimePressure;

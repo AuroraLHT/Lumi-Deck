@@ -4,7 +4,7 @@ import { Serie } from "@nivo/line";
 import useDetectionCache from "../../hooks/useDetectionCache";
 
 
-const RealTImePressure = () => {
+const RealTimeClassification = () => {
   const { cache } = useDetectionCache();
   const [data, setData] = useState<Serie[]>([
     {
@@ -80,4 +80,4 @@ const RealTImePressure = () => {
   );
 };
 
-export default RealTImePressure;
+export default RealTimeClassification;

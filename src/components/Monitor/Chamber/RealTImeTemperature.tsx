@@ -4,7 +4,7 @@ import { Serie } from "@nivo/line";
 import useLog from "../../../hooks/useChamberLog";
 
 
-const RealTImeTemperature = () => {
+const RealTimeTemperature = () => {
   const { logs, recentLog } = useLog();
   const [data, setData] = useState<Serie[]>([
     {
@@ -63,4 +63,4 @@ const RealTImeTemperature = () => {
   );
 };
 
-export default RealTImeTemperature;
+export default RealTimeTemperature;
