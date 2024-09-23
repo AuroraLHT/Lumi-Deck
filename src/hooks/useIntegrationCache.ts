@@ -3,11 +3,11 @@
 import useLiveAnalysisClient from "../clients/liveAnalysis/analyzer";
 
 
-const useDetectionCache = () => {
-  const cache = useLiveAnalysisClient(s=>s.cacheDetection);
+const useIntegrationCache = () => {
+  const cache = useLiveAnalysisClient(s=>s.cacheIntegrator);
   // console.log("detection cache length:", cache.length);
   // console.log("detection cache[0]:", cache[0]);
   return { cache, };
 };
 
-export default useDetectionCache;
+export default useIntegrationCache;

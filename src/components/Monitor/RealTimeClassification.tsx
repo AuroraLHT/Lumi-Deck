@@ -3,7 +3,6 @@ import RealTimeLineComponent from "../Plotting/RealTimeLineChart";
 import { Serie } from "@nivo/line";
 import useDetectionCache from "../../hooks/useDetectionCache";
 
-
 const RealTimeClassification = () => {
   const { cache } = useDetectionCache();
   const [data, setData] = useState<Serie[]>([

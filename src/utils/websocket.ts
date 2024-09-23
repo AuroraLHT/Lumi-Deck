@@ -1,7 +1,14 @@
+
 export interface WebSocketHeader {
   target: string;
   operation: string;
   payload_type: "json" | "text" | "bytes";
+}
+
+export function encodeObjectToBuffer(obj: any): ArrayBuffer {
+  const json = JSON.stringify(obj);
+  const encoder = new TextEncoder();
+  return encoder.encode(json);
 }
 
 export function parseHeader(arrayBuffer: ArrayBuffer): {

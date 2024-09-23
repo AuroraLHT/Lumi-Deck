@@ -13,7 +13,7 @@ export interface DetectionStore {
   classification: DetectionClassification;
   region2tracks: DetectionRegion2Tracks;
 
-  cache: DetectionBase[];
+  cacheDetection: DetectionBase[];
 
   cropSetup: {
     sx: number;
@@ -22,9 +22,9 @@ export interface DetectionStore {
     ey: number;
   } | null;
 
-  maxCacheSize: number;
-  setMaxCacheSize: (maxCacheSize: number) => void;
-  updateFromPayload: (
+  maxDetectionCacheSize: number;
+  setMaxDetectionCacheSize: (maxCacheSize: number) => void;
+  updateDetectionFromPayload: (
     payload: DetectionPayload,
     header: DetectionHeader
   ) => void;
@@ -39,15 +39,15 @@ const createDetectionSlice: StateCreator<
   bboxes: {},
   classification: {},
   region2tracks: {},
-  cache: [] as DetectionBase[],
+  cacheDetection: [] as DetectionBase[],
   cropSetup: null,
-  maxCacheSize: 200,
+  maxDetectionCacheSize: 200,
 
-  setMaxCacheSize: (maxCacheSize: number) =>
+  setMaxDetectionCacheSize: (maxCacheSize: number) =>
     set((state) => {
-      state.maxCacheSize = maxCacheSize;
+      state.maxDetectionCacheSize = maxCacheSize;
     }),
-  updateFromPayload: (payload: DetectionPayload, header: DetectionHeader) => {
+  updateDetectionFromPayload: (payload: DetectionPayload, header: DetectionHeader) => {
     set((state) => {
       state.bboxes = payload.bboxes as DetectionBboxes;
       state.classification = payload.classification as DetectionClassification;
@@ -65,7 +65,7 @@ const createDetectionSlice: StateCreator<
         ])
       );
 
-      state.cache.push({
+      state.cacheDetection.push({
         bboxes: cache_bboxes,
         classification: payload.classification as DetectionClassification,
         region2tracks: payload.region2tracks as DetectionRegion2Tracks,
@@ -74,7 +74,7 @@ const createDetectionSlice: StateCreator<
       // console.log(state.cache.length);
 
       // Remove the first element if the cache size exceeds the limit
-      if (state.cache.length > state.maxCacheSize) state.cache.shift();
+      if (state.cacheDetection.length > state.maxDetectionCacheSize) state.cacheDetection.shift();
 
       state.cropSetup = {
         sx: header.crop_setup_sx,

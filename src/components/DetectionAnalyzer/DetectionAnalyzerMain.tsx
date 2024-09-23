@@ -1,10 +1,14 @@
 import { Box, Grid, GridItem, Text, Button, Flex } from "@chakra-ui/react";
 import useLiveAnalysisStore from "../../stores/liveAnalysis";
+import IntegratorVisualizer from "./IntegratorVisualizer";
+import useLiveAnalysisClient from "../../clients/liveAnalysis/analyzer";
 // import React from "react";
 
 const DetectionAnalyzerMain = () => {
   const focusedDetection = useLiveAnalysisStore(s => s.focusedDetection); // Hook to fetch detections and remove action
   // const removeSelectedDetection = store.removeSelectedDetection;
+  const sendIntegratorCommandOperation = useLiveAnalysisClient(s=>s.sendIntegratorCommandOperation);
+  const sendSTFTCommandOperation  = useLiveAnalysisClient(s=>s.sendSTFTCommandOperation);
 
   return (
     <Box>
@@ -66,11 +70,13 @@ const DetectionAnalyzerMain = () => {
 
           </Grid>
           <Flex justifyContent="flex-start" gap={2}>
-            <Button colorScheme="blue">STFT</Button>
-            <Button colorScheme="green">OSC</Button>
+            {/* make this into toggle button */}
+            <Button colorScheme="green" onClick={() => sendIntegratorCommandOperation("register", focusedDetection ) }>OSC</Button>
+            <Button colorScheme="blue" onClick={() => sendSTFTCommandOperation("register", focusedDetection )}>STFT</Button>
           </Flex>
         </>
       )}
+      <IntegratorVisualizer />
     </Box>
   )
 }

@@ -6,7 +6,7 @@ import DetectionAnalyzerMain from "./DetectionAnalyzerMain";
 const RealTimeDetectionAnalyzer = () => {
   return (
     <Box width="100%" height="100%">
-      <Heading>RealTimeDetectionAnalyzer</Heading>
+      {/* <Heading>RealTimeDetectionAnalyzer</Heading> */}
       <Grid
         templateAreas={`"sidebar main"`}
         gridTemplateColumns="2fr 5fr"
