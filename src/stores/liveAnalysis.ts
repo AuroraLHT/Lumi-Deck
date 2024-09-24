@@ -21,8 +21,8 @@ const useLiveAnalysisStore = create(
   immer<LiveAnalysisState>((set) => ({
     detectionNextID: 0,
     focusedDetection: {
-      id: "-",
-      name: "-",
+      id: "",
+      name: "",
       bbox: [],
       label: -1,
       score: -1,

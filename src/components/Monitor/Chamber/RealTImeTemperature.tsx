@@ -1,7 +1,8 @@
 import { useEffect, useState } from "react";
-import RealTimeLineComponent from "../../Plotting/RealTimeLineChart";
+import RealTimeLineChart from "../../Plotting/RealTimeLineChart";
 import { Serie } from "@nivo/line";
 import useLog from "../../../hooks/useChamberLog";
+import MediumContainer from "../../Plotting/MediumContainer";
 
 
 const RealTimeTemperature = () => {
@@ -51,15 +52,17 @@ const RealTimeTemperature = () => {
   }, [logs, recentLog]);
 
   return (
-    <RealTimeLineComponent
-      chartData={data}
-      xaxisName="Time"
-      yaxisName="Temperature (°C)"
-      xaxisMin="auto"
-      xaxisMax="auto"
-      yaxisMin={0}
-      yaxisMax={1000}
-    />
+    <MediumContainer>
+      <RealTimeLineChart
+        chartData={data}
+        xaxisName="Time"
+        yaxisName="Temperature (°C)"
+        xaxisMin="auto"
+        xaxisMax="auto"
+        yaxisMin={0}
+        yaxisMax={1000}
+      />
+    </MediumContainer>
   );
 };
 

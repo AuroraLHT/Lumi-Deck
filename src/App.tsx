@@ -22,12 +22,12 @@ function App() {
         <MainWebsocketsProvider>
           <Grid
             templateRows="4fr 2fr 6fr"
-            templateColumns="4fr 2fr 6fr"
+            templateColumns="4fr 4fr 6fr"
             templateAreas={`
                 "video ai vis"
                 "controller other other"
               `}
-            gap={4}
+            gap={2}
           >
             <GridItem area="video">
               <VideoMain></VideoMain>

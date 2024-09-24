@@ -5,7 +5,7 @@ import RealTImeClassification from "./RealTimeClassification";
 
 const RealTimeMonitor = () => {
   return (
-    <Grid templateColumns="repeat(2, 1fr)" gap={10}>
+    <Grid templateColumns="repeat(2, 1fr)" gap={4}>
       <GridItem>
         <RealTImeClassification />
       </GridItem>

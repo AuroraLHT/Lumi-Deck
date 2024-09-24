@@ -50,7 +50,6 @@ const createIntegratorSlice: StateCreator<
       // cache do not store the mask, other wise it will take too much memory
 
       Object.entries(payload).forEach(([key, value]) => {
-        // console.log("adding to integrator cache", key, value);
         if (key in state.cacheIntegrator) {
           state.cacheIntegrator[key].push({"content": value, "header": header} as IntegrationCacheBase);
           if (state.cacheIntegrator[key].length > state.maxIntegratorCacheSize) {

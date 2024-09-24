@@ -10,7 +10,11 @@ import {
   IntegrationPayload,
   IntegrationCache,
 } from "../../entities/integrator";
-
+import {
+  STFTCache,
+  STFTPayload,
+  STFTHeader,
+} from "../../entities/stft";
 import {
   parseWebSocketMessage,
   packWebSocketMessage,
@@ -19,6 +23,7 @@ import {
 
 import createDetectionSlice, { DetectionStore } from "./detectionsSlice";
 import createIntegratorSlice, { IntegratorStore } from "./integratorSlice";
+import createSTFTSlice, { STFTStore } from "./stftSlice";
 import { immer } from "zustand/middleware/immer";
 
 //TODO: this websocket client would transform into a channel that receive live analysis data
@@ -83,7 +88,7 @@ interface LiveAnalysisClientStore extends WebSocketStore {
 }
 
 const createWebSocketSlice: StateCreator<
-  DetectionStore & IntegratorStore & LiveAnalysisClientStore,
+  DetectionStore & IntegratorStore & STFTStore & LiveAnalysisClientStore,
   [["zustand/immer", never]],
   [],
   LiveAnalysisClientStore
@@ -128,6 +133,7 @@ const createWebSocketSlice: StateCreator<
         const { websocket_header, payload_header, payload_content } =
           parseWebSocketMessage(arrayBuffer);
 
+        // console.log("websocket header", websocket_header);
         if (
           websocket_header.target === "Live Detection" &&
           websocket_header.operation === "data"
@@ -142,6 +148,7 @@ const createWebSocketSlice: StateCreator<
           websocket_header.target === "Live Integrator" &&
           websocket_header.operation === "data"
         ) {
+          // console.log("integrator data message received");
           const payload = JSON.parse(new TextDecoder().decode(payload_content));
           const integrationPayload = payload as IntegrationPayload;
           const integrationHeader = payload_header as IntegrationHeader;
@@ -157,6 +164,26 @@ const createWebSocketSlice: StateCreator<
           const integrationPayload = payload as IntegrationCache;
           get().updateIntegratorCacheFromPayload(
             integrationPayload
+          );
+        } else if (
+          websocket_header.target === "STFT" &&
+          websocket_header.operation === "cache"
+        ) {
+          const payload = JSON.parse(new TextDecoder().decode(payload_content));
+          const stftPayload = payload as STFTCache;
+          get().updateSTFTCacheFromPayload(
+            stftPayload
+          );
+        } else if (
+          websocket_header.target === "Live STFT" &&
+          websocket_header.operation === "data"
+        ) {
+          const payload = JSON.parse(new TextDecoder().decode(payload_content));
+          const stftPayload = payload as STFTPayload;
+          const stftHeader = payload_header as STFTHeader;
+          get().updateSTFTFromPayload(
+            stftPayload,
+            stftHeader
           );
         }
       };
@@ -239,12 +266,13 @@ const createWebSocketSlice: StateCreator<
 });
 
 const useLiveAnalysisClient = create<
-  IntegratorStore & DetectionStore & LiveAnalysisClientStore
+  IntegratorStore & DetectionStore & STFTStore & LiveAnalysisClientStore
 >()(
   immer((...a) => ({
     ...createWebSocketSlice(...a),
     ...createDetectionSlice(...a),
     ...createIntegratorSlice(...a),
+    ...createSTFTSlice(...a),
   }))
 );
 

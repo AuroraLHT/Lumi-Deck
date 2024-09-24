@@ -1,13 +1,13 @@
 import { useEffect, useState } from "react";
-import RealTimeLineComponent from "../Plotting/RealTimeLineChart";
+import RealTimeLineChart from "../Plotting/RealTimeLineChart";
 import { Serie } from "@nivo/line";
 import useLiveAnalysisStore from "../../stores/liveAnalysis";
 import useIntegrationCache from "../../hooks/useIntegrationCache";
+import SmallContainer from "../Plotting/SmallContainer";
 
 const IntegratorVisualizer = () => {
-
-  const {cache} = useIntegrationCache();
-  const focusedDetection = useLiveAnalysisStore(s => s.focusedDetection);
+  const { cache } = useIntegrationCache();
+  const focusedDetection = useLiveAnalysisStore((s) => s.focusedDetection);
 
   const [data, setData] = useState<Serie[]>([
     {
@@ -19,8 +19,12 @@ const IntegratorVisualizer = () => {
     if (Object.keys(cache).length === 0) {
       return;
     }
-    
-    if (focusedDetection && focusedDetection.id && focusedDetection.id in cache) {
+
+    if (
+      focusedDetection &&
+      focusedDetection.id &&
+      focusedDetection.id in cache
+    ) {
       // console.log("Focused detection in cache");
       let cacheFocused = cache[focusedDetection.id];
 
@@ -33,21 +37,23 @@ const IntegratorVisualizer = () => {
           id: `${focusedDetection.name}`,
           data: liveIntegration,
         },
-      ]);  
+      ]);
+      // console.log(data);
     }
-
   }, [cache]);
 
   return (
-    <RealTimeLineComponent
-      chartData = {data}
-      xaxisName = "Time"
-      yaxisName = "Intensity"
-      xaxisMin = "auto"
-      xaxisMax = "auto"
-      yaxisMin = {0}
-      yaxisMax = "auto"
-    />
+    <SmallContainer>
+      <RealTimeLineChart
+        chartData={data}
+        xaxisName="Time"
+        yaxisName="Intensity"
+        xaxisMin="auto"
+        xaxisMax="auto"
+        yaxisMin={0}
+        yaxisMax="auto"
+      />
+    </SmallContainer>
   );
 };
 

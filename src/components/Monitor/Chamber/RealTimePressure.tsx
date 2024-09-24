@@ -1,7 +1,8 @@
 import { useEffect, useState } from "react";
-import RealTimeLineComponent from "../../Plotting/RealTimeLineChart";
+import RealTimeLineChart from "../../Plotting/RealTimeLineChart";
 import { Serie } from "@nivo/line";
 import useLog from "../../../hooks/useChamberLog";
+import MediumContainer from "../../Plotting/MediumContainer";
 
 const RealTimePressure = () => {
   const { logs, recentLog } = useLog();
@@ -52,15 +53,17 @@ const RealTimePressure = () => {
   }, [logs, recentLog]);
 
   return (
-    <RealTimeLineComponent
-      chartData={data}
-      xaxisName="Time"
-      yaxisName="log₁₀ Pressure (Torr)"
-      xaxisMin="auto"
-      xaxisMax="auto"
-      yaxisMin={-11}
-      yaxisMax={3}
-    />
+    <MediumContainer>
+      <RealTimeLineChart
+        chartData={data}
+        xaxisName="Time"
+        yaxisName="log₁₀ Pressure (Torr)"
+        xaxisMin="auto"
+        xaxisMax="auto"
+        yaxisMin={-11}
+        yaxisMax={3}
+      />
+    </MediumContainer>
   );
 };
 

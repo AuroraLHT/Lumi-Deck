@@ -9,7 +9,7 @@ const RealTimeDetectionAnalyzer = () => {
       {/* <Heading>RealTimeDetectionAnalyzer</Heading> */}
       <Grid
         templateAreas={`"sidebar main"`}
-        gridTemplateColumns="2fr 5fr"
+        gridTemplateColumns="1fr 5fr"
         gridTemplateRows="1fr"
         h = {"20rem"}
         gap={4}        

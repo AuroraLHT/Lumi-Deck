@@ -1,7 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { ResponsiveLine } from "@nivo/line";
-import { Box } from "@chakra-ui/react";
-import { useColorModeValue } from "@chakra-ui/react";
+import { ResponsiveLineCanvas } from "@nivo/line";
 import { Serie } from "@nivo/line";
 
 export interface DataPoint {
@@ -20,12 +18,9 @@ interface Props {
   yaxisMax: number | "auto";
 }
 
-const RealTimeLineComponent: React.FC<Props> = ({ chartData, xaxisName, yaxisName, xaxisMin, xaxisMax, yaxisMin, yaxisMax }: Props) => {
+const RealTimeLineChart: React.FC<Props> = ({ chartData, xaxisName, yaxisName, xaxisMin, xaxisMax, yaxisMin, yaxisMax }: Props) => {
   //   const [isPaused, setIsPaused] = useState(false);
   const [windowedChartData, setWindowedChartData] = useState<Serie[]>([]);
-
-  const bg = useColorModeValue("white", "white");
-  const color = useColorModeValue("black", "black");
 
   useEffect(() => {
     // TODO: add some ui for windows size selection
@@ -46,24 +41,13 @@ const RealTimeLineComponent: React.FC<Props> = ({ chartData, xaxisName, yaxisNam
   if (windowedChartData.length === 0) { return null; }
 
   return (
-    <Box
-      width="100%"
-      height={{
-        base: "150px",
-        sm: "200px",
-        md: "250px",
-        lg: "300px",
-        xl: "350px",
-      }}
-      bg={bg}
-      color={color}
-    >
-      <ResponsiveLine
+      <ResponsiveLineCanvas
         // data={chartData}
         data={windowedChartData}
         margin={{ top: 30, right: 30, bottom: 50, left: 80 }}
         // xScale={{ type: "linear", min: "auto", max: "auto" }}
         yFormat=" >-.4f"
+        xFormat="time:%Y-%m-%d %H:%M:%S"
         xScale={{ type: "time", min: xaxisMin, max: xaxisMax, format: "native" }}
         yScale={{ type: "linear", min: yaxisMin, max: yaxisMax }}
         // axisBottom={{
@@ -92,9 +76,7 @@ const RealTimeLineComponent: React.FC<Props> = ({ chartData, xaxisName, yaxisNam
           legendPosition: "middle",
         }}
         enablePoints={false}
-        useMesh={true}
-        enableSlices={false}
-        animate={false}
+        enableSlices="x"
         isInteractive={true}
         enableArea={false}
         areaOpacity={0.1}
@@ -102,34 +84,34 @@ const RealTimeLineComponent: React.FC<Props> = ({ chartData, xaxisName, yaxisNam
         crosshairType="cross"
         curve="monotoneX"
 
-        tooltip={({ point }) => {
-          const date = new Date(point.data.x);
-          const formattedDate = date.toLocaleDateString(undefined, { 
-            year: 'numeric', 
-            month: 'numeric', 
-            day: 'numeric' 
-          });
-          const formattedTime = date.toLocaleTimeString(undefined, { 
-            hour: '2-digit', 
-            minute: '2-digit', 
-            second: '2-digit' 
-          });
-          return (
-            <div style={{ background: 'white', padding: '9px 12px', border: '1px solid #ccc' }}>
-              <div style={{ display: 'flex', alignItems: 'center' }}>
-                <div style={{ 
-                  width: '12px', 
-                  height: '12px', 
-                  backgroundColor: point.serieColor,
-                  marginRight: '8px'
-                }}></div>
-                <strong>{point.serieId}</strong>
-              </div>
-              x: <strong>{formattedDate} {formattedTime}</strong><br />
-              y: <strong>{point.data.yFormatted}</strong>
-            </div>
-          );
-        }}
+        // tooltip={({ point }) => {
+        //   const date = new Date(point.data.x);
+        //   const formattedDate = date.toLocaleDateString(undefined, { 
+        //     year: 'numeric', 
+        //     month: 'numeric', 
+        //     day: 'numeric' 
+        //   });
+        //   const formattedTime = date.toLocaleTimeString(undefined, { 
+        //     hour: '2-digit', 
+        //     minute: '2-digit', 
+        //     second: '2-digit' 
+        //   });
+        //   return (
+        //     <div style={{ background: 'white', padding: '9px 12px', border: '1px solid #ccc' }}>
+        //       <div style={{ display: 'flex', alignItems: 'center' }}>
+        //         <div style={{ 
+        //           width: '12px', 
+        //           height: '12px', 
+        //           backgroundColor: point.serieColor,
+        //           marginRight: '8px'
+        //         }}></div>
+        //         <strong>{point.serieId}</strong>
+        //       </div>
+        //       x: <strong>{formattedDate} {formattedTime}</strong><br />
+        //       y: <strong>{point.data.yFormatted}</strong>
+        //     </div>
+        //   );
+        // }}
 
         legends={[
           {
@@ -158,8 +140,7 @@ const RealTimeLineComponent: React.FC<Props> = ({ chartData, xaxisName, yaxisNam
           },
         ]}
       />
-    </Box>
   );
 };
 
-export default RealTimeLineComponent;
+export default RealTimeLineChart;

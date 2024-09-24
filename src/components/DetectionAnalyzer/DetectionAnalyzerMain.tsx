@@ -1,6 +1,7 @@
 import { Box, Grid, GridItem, Text, Button, Flex } from "@chakra-ui/react";
 import useLiveAnalysisStore from "../../stores/liveAnalysis";
 import IntegratorVisualizer from "./IntegratorVisualizer";
+import STFTVisualizer from "./STFTVisualizer";
 import useLiveAnalysisClient from "../../clients/liveAnalysis/analyzer";
 // import React from "react";
 
@@ -77,6 +78,7 @@ const DetectionAnalyzerMain = () => {
         </>
       )}
       <IntegratorVisualizer />
+      <STFTVisualizer />
     </Box>
   )
 }

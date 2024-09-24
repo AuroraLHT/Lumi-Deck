@@ -1,7 +1,8 @@
 import { useEffect, useState } from "react";
-import RealTimeLineComponent from "../Plotting/RealTimeLineChart";
+import RealTimeLineChart from "../Plotting/RealTimeLineChart";
 import { Serie } from "@nivo/line";
 import useDetectionCache from "../../hooks/useDetectionCache";
+import MediumContainer from "../Plotting/MediumContainer";
 
 const RealTimeClassification = () => {
   const { cache } = useDetectionCache();
@@ -20,7 +21,6 @@ const RealTimeClassification = () => {
       id: "Epitaxial",
       data: [{ x: new Date(), y: 0 }],
     },
-
   ]);
   useEffect(() => {
     if (cache.length === 0) {
@@ -31,7 +31,6 @@ const RealTimeClassification = () => {
     // cache.forEach((item, index) => {
     //   console.log(item.header.time_stamp);
     // });
-
 
     let prob_transmission = cache.map((item) => ({
       x: new Date(item.header.time_stamp),
@@ -67,15 +66,17 @@ const RealTimeClassification = () => {
   }, [cache]);
 
   return (
-    <RealTimeLineComponent
-      chartData = {data}
-      xaxisName = "Time"
-      yaxisName = "Probability"
-      xaxisMin = "auto"
-      xaxisMax = "auto"
-      yaxisMin = {0}
-      yaxisMax = {1}
-    />
+    <MediumContainer>
+      <RealTimeLineChart
+        chartData={data}
+        xaxisName="Time"
+        yaxisName="Probability"
+        xaxisMin="auto"
+        xaxisMax="auto"
+        yaxisMin={0}
+        yaxisMax={1}
+      />
+    </MediumContainer>
   );
 };
 
