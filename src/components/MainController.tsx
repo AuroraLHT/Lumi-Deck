@@ -1,4 +1,4 @@
-import { Box, Flex, FormLabel, Heading, Switch } from "@chakra-ui/react";
+import { Box, Button, Flex, FormLabel, Heading, Switch } from "@chakra-ui/react";
 
 import useLiveAnalysisClient from "../clients/liveAnalysis/analyzer";
 import useChamberLogStore from "../clients/chamberLog";
@@ -189,6 +189,22 @@ const MainController = () => {
         </Flex>
 
         <Flex mr={4} alignItems="center">
+          <FormLabel htmlFor="integrator" mb={{ base: "2", md: "0" }}>
+            Integrator
+          </FormLabel>
+          <Switch
+            id="integrator"
+            colorScheme="green"
+            isChecked={integratorNodeState.is_streaming}
+            isDisabled={!(integratorNodeState.is_available && integratorNodeState.is_running)}
+            onChange={handleIntegratorSwitch}
+            opacity={!isIntegratorLoading ? 1 : 0.5}
+            transition="opacity 0.2s"
+          />
+        </Flex>
+
+
+        <Flex mr={4} alignItems="center">
           <FormLabel htmlFor="stft" mb={{ base: "2", md: "0" }}>
             STFT
           </FormLabel>
@@ -203,22 +219,44 @@ const MainController = () => {
           />
         </Flex>
 
+
+
+
+      </Flex>
+
+      <Flex
+        direction={{
+          base: "column",
+          md: "row",
+        }}
+        alignItems={{
+          base: "center",
+          md: "flex-start",
+        }}
+        mb={4}
+      >
         <Flex mr={4} alignItems="center">
-          <FormLabel htmlFor="integrator" mb={{ base: "2", md: "0" }}>
-          Integrator
-          </FormLabel>
-          <Switch
-            id="Integrator"
-            colorScheme="green"
-            isChecked={integratorNodeState.is_streaming}
-            isDisabled={!(integratorNodeState.is_available && integratorNodeState.is_running)}
-            onChange={handleIntegratorSwitch}
-            opacity={!isIntegratorLoading ? 1 : 0.5}
+          <Button
+            onClick={() => sendDetectorControlOperation("start_streaming")}
+            isDisabled={!(detectorNodeState.is_available && detectorNodeState.is_running)}
+            opacity={!detectorNodeState.is_streaming ? 1 : 0.5}
             transition="opacity 0.2s"
-          />
+          >
+            Start Detection Streaming
+          </Button>
+
         </Flex>
+        <Flex mr={4} alignItems="center">
+        <Button
+            onClick={() => sendDetectorControlOperation("end_streaming")}
+            isDisabled={!(detectorNodeState.is_available && detectorNodeState.is_running)}
+            opacity={!detectorNodeState.is_streaming ? 1 : 0.5}
+            transition="opacity 0.2s"
+          >
+            End Detection Streaming
+          </Button>
 
-
+        </Flex>
       </Flex>
     </Box>
   );
