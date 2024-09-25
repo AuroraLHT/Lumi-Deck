@@ -16,7 +16,7 @@ const DetectionAnalyzerSidebar = () => {
   );
   const sendIntegratorCommandOperation = useLiveAnalysisClient(s=>s.sendIntegratorCommandOperation);
 
-  console.log(selectedDetections);
+  // console.log(selectedDetections);
 
   return (
     <Box
