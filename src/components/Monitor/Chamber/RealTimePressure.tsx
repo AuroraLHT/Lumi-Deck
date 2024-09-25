@@ -1,12 +1,16 @@
-import { useEffect, useState } from "react";
+// import { useEffect, useState } from "react";
 import RealTimeLineChart from "../../Plotting/RealTimeLineChart";
 import { Serie } from "@nivo/line";
 import useLog from "../../../hooks/useChamberLog";
+// import useChamberLogStore from "../../../clients/chamberLog";
 import MediumContainer from "../../Plotting/MediumContainer";
+import { v4 as uuidv4 } from "uuid";
 
 const RealTimePressure = () => {
-  const { logs, recentLog } = useLog();
-  const [data, setData] = useState<Serie[]>([
+  // console.log("RealTimePressure Re-render", new Date().toISOString(), uuidv4());
+
+  // const { logs, recentLog } = useLog();
+  let data: Serie[] = [
     {
       id: "Vac Pres L/L",
       data: [{ x: new Date(), y: 0 }],
@@ -16,14 +20,10 @@ const RealTimePressure = () => {
       id: "Vac Pres Main",
       data: [{ x: new Date(), y: 0 }],
     },
-  ]);
-  useEffect(() => {
-    // console.log(logsRef.current);
-    // console.log("update pressure");
-    if (logs.length === 0) {
-      return;
-    }
-
+  ];
+  const { logs } = useLog();
+  // console.log("logs", logs.length);
+  if (logs.length > 0) {
     let ll_vac_pres = logs.map((log) => ({
       // x: new Date(log['Time']).getTime(),
       x: new Date(log["Time"]),
@@ -39,7 +39,7 @@ const RealTimePressure = () => {
           : Math.log10(parseFloat(log["Vac Pres Main"])),
     }));
     // console.log(ll_vac_pres);
-    setData([
+    data = [
       {
         id: "Vac Pres L/L",
         data: ll_vac_pres,
@@ -49,8 +49,8 @@ const RealTimePressure = () => {
         id: "Vac Pres Main",
         data: main_vac_pres,
       },
-    ]);
-  }, [logs, recentLog]);
+    ];
+  }
 
   return (
     <MediumContainer>

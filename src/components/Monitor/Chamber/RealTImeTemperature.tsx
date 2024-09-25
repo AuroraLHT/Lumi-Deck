@@ -1,13 +1,20 @@
-import { useEffect, useState } from "react";
+// import { useEffect, useState } from "react";
 import RealTimeLineChart from "../../Plotting/RealTimeLineChart";
 import { Serie } from "@nivo/line";
 import useLog from "../../../hooks/useChamberLog";
+// import useChamberLogStore from "../../../clients/chamberLog";
 import MediumContainer from "../../Plotting/MediumContainer";
-
+// import { v4 as uuidv4 } from "uuid";
 
 const RealTimeTemperature = () => {
-  const { logs, recentLog } = useLog();
-  const [data, setData] = useState<Serie[]>([
+  // console.log(
+  //   "RealTimeTemperature Re-render",
+  //   new Date().toISOString(),
+  //   uuidv4()
+  // );
+
+  // const { logs, recentLog } = useLog();
+  let data: Serie[] = [
     {
       id: "HT Temp set",
       data: [{ x: new Date(), y: 0 }],
@@ -17,19 +24,14 @@ const RealTimeTemperature = () => {
       id: "HT Temp moni",
       data: [{ x: new Date(), y: 0 }],
     },
-  ]);
-  useEffect(() => {
-    // console.log(logsRef.current);
-    // console.log(logs);
-    // console.log("update temperature");
-    if (logs.length === 0) {
-      return;
-    }
-
+  ];
+  const { logs } = useLog();
+  // console.log("logs", logs.length);
+  if (logs.length > 0) {
     let HT_set = logs.map((log) => ({
       // x: new Date(log['Time']).getTime(),
       x: new Date(log["Time"]),
-      y: (parseFloat(log["HT Temp set"])),
+      y: parseFloat(log["HT Temp set"]),
     }));
 
     let HT_moni = logs.map((log) => ({
@@ -38,7 +40,7 @@ const RealTimeTemperature = () => {
       y: parseFloat(log["HT Temp moni"]),
     }));
 
-    setData([
+    data = [
       {
         id: "HT Temp set",
         data: HT_set,
@@ -48,8 +50,8 @@ const RealTimeTemperature = () => {
         id: "HT Temp moni",
         data: HT_moni,
       },
-    ]);
-  }, [logs, recentLog]);
+    ];
+  }
 
   return (
     <MediumContainer>

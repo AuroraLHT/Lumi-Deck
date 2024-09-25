@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { ResponsiveLineCanvas } from "@nivo/line";
 import { Serie } from "@nivo/line";
+import {v4 as uuidv4} from 'uuid';
 
 export interface DataPoint {
   x: number | Date;
@@ -20,23 +21,17 @@ interface Props {
 
 const RealTimeLineChart: React.FC<Props> = ({ chartData, xaxisName, yaxisName, xaxisMin, xaxisMax, yaxisMin, yaxisMax }: Props) => {
   //   const [isPaused, setIsPaused] = useState(false);
-  const [windowedChartData, setWindowedChartData] = useState<Serie[]>([]);
+  // TODO: add some ui for windows size selection
 
-  useEffect(() => {
-    // TODO: add some ui for windows size selection
-    // console.log("data", data);
+  // console.log("RealTimeLineChart re-rendered", new Date().toISOString(), uuidv4());
 
-    const windowSize = 100;
-        
-    let _chartData = chartData.map(serie => ({
-      ...serie,
-      data: serie.data.slice(        
-        -windowSize)
-    }));
-    
-    
-    setWindowedChartData(_chartData);
-  }, [chartData]);
+  const windowSize = 100;
+  const windowedChartData = chartData.map(serie => ({
+        ...serie,
+        data: serie.data.slice(        
+          -windowSize)
+      }));
+      
 
   if (windowedChartData.length === 0) { return null; }
 
