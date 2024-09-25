@@ -2,9 +2,14 @@ import { Spinner } from "@chakra-ui/react";
 import useRHEED from "../../hooks/useRHEED";
 import styles from './VideoPlayer.module.css'
 
-const VideoPlayer = () => {
-  const { videoRef, isReady } = useRHEED();
-  // TODO: add a close button to the video player
+interface VideoPlayerProps {
+  videoRef: React.RefObject<HTMLVideoElement>;
+  togglePlay: () => void;
+}
+
+const VideoPlayer = ({ videoRef }: VideoPlayerProps) => {
+
+  const { isReady } = useRHEED(videoRef);
 
   return (
     <>
@@ -18,7 +23,7 @@ const VideoPlayer = () => {
         />
       )}
 
-      <video ref={videoRef} id="video" controls autoPlay={true} className={styles['video-player']}>
+      <video ref={videoRef} id="video" controls={false} autoPlay={true} className={styles['video-player']} width="100%" height="auto">
         Your browser does not support the video tag.
       </video>
     </>

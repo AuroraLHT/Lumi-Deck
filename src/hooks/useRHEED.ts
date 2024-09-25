@@ -1,9 +1,8 @@
 import { useRef, useEffect, useState } from "react";
 import useRHEEDStore from "../clients/rheed";
 
-const useRHEED = () => {
+const useRHEED = (videoRef: React.RefObject<HTMLVideoElement>) => {
 
-  const videoRef = useRef<HTMLVideoElement>(null);
   const mediaRef = useRef<MediaSource | null>(null);
   const sourceBufferRef = useRef<SourceBuffer | null>(null);
   // const queueRef = useRef<ArrayBuffer[]>([]);
@@ -96,7 +95,7 @@ const useRHEED = () => {
   }, [isUpdating, rheedStore.fragment, isReady]);
 
 
-  return { videoRef, isReady };
+  return { isReady };
 };
 
 export default useRHEED;
