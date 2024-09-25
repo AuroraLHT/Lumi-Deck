@@ -15,7 +15,7 @@ const queryClient = new QueryClient();
 // console.log(theme.config.initialColorMode, "initial color mode");
 
 createRoot(document.getElementById("root")!).render(
-  <StrictMode>
+  // <StrictMode>
     <ChakraProvider theme={theme}>
       <ColorModeScript initialColorMode={theme.config.initialColorMode} />
       <QueryClientProvider client={queryClient}>
@@ -23,5 +23,5 @@ createRoot(document.getElementById("root")!).render(
         <ReactQueryDevtools />
       </QueryClientProvider>
     </ChakraProvider>
-  </StrictMode>
+  // </StrictMode>
 );
