@@ -16,7 +16,7 @@ const useSTFTNodeStore = create<STFTNode>()(
       is_streaming: false,
     },
     setState: (newState) => set((state) => {
-        console.log("STFTNodeState", newState);
+        // console.log("STFTNodeState", newState);
         Object.assign(state.state, newState);
     }),
 

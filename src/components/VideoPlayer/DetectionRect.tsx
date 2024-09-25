@@ -61,7 +61,7 @@ const DetectionRect = ({ id, detection, cropSetup, frameWidth, frameHeight }: De
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
       onClick={() => {
-        console.log(`Clicked on detection box ${id}`);
+        // console.log(`Clicked on detection box ${id}`);
         addSelectedDetection(detection);
         // You can add more functionality here, such as:
         // - Updating a state

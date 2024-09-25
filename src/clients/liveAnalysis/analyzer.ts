@@ -138,10 +138,13 @@ const createWebSocketSlice: StateCreator<
           websocket_header.target === "Live Detection" &&
           websocket_header.operation === "data"
         ) {
+          // DEBUG: Bypass this block
+          // return;
           const payload = JSON.parse(new TextDecoder().decode(payload_content));
           const detectionPayload = payload as DetectionPayload;
           const detectionHeader = payload_header as DetectionHeader;
-          // console.log(detectionPayload);
+          // console.log(payload);
+          // console.log(payload_header);
 
           get().updateDetectionFromPayload(detectionPayload, detectionHeader);
         } else if (
@@ -151,6 +154,7 @@ const createWebSocketSlice: StateCreator<
           // console.log("integrator data message received");
           const payload = JSON.parse(new TextDecoder().decode(payload_content));
           const integrationPayload = payload as IntegrationPayload;
+          // console.log(integrationPayload);
           const integrationHeader = payload_header as IntegrationHeader;
           get().updateIntegratorFromPayload(
             integrationPayload,

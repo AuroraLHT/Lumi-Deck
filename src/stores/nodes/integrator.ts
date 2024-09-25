@@ -16,7 +16,7 @@ const useIntegratorNodeStore = create<IntegratorNode>()(
       is_streaming: false,
     },
     setState: (newState) => set((state) => {
-        console.log("IntegratorNodeState", newState);
+        // console.log("IntegratorNodeState", newState);
         Object.assign(state.state, newState);
     }),
 

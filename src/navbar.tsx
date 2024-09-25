@@ -4,7 +4,7 @@ import HostSelector from "./components/HostSelector";
 
 const navbar = () => {
   const { colorMode, toggleColorMode } = useColorMode();
-  console.log("current color mode", colorMode);
+  // console.log("current color mode", colorMode);
   return (
     <HStack padding="10px">
       <HostSelector></HostSelector>
