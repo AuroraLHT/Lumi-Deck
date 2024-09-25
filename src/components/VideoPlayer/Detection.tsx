@@ -6,15 +6,16 @@ import { Spinner } from "@chakra-ui/react";
 import styles from "./VideoPlayer.module.css";
 import useDetectorNodeStore from "../../stores/nodes/detector";
 import useRheedNodeStore from "../../stores/nodes/rheed";
+import React from "react";
 
 
 // Memoize the DetectionRect component
-// const MemoizedDetectionRect = React.memo(DetectionRect);
+const MemoizedDetectionRect = React.memo(DetectionRect);
 
 const Detection = () => {
   // const { bboxes, cropSetup, isConnected } = useDetection();
   const { bboxes, cropSetup, socket } = useDetection();
-
+  
   const detectorNodeState = useDetectorNodeStore( s => s.state );
   const rheedNodeState = useRheedNodeStore( s => s.state );
 
@@ -32,8 +33,8 @@ const Detection = () => {
     // console.log("detectorNodeState", detectorNodeState);
 
     return Object.entries(bboxes).map(([id, bbox]) => (
-      <DetectionRect key={id} id={id} detection={bbox} cropSetup={cropSetup} frameHeight={rheedNodeState.frame_dims[0]} frameWidth={rheedNodeState.frame_dims[1]}/>
-      // <MemoizedDetectionRect key={id} id={id} bbox={bbox.bbox} cropSetup={cropSetup} svgRef={svgRef} />
+      // <DetectionRect key={id} id={id} detection={bbox} cropSetup={cropSetup} frameHeight={rheedNodeState.frame_dims[0]} frameWidth={rheedNodeState.frame_dims[1]}/>
+      <MemoizedDetectionRect key={id} id={id} detection={bbox} cropSetup={cropSetup} frameHeight={rheedNodeState.frame_dims[0]} frameWidth={rheedNodeState.frame_dims[1]} />
     ));
   }, [bboxes, cropSetup, detectorNodeState]);
 
