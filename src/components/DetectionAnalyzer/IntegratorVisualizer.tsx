@@ -13,11 +13,11 @@ const IntegratorVisualizer = () => {
   //   uuidv4()
   // );
   // const { cache } = useIntegrationCache();
-  const focusedDetection = useLiveAnalysisStore((s) => s.focusedDetection);
+  const focusedDetectionID = useLiveAnalysisStore((s) => s.focusedDetectionID);
 
   let data: Serie[] = [
     {
-      id: "Box -",
+      id: "",
       data: [{ x: new Date(), y: 0 }],
     },
   ];
@@ -29,12 +29,11 @@ const IntegratorVisualizer = () => {
     // No action needed
   } else {
     if (
-      focusedDetection &&
-      focusedDetection.id &&
-      focusedDetection.id in cacheIntegrator
+      focusedDetectionID &&
+      focusedDetectionID in cacheIntegrator
     ) {
       // console.log("Focused detection in cache");
-      let cacheFocused = cacheIntegrator[focusedDetection.id];
+      let cacheFocused = cacheIntegrator[focusedDetectionID];
       // console.log("cacheIntegrator Focused", cacheFocused.length);
 
       let liveIntegration = cacheFocused.map((item) => ({
@@ -44,7 +43,7 @@ const IntegratorVisualizer = () => {
 
       data = [
         {
-          id: `${focusedDetection.name}`,
+          id: `Oscillation`,
           data: liveIntegration,
         },
       ];

@@ -6,27 +6,25 @@ import { immer } from "zustand/middleware/immer";
 interface SelectedDetection extends DetectionBBox {
   id: string;
   name: string;
+  isRunningSTFT: boolean;
+  isRunningOscillation: boolean;
 }
 
 interface LiveAnalysisState {
   detectionNextID: number;
   selectedDetection: { [key: string]: SelectedDetection };
-  focusedDetection: SelectedDetection | null;
+  focusedDetectionID: string | null;
   addSelectedDetection: (detection: DetectionBBox, name?: string) => void;
   removeSelectedDetection: (key: string) => void;
-  setFocusedDetection: (detection: SelectedDetection) => void;
+  setFocusedDetectionID: (id: string) => void;
+  updateFocusedDetection: (update: Partial<SelectedDetection>) => void;
+  getFocusedDetection: () => SelectedDetection | null;
 }
 
 const useLiveAnalysisStore = create(
-  immer<LiveAnalysisState>((set) => ({
+  immer<LiveAnalysisState>((set, get) => ({
     detectionNextID: 0,
-    focusedDetection: {
-      id: "",
-      name: "",
-      bbox: [],
-      label: -1,
-      score: -1,
-    },
+    focusedDetectionID: null,
     selectedDetection: {},
 
     addSelectedDetection: (detection: DetectionBBox, name?: string) => 
@@ -37,6 +35,8 @@ const useLiveAnalysisStore = create(
           ...detection,
           id,
           name: name || `Box ${id}`,
+          isRunningSTFT: false,
+          isRunningOscillation: false,
         };
       }),
 
@@ -45,10 +45,28 @@ const useLiveAnalysisStore = create(
         delete state.selectedDetection[key];
       }),
 
-    setFocusedDetection: (detection: SelectedDetection) =>
+    setFocusedDetectionID: (id: string) =>
       set((state) => {
-        state.focusedDetection = detection;
+        state.focusedDetectionID = id;
       }),
+    
+    updateFocusedDetection: (update: Partial<SelectedDetection>) =>
+      set((state) => {
+        if (state.focusedDetectionID) {
+          state.selectedDetection[state.focusedDetectionID] = {
+            ...state.selectedDetection[state.focusedDetectionID],
+          ...update,
+          };
+        }
+      }),
+
+    getFocusedDetection: () => {
+      const state = get();
+      if (state.focusedDetectionID) {
+        return state.selectedDetection[state.focusedDetectionID];
+      }
+      return null;
+    },
 
   }))
 );

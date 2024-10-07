@@ -11,11 +11,11 @@ const DetectionAnalyzerSidebar = () => {
   const removeSelectedDetection = useLiveAnalysisStore(
     (s) => s.removeSelectedDetection
   );
-  const setFocusedDetection = useLiveAnalysisStore(
-    (s) => s.setFocusedDetection
+  const setFocusedDetectionID = useLiveAnalysisStore(
+    (s) => s.setFocusedDetectionID
   );
   const sendIntegratorCommandOperation = useLiveAnalysisClient(s=>s.sendIntegratorCommandOperation);
-
+  const sendSTFTCommandOperation = useLiveAnalysisClient(s=>s.sendSTFTCommandOperation);
   // console.log(selectedDetections);
 
   return (
@@ -33,7 +33,7 @@ const DetectionAnalyzerSidebar = () => {
             key={index}
             className={styles.listItem}
             color={"gray.800"}
-            onClick={() => setFocusedDetection(detection)}
+            onClick={() => setFocusedDetectionID(detection.id)}
           >
             <Flex alignItems="center" justifyContent="space-between">
               <Text
@@ -52,6 +52,7 @@ const DetectionAnalyzerSidebar = () => {
                   e.stopPropagation();
                   removeSelectedDetection(detection.id);
                   sendIntegratorCommandOperation("remove", detection);
+                  sendSTFTCommandOperation("remove", detection);
                 }}
                 variant="ghost"
               />

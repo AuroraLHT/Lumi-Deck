@@ -9,23 +9,22 @@ import SmallContainer from "../Plotting/SmallContainer";
 const STFTVisualizer = () => {
   // console.log("Rendering STFTVisualizer", new Date().toISOString(), uuidv4());
   const { cache } = useSTFTCache();
-  const focusedDetection = useLiveAnalysisStore((s) => s.focusedDetection);
+  const focusedDetectionID = useLiveAnalysisStore((s) => s.focusedDetectionID);
 
   let data: Serie[] = [
     {
-      id: "T -",
+      id: "",
       data: [{ x: 1, y: 1 }],
     },
   ];
   if (
     Object.keys(cache).length === 0 ||
-    !focusedDetection ||
-    !focusedDetection.id ||
-    !(focusedDetection.id in cache)
+    !focusedDetectionID ||
+    !(focusedDetectionID in cache)
   ) {
     // No action needed
   } else {
-    const cacheFocused = cache[focusedDetection.id];
+    const cacheFocused = cache[focusedDetectionID];
     if (cacheFocused.length > 0) {
       const numTimesteps = Math.min(cacheFocused.length, 1); // Limit to last 10 timesteps
       const series: Serie[] = [];
@@ -35,7 +34,8 @@ const STFTVisualizer = () => {
         const stft = cacheFocused[index].content;
 
         series.push({
-          id: `T-${i}`,
+          // id: `T-${i}`,
+          id: "STFT",
           data: stft.fft_freq.map((freq, idx) => ({
             x: freq,
             y: stft.fft_mag[idx],

@@ -1,4 +1,4 @@
-import { Box, Grid, GridItem, Text, Button, Flex } from "@chakra-ui/react";
+import { Box, Grid, GridItem, Text, Flex, Switch, FormControl, FormLabel } from "@chakra-ui/react";
 import useLiveAnalysisStore from "../../stores/liveAnalysis";
 import IntegratorVisualizer from "./IntegratorVisualizer";
 import STFTVisualizer from "./STFTVisualizer";
@@ -6,14 +6,16 @@ import useLiveAnalysisClient from "../../clients/liveAnalysis/analyzer";
 // import React from "react";
 
 const DetectionAnalyzerMain = () => {
-  const focusedDetection = useLiveAnalysisStore(s => s.focusedDetection); // Hook to fetch detections and remove action
+  const focusedDetectionID = useLiveAnalysisStore(s => s.focusedDetectionID); // Hook to fetch detections and remove action
+  const focusedDetection = useLiveAnalysisStore(s => s.getFocusedDetection());
   // const removeSelectedDetection = store.removeSelectedDetection;
   const sendIntegratorCommandOperation = useLiveAnalysisClient(s=>s.sendIntegratorCommandOperation);
   const sendSTFTCommandOperation  = useLiveAnalysisClient(s=>s.sendSTFTCommandOperation);
+  const updateFocusedDetection = useLiveAnalysisStore(s => s.updateFocusedDetection);
 
   return (
     <Box>
-      {focusedDetection && (
+      {(focusedDetectionID && focusedDetection) && (
         <>
           <Grid templateColumns="repeat(2, 1fr)" gap={1} mb={5}>
             <GridItem>
@@ -72,13 +74,49 @@ const DetectionAnalyzerMain = () => {
           </Grid>
           <Flex justifyContent="flex-start" gap={2}>
             {/* make this into toggle button */}
-            <Button colorScheme="green" onClick={() => sendIntegratorCommandOperation("register", focusedDetection ) }>OSC</Button>
-            <Button colorScheme="blue" onClick={() => sendSTFTCommandOperation("register", focusedDetection )}>STFT</Button>
+            <FormControl display="flex" alignItems="center">
+              <FormLabel htmlFor="oscillation-switch" mb="0">
+                Oscillation
+              </FormLabel>
+              <Switch
+                id="oscillation-switch"
+                colorScheme="green"
+                isChecked={focusedDetection.isRunningOscillation}
+                onChange={(e) => {
+                  const operation = e.target.checked ? "register" : "remove";
+                  sendIntegratorCommandOperation(operation, focusedDetection);
+                  updateFocusedDetection({
+                    isRunningOscillation: e.target.checked
+                  })
+                }}
+              />
+            </FormControl>
+            <FormControl display="flex" alignItems="center">
+              <FormLabel htmlFor="stft-switch" mb="0">
+                Short Time FT
+              </FormLabel>
+              <Switch
+                id="stft-switch"
+                colorScheme="blue"
+                isChecked={focusedDetection.isRunningSTFT}
+                onChange={(e) => {
+                  const operation = e.target.checked ? "register" : "remove";
+                  sendSTFTCommandOperation(operation, focusedDetection);
+                  updateFocusedDetection({
+                    isRunningSTFT: e.target.checked
+                  })
+                }}
+              />
+            </FormControl>
           </Flex>
         </>
       )}
-      <IntegratorVisualizer />
-      <STFTVisualizer />
+      {focusedDetectionID && (
+        <>
+          <IntegratorVisualizer />
+          <STFTVisualizer />
+        </>
+      )}
     </Box>
   )
 }
