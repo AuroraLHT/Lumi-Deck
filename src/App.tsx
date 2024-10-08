@@ -10,6 +10,7 @@ import Navbar from "./navbar";
 import { Box, Grid, GridItem } from "@chakra-ui/react";
 import RealTimeMonitor from "./components/Monitor/RealTimeMonitor";
 import RealTimeDetectionAnalyzer from "./components/DetectionAnalyzer/RealTimeDetectionAnalyzer";
+import StorageMain from "./components/StorageRequest/StorageMain";
 // import MainControllerSimulator from "./components/MainControlSimulator"
 // import './App.css'
 
@@ -24,13 +25,14 @@ function App() {
             templateRows="4fr 2fr 6fr"
             templateColumns="4fr 4fr 6fr"
             templateAreas={`
-                "video ai vis"
+                "rheed ai vis"
                 "controller other other"
               `}
             gap={2}
           >
-            <GridItem area="video">
+            <GridItem area="rheed">
               <VideoMain></VideoMain>
+              <StorageMain></StorageMain>
             </GridItem>
 
             <GridItem area="ai">
