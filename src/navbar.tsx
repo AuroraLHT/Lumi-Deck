@@ -6,7 +6,7 @@ const navbar = () => {
   const { colorMode, toggleColorMode } = useColorMode();
   // console.log("current color mode", colorMode);
   return (
-    <HStack padding="10px">
+    <HStack padding="10px" justifyContent="space-between" width="100%">
       <HostSelector></HostSelector>
 
       <HStack>
