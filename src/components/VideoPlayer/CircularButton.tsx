@@ -4,7 +4,7 @@ const CircularButton: React.FC<IconButtonProps> = (props) => (
   <IconButton
     {...props}
     isRound
-    size="md"
+    // size="md"
     // bg="whiteAlpha.200"
     // color="white"
     // _hover={{ bg: "whiteAlpha.300" }}
