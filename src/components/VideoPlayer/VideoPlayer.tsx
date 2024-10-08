@@ -4,7 +4,6 @@ import styles from './VideoPlayer.module.css'
 
 interface VideoPlayerProps {
   videoRef: React.RefObject<HTMLVideoElement>;
-  togglePlay: () => void;
 }
 
 const VideoPlayer = ({ videoRef }: VideoPlayerProps) => {
