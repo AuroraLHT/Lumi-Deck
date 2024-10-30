@@ -11,7 +11,7 @@ interface VideoPlayerControllerProps {
 }
 
 const VideoPlayerController = ({ videoRef, showDetections, setShowDetections }: VideoPlayerControllerProps) => {
-  console.log("VideoPlayerController rendered");
+  // console.log("VideoPlayerController rendered");
   const [isPlaying, setIsPlaying] = useState(false);
 //   const [progress, setProgress] = useState(0);
 //   const [lastBufferedTime, setLastBufferedTime] = useState(0);
@@ -30,7 +30,7 @@ const VideoPlayerController = ({ videoRef, showDetections, setShowDetections }: 
     }
     // setProgress(progress);
     progressRef.current = progress; // Update ref
-    console.log("Updating progress value:", progress);
+    // console.log("Updating progress value:", progress);
     if (sliderRef.current) {
     //   sliderRef.current.value = Math.round(progress).toString();
       console.log("Slider value:", sliderRef.current.value);
