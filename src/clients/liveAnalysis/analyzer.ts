@@ -1,24 +1,19 @@
 import { create, StateCreator } from "zustand";
 import { WebSocketStore } from "../websocket";
-import {
-  DetectionPayload,
-  DetectionHeader,
-  DetectionBase,
-} from "../../entities/detector";
+import { DetectionPayload, DetectionHeader } from "../../entities/detector";
 import {
   IntegrationHeader,
   IntegrationPayload,
   IntegrationCache,
 } from "../../entities/integrator";
-import {
-  STFTCache,
-  STFTPayload,
-  STFTHeader,
-} from "../../entities/stft";
+import { STFTCache, STFTPayload, STFTHeader } from "../../entities/stft";
 import {
   parseWebSocketMessage,
-  packWebSocketMessage,
-  encodeObjectToBuffer,
+  // packWebSocketMessage,
+  // encodeObjectToBuffer,
+  prepareRequestMessage,
+  prepareControlMessage,
+  prepareCommandMessage,
 } from "../../utils/websocket";
 
 import createDetectionSlice, { DetectionStore } from "./detectionsSlice";
@@ -26,54 +21,21 @@ import createIntegratorSlice, { IntegratorStore } from "./integratorSlice";
 import createSTFTSlice, { STFTStore } from "./stftSlice";
 import { immer } from "zustand/middleware/immer";
 
-//TODO: this websocket client would transform into a channel that receive live analysis data
+// This websocket client would transform into a channel that receive live analysis data
 // which include bboxes, classification, region2tracks, intensity oscillation, live fft.
 // for now
-
-
-const prepareControlMessage = (
-  target: string,
-  controlType: string,
-  controlPayload?: object
-) => {
-  return packWebSocketMessage(
-    {
-      target: target,
-      operation: "control",
-      payload_type: "bytes",
-    },
-    { type: controlType },
-    controlPayload ? encodeObjectToBuffer(controlPayload) : new ArrayBuffer(0)
-  );
-};
-
-const prepareCommandMessage = (
-  target: string,
-  commandType: string,
-  commandPayload?: object
-) => {
-  return packWebSocketMessage(
-    {
-      target: target,
-      operation: "command",
-      payload_type: "json",
-    },
-    { type: commandType },
-    commandPayload ? encodeObjectToBuffer(commandPayload) : new ArrayBuffer(0)
-  );
-};
-
 
 interface LiveAnalysisClientStore extends WebSocketStore {
   sendDetectorControlOperation: (
     controlType: string,
     controlPayload?: object
   ) => void;
-  sendIntegratorControlOperation: (
-    controlType: string,
-    controlPayload?: object
+  sendDetectorCommandOperation: (
+    commandType: string,
+    commandPayload?: object
   ) => void;
-  sendSTFTControlOperation: (
+  sendDetectorRequest: (requestType: string, requestPayload?: object) => void;
+  sendIntegratorControlOperation: (
     controlType: string,
     controlPayload?: object
   ) => void;
@@ -81,13 +43,19 @@ interface LiveAnalysisClientStore extends WebSocketStore {
     commandType: string,
     commandPayload?: object
   ) => void;
+  sendIntegratorRequest: (requestType: string, requestPayload?: object) => void;
+  sendSTFTControlOperation: (
+    controlType: string,
+    controlPayload?: object
+  ) => void;
   sendSTFTCommandOperation: (
     commandType: string,
     commandPayload?: object
   ) => void;
+  sendSTFTRequest: (requestType: string, requestPayload?: object) => void;
 }
 
-const createWebSocketSlice: StateCreator<
+const createLiveAnalysisClientSlice: StateCreator<
   DetectionStore & IntegratorStore & STFTStore & LiveAnalysisClientStore,
   [["zustand/immer", never]],
   [],
@@ -97,12 +65,12 @@ const createWebSocketSlice: StateCreator<
   host: "",
   binaryType: "arraybuffer",
   isConnected: false,
-  bboxes: {},
-  classification: {},
-  region2tracks: {},
-  cache: [] as DetectionBase[],
-  cropSetup: null,
-  maxCacheSize: 1000,
+  // bboxes: {},
+  // classification: {},
+  // region2tracks: {},
+  // cache: [] as DetectionBase[],
+  // cropSetup: null,
+  // maxCacheSize: 1000,
 
   connectWebSocket: (host: string, binaryType: "arraybuffer" | "blob") =>
     set((state) => {
@@ -114,9 +82,9 @@ const createWebSocketSlice: StateCreator<
       socket.onopen = () => {
         console.log(`WebSocket ${host} connected`);
 
-        get().sendDetectorControlOperation("start_streaming");
-        get().sendIntegratorControlOperation("start_streaming");
-        get().sendSTFTControlOperation("start_streaming");
+        get().sendDetectorCommandOperation("start_streaming");
+        get().sendIntegratorCommandOperation("start_streaming");
+        get().sendSTFTCommandOperation("start_streaming");
 
         console.log("detection startup message sent");
         get().setIsConnected(true);
@@ -128,7 +96,8 @@ const createWebSocketSlice: StateCreator<
       socket.onerror = (error) =>
         console.error(`WebSocket ${host} error:`, error);
 
-      const handleDetectionMessage = (event: MessageEvent) => {
+      const handleMessage = (event: MessageEvent) => {
+        // console.log("LiveAnalysisClient received: ", event.data)
         const arrayBuffer = event.data;
         const { websocket_header, payload_header, payload_content } =
           parseWebSocketMessage(arrayBuffer);
@@ -136,7 +105,7 @@ const createWebSocketSlice: StateCreator<
         // console.log("websocket header", websocket_header);
         if (
           websocket_header.target === "Live Detection" &&
-          websocket_header.operation === "data"
+          websocket_header.operation === "stream"
         ) {
           // DEBUG: Bypass this block
           // return;
@@ -149,7 +118,7 @@ const createWebSocketSlice: StateCreator<
           get().updateDetectionFromPayload(detectionPayload, detectionHeader);
         } else if (
           websocket_header.target === "Live Integrator" &&
-          websocket_header.operation === "data"
+          websocket_header.operation === "stream"
         ) {
           // console.log("integrator data message received");
           const payload = JSON.parse(new TextDecoder().decode(payload_content));
@@ -162,39 +131,35 @@ const createWebSocketSlice: StateCreator<
           );
         } else if (
           websocket_header.target === "Integrator" &&
-          websocket_header.operation === "cache"
+          websocket_header.operation === "Response"
         ) {
+          console.log("integrator cache message received response", payload_header);
           const payload = JSON.parse(new TextDecoder().decode(payload_content));
           const integrationPayload = payload as IntegrationCache;
-          get().updateIntegratorCacheFromPayload(
-            integrationPayload
-          );
+          get().updateIntegratorCacheFromPayload(integrationPayload);
         } else if (
           websocket_header.target === "STFT" &&
-          websocket_header.operation === "cache"
+          websocket_header.operation === "Response"
         ) {
+          console.log("stft cache message received response", payload_header);
           const payload = JSON.parse(new TextDecoder().decode(payload_content));
           const stftPayload = payload as STFTCache;
-          get().updateSTFTCacheFromPayload(
-            stftPayload
-          );
+          get().updateSTFTCacheFromPayload(stftPayload);
         } else if (
           websocket_header.target === "Live STFT" &&
-          websocket_header.operation === "data"
+          websocket_header.operation === "stream"
         ) {
           const payload = JSON.parse(new TextDecoder().decode(payload_content));
           const stftPayload = payload as STFTPayload;
           const stftHeader = payload_header as STFTHeader;
-          get().updateSTFTFromPayload(
-            stftPayload,
-            stftHeader
-          );
+          get().updateSTFTFromPayload(stftPayload, stftHeader);
         }
       };
-      socket.onmessage = handleDetectionMessage;
+      socket.onmessage = handleMessage;
 
       state.socket = socket;
     }),
+
   disconnectWebSocket: () =>
     set((state) => {
       state.socket = null;
@@ -211,6 +176,26 @@ const createWebSocketSlice: StateCreator<
       "Live Detection",
       controlType,
       controlPayload
+    );
+    get().socket?.send(message);
+  },
+
+  sendDetectorCommandOperation: (
+    commandType: string,
+    commandPayload?: object
+  ) => {
+    const message = prepareCommandMessage(
+      "Live Detection",
+      commandType,
+      commandPayload
+    );
+    get().socket?.send(message);
+  },
+  sendDetectorRequest: (requestType: string, requestPayload?: object) => {
+    const message = prepareRequestMessage(
+      "Detection",
+      requestType,
+      requestPayload
     );
     get().socket?.send(message);
   },
@@ -232,17 +217,23 @@ const createWebSocketSlice: StateCreator<
     commandPayload?: object
   ) => {
     const message = prepareCommandMessage(
-      "Integrator",
+      "Live Integrator",
       commandType,
       commandPayload
     );
     get().socket?.send(message);
   },
-  
-  sendSTFTControlOperation: (
-    controlType: string,
-    controlPayload?: object
-  ) => {
+
+  sendIntegratorRequest: (requestType: string, requestPayload?: object) => {
+    const message = prepareRequestMessage(
+      "Integrator",
+      requestType,
+      requestPayload
+    );
+    get().socket?.send(message);
+  },
+
+  sendSTFTControlOperation: (controlType: string, controlPayload?: object) => {
     const message = prepareControlMessage(
       "Live STFT",
       controlType,
@@ -251,15 +242,17 @@ const createWebSocketSlice: StateCreator<
     get().socket?.send(message);
   },
 
-  sendSTFTCommandOperation: (
-    commandType: string,
-    commandPayload?: object
-  ) => {
+  sendSTFTCommandOperation: (commandType: string, commandPayload?: object) => {
     const message = prepareCommandMessage(
-      "STFT",
+      "Live STFT",
       commandType,
       commandPayload
     );
+    get().socket?.send(message);
+  },
+
+  sendSTFTRequest: (requestType: string, requestPayload?: object) => {
+    const message = prepareRequestMessage("STFT", requestType, requestPayload);
     get().socket?.send(message);
   },
 
@@ -273,7 +266,7 @@ const useLiveAnalysisClient = create<
   IntegratorStore & DetectionStore & STFTStore & LiveAnalysisClientStore
 >()(
   immer((...a) => ({
-    ...createWebSocketSlice(...a),
+    ...createLiveAnalysisClientSlice(...a),
     ...createDetectionSlice(...a),
     ...createIntegratorSlice(...a),
     ...createSTFTSlice(...a),

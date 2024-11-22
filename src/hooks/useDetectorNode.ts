@@ -7,6 +7,7 @@ const useDetectorNode = () => {
 
   const onMessage = useCallback((event: MessageEvent) => {
     const data = JSON.parse(event.data);
+    console.log("detector node data", data);
     setState(data);
   }, []);
 

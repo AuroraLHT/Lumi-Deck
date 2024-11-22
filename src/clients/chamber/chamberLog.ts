@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 // import useWebSocketStore from "./websocket";
-import { WebSocketStore } from './websocket';
-import { Log, Logs } from '../entities/chamberLog';
+import { WebSocketStore } from '../websocket';
+import { Log, Logs } from '../../entities/chamberLog';
 import { immer } from 'zustand/middleware/immer';
 
 interface ChamberLogStore extends WebSocketStore {

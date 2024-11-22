@@ -9,8 +9,8 @@ const DetectionAnalyzerMain = () => {
   const focusedDetectionID = useLiveAnalysisStore(s => s.focusedDetectionID); // Hook to fetch detections and remove action
   const focusedDetection = useLiveAnalysisStore(s => s.getFocusedDetection());
   // const removeSelectedDetection = store.removeSelectedDetection;
-  const sendIntegratorCommandOperation = useLiveAnalysisClient(s=>s.sendIntegratorCommandOperation);
-  const sendSTFTCommandOperation  = useLiveAnalysisClient(s=>s.sendSTFTCommandOperation);
+  const sendIntegratorRequest = useLiveAnalysisClient(s=>s.sendIntegratorRequest);
+  const sendSTFTRequest  = useLiveAnalysisClient(s=>s.sendSTFTRequest);
   const updateFocusedDetection = useLiveAnalysisStore(s => s.updateFocusedDetection);
 
   return (
@@ -83,8 +83,8 @@ const DetectionAnalyzerMain = () => {
                 colorScheme="green"
                 isChecked={focusedDetection.isRunningOscillation}
                 onChange={(e) => {
-                  const operation = e.target.checked ? "register" : "remove";
-                  sendIntegratorCommandOperation(operation, focusedDetection);
+                  const request_type = e.target.checked ? "register" : "remove";
+                  sendIntegratorRequest(request_type, focusedDetection);
                   updateFocusedDetection({
                     isRunningOscillation: e.target.checked
                   })
@@ -100,8 +100,8 @@ const DetectionAnalyzerMain = () => {
                 colorScheme="blue"
                 isChecked={focusedDetection.isRunningSTFT}
                 onChange={(e) => {
-                  const operation = e.target.checked ? "register" : "remove";
-                  sendSTFTCommandOperation(operation, focusedDetection);
+                  const request_type = e.target.checked ? "register" : "remove";
+                  sendSTFTRequest(request_type, focusedDetection);
                   updateFocusedDetection({
                     isRunningSTFT: e.target.checked
                   })

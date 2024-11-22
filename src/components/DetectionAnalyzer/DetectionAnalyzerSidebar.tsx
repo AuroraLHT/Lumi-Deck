@@ -14,8 +14,8 @@ const DetectionAnalyzerSidebar = () => {
   const setFocusedDetectionID = useLiveAnalysisStore(
     (s) => s.setFocusedDetectionID
   );
-  const sendIntegratorCommandOperation = useLiveAnalysisClient(s=>s.sendIntegratorCommandOperation);
-  const sendSTFTCommandOperation = useLiveAnalysisClient(s=>s.sendSTFTCommandOperation);
+  const sendIntegratorRequest = useLiveAnalysisClient(s=>s.sendIntegratorRequest);
+  const sendSTFTRequest = useLiveAnalysisClient(s=>s.sendSTFTRequest);
   // console.log(selectedDetections);
 
   return (
@@ -51,8 +51,8 @@ const DetectionAnalyzerSidebar = () => {
                 onClick={(e) => {
                   e.stopPropagation();
                   removeSelectedDetection(detection.id);
-                  sendIntegratorCommandOperation("remove", detection);
-                  sendSTFTCommandOperation("remove", detection);
+                  sendIntegratorRequest("remove", detection);
+                  sendSTFTRequest("remove", detection);
                 }}
                 variant="ghost"
               />

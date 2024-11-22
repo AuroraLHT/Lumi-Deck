@@ -1,7 +1,15 @@
-import { Box, Button, Flex, FormLabel, Heading, Switch } from "@chakra-ui/react";
+import {
+  Box,
+  Button,
+  Flex,
+  FormLabel,
+  Heading,
+  Switch,
+} from "@chakra-ui/react";
 
 import useLiveAnalysisClient from "../clients/liveAnalysis/analyzer";
-import useChamberLogStore from "../clients/chamberLog";
+// import useChamberLogStore from "../clients/chamber/chamberLog";
+import useChamberStore from "../clients/chamber/chamber";
 import useRHEEDStore from "../clients/rheed";
 
 import { ChangeEvent } from "react";
@@ -9,6 +17,9 @@ import { useRef } from "react";
 
 import useRheedNodeStore from "../stores/nodes/rheed";
 import useChamberLogNodeStore from "../stores/nodes/chamberLog";
+
+// import useMIModeNodeStore from "../stores/nodes/mimode";
+
 import useDetectorNodeStore from "../stores/nodes/detector";
 import useSTFTNodeStore from "../stores/nodes/stft";
 import useIntegratorNodeStore from "../stores/nodes/integrator";
@@ -26,12 +37,12 @@ const MainController = () => {
   const { isLoading: isRheedLoading } = useRHEEDNode();
   const rheedNodeState = useRheedNodeStore((s) => s.state);
   const setRHEEDNodeStreaming = useRheedNodeStore((s) => s.setStreaming);
-  
+
   // Chamber Log
   const { isLoading: isChamberLogLoading } = useChamberLogNode();
   const chamberNodeState = useChamberLogNodeStore((s) => s.state);
   const setChamberNodeStreaming = useChamberLogNodeStore((s) => s.setStreaming);
-  
+
   // Detector
   const { isLoading: isDetectorLoading } = useDetectorNode();
   const detectorNodeState = useDetectorNodeStore((s) => s.state);
@@ -41,13 +52,14 @@ const MainController = () => {
   const { isLoading: isSTFTLoading } = useSTFTNode();
   const stftNodeState = useSTFTNodeStore((s) => s.state);
   const setSTFTNodeStreaming = useSTFTNodeStore((s) => s.setStreaming);
-  
+
   // Integrator
   const integratorNodeState = useIntegratorNodeStore((s) => s.state);
   const { isLoading: isIntegratorLoading } = useIntegratorNode();
-  const setIntegratorNodeStreaming = useIntegratorNodeStore((s) => s.setStreaming);
+  const setIntegratorNodeStreaming = useIntegratorNodeStore(
+    (s) => s.setStreaming
+  );
 
-  
   const rheedVideoSwitchRef = useRef<HTMLInputElement>(null);
   const rheedAISwitchRef = useRef<HTMLInputElement>(null);
   const chamberLogSwitchRef = useRef<HTMLInputElement>(null);
@@ -70,57 +82,90 @@ const MainController = () => {
   //   }
   // }, [ChamberNode]);
 
+  const rheedSocket = useRHEEDStore((s) => s.socket);
 
-  const rheedSocket = useRHEEDStore(s=>s.socket);
-  const sendDetectorControlOperation = useLiveAnalysisClient(s=>s.sendDetectorControlOperation);
+  const sendRheedControlOperation = useRHEEDStore(
+    (s) => s.sendRHEEDControlOperation
+  );
 
-  const logSocket = useChamberLogStore(s=>s.socket);
-  const sendSTFTControlOperation = useLiveAnalysisClient(s=>s.sendSTFTControlOperation);
+  const sendChamberLogControlOperation = useChamberStore(
+    (s) => s.sendChamberLogControlOperation
+  );
 
-  const analyzerSocket = useLiveAnalysisClient(s=>s.socket);
-  const sendIntegratorControlOperation = useLiveAnalysisClient(s=>s.sendIntegratorControlOperation);
+  const sendDetectorControlOperation = useLiveAnalysisClient(
+    (s) => s.sendDetectorControlOperation
+  );
+  const sendDetectorCommandOperation = useLiveAnalysisClient(
+    (s) => s.sendDetectorCommandOperation
+  );
+
+  const chamberSocket = useChamberStore((s) => s.socket);
+  const sendSTFTControlOperation = useLiveAnalysisClient(
+    (s) => s.sendSTFTControlOperation
+  );
+  // const sendSTFTCommandOperation = useLiveAnalysisClient(s=>s.sendSTFTCommandOperation);
+
+  const analyzerSocket = useLiveAnalysisClient((s) => s.socket);
+  const sendIntegratorControlOperation = useLiveAnalysisClient(
+    (s) => s.sendIntegratorControlOperation
+  );
+  // const sendIntegratorCommandOperation = useLiveAnalysisClient(s=>s.sendIntegratorCommandOperation);
 
   // console.log(sendRheedMessage, sendLogMessage, sendDetectionMessage);
-  const handleRheedVideoSwitch = (event: ChangeEvent<HTMLInputElement>) => {
-    if (rheedSocket && rheedSocket.readyState == WebSocket.OPEN){
-      rheedSocket.send(event.target.checked ? "start_server" : "stop_server")
-    }
+  // ... existing code ...
 
-    setRHEEDNodeStreaming(event.target.checked);
+  type SocketOperation = {
+    socket: WebSocket | null;
+    controlOperation: (control: string) => void;
+    setStreaming: (isStreaming: boolean) => void;
   };
 
-  const handleRheedAISwitch = (event: ChangeEvent<HTMLInputElement>) => {
-    if (analyzerSocket && analyzerSocket.readyState == WebSocket.OPEN){
-      sendDetectorControlOperation(event.target.checked ? "start_server" : "stop_server")      
+  const handleSocketSwitch = (
+    event: ChangeEvent<HTMLInputElement>,
+    { socket, controlOperation, setStreaming }: SocketOperation
+  ) => {
+    if (socket?.readyState === WebSocket.OPEN) {
+      controlOperation(event.target.checked ? "start_server" : "stop_server");
     }
-
-    setDetectorNodeStreaming(event.target.checked);
+    setStreaming(event.target.checked);
   };
 
-  const handleChamberLogSwitch = (event: ChangeEvent<HTMLInputElement>) => {
-    if (logSocket && logSocket.readyState == WebSocket.OPEN){
-      logSocket.send(event.target.checked ? "start_server" : "stop_server")
-    }
+  // Replace the individual handlers with:
+  const handleRheedVideoSwitch = (event: ChangeEvent<HTMLInputElement>) =>
+    handleSocketSwitch(event, {
+      socket: rheedSocket,
+      controlOperation: sendRheedControlOperation,
+      setStreaming: setRHEEDNodeStreaming,
+    });
 
-    setChamberNodeStreaming(event.target.checked);
-  };
+  const handleRheedAISwitch = (event: ChangeEvent<HTMLInputElement>) =>
+    handleSocketSwitch(event, {
+      socket: analyzerSocket,
+      controlOperation: sendDetectorControlOperation,
+      setStreaming: setDetectorNodeStreaming,
+    });
 
-  const handleSTFTSwitch = (event: ChangeEvent<HTMLInputElement>) => {
-    if (analyzerSocket && analyzerSocket.readyState == WebSocket.OPEN){
-      sendSTFTControlOperation(event.target.checked ? "start_server" : "stop_server")      
-    }
+  const handleChamberLogSwitch = (event: ChangeEvent<HTMLInputElement>) =>
+    handleSocketSwitch(event, {
+      socket: chamberSocket,
+      controlOperation: sendChamberLogControlOperation,
+      setStreaming: setChamberNodeStreaming,
+    });
 
-    setSTFTNodeStreaming(event.target.checked);
-  };
-  
-  const handleIntegratorSwitch = (event: ChangeEvent<HTMLInputElement>) => {
-    if (analyzerSocket && analyzerSocket.readyState == WebSocket.OPEN){
-      sendIntegratorControlOperation(event.target.checked ? "start_server" : "stop_server")      
-    }
+  const handleSTFTSwitch = (event: ChangeEvent<HTMLInputElement>) =>
+    handleSocketSwitch(event, {
+      socket: analyzerSocket,
+      controlOperation: sendSTFTControlOperation,
+      setStreaming: setSTFTNodeStreaming,
+    });
 
-    setIntegratorNodeStreaming(event.target.checked);
-  };
-  
+  const handleIntegratorSwitch = (event: ChangeEvent<HTMLInputElement>) =>
+    handleSocketSwitch(event, {
+      socket: analyzerSocket,
+      controlOperation: sendIntegratorControlOperation,
+      setStreaming: setIntegratorNodeStreaming,
+    });
+
   return (
     <Box p={5}>
       <Heading as="h1" mb={4} color="green.500">
@@ -149,7 +194,9 @@ const MainController = () => {
             id="rheed-video"
             colorScheme="green"
             isChecked={rheedNodeState.is_streaming}
-            isDisabled={!(rheedNodeState.is_available && rheedNodeState.is_running)}
+            isDisabled={
+              !(rheedNodeState.is_available && rheedNodeState.is_running)
+            }
             onChange={handleRheedVideoSwitch}
             opacity={!isRheedLoading ? 1 : 0.5}
             transition="opacity 0.2s"
@@ -165,7 +212,9 @@ const MainController = () => {
             id="rheed-ai"
             colorScheme="green"
             isChecked={detectorNodeState.is_streaming}
-            isDisabled={!(detectorNodeState.is_available && detectorNodeState.is_running)}
+            isDisabled={
+              !(detectorNodeState.is_available && detectorNodeState.is_running)
+            }
             onChange={handleRheedAISwitch}
             opacity={!isDetectorLoading ? 1 : 0.5}
             transition="opacity 0.2s"
@@ -181,7 +230,9 @@ const MainController = () => {
             id="chamber-log"
             colorScheme="green"
             isChecked={chamberNodeState.is_streaming}
-            isDisabled={!(chamberNodeState.is_available && chamberNodeState.is_running)}
+            isDisabled={
+              !(chamberNodeState.is_available && chamberNodeState.is_running)
+            }
             onChange={handleChamberLogSwitch}
             opacity={!isChamberLogLoading ? 1 : 0.5}
             transition="opacity 0.2s"
@@ -196,13 +247,17 @@ const MainController = () => {
             id="integrator"
             colorScheme="green"
             isChecked={integratorNodeState.is_streaming}
-            isDisabled={!(integratorNodeState.is_available && integratorNodeState.is_running)}
+            isDisabled={
+              !(
+                integratorNodeState.is_available &&
+                integratorNodeState.is_running
+              )
+            }
             onChange={handleIntegratorSwitch}
             opacity={!isIntegratorLoading ? 1 : 0.5}
             transition="opacity 0.2s"
           />
         </Flex>
-
 
         <Flex mr={4} alignItems="center">
           <FormLabel htmlFor="stft" mb={{ base: "2", md: "0" }}>
@@ -212,19 +267,17 @@ const MainController = () => {
             id="stft"
             colorScheme="green"
             isChecked={stftNodeState.is_streaming}
-            isDisabled={!(stftNodeState.is_available && stftNodeState.is_running)}
+            isDisabled={
+              !(stftNodeState.is_available && stftNodeState.is_running)
+            }
             onChange={handleSTFTSwitch}
             opacity={!isSTFTLoading ? 1 : 0.5}
             transition="opacity 0.2s"
           />
         </Flex>
-
-
-
-
       </Flex>
 
-      <Flex
+      {/* <Flex
         direction={{
           base: "column",
           md: "row",
@@ -237,27 +290,29 @@ const MainController = () => {
       >
         <Flex mr={4} alignItems="center">
           <Button
-            onClick={() => sendDetectorControlOperation("start_streaming")}
-            isDisabled={!(detectorNodeState.is_available && detectorNodeState.is_running)}
+            onClick={() => sendDetectorCommandOperation("start_streaming")}
+            isDisabled={
+              !(detectorNodeState.is_available && detectorNodeState.is_running)
+            }
             opacity={!detectorNodeState.is_streaming ? 1 : 0.5}
             transition="opacity 0.2s"
           >
             Start Detection Streaming
           </Button>
-
         </Flex>
         <Flex mr={4} alignItems="center">
-        <Button
-            onClick={() => sendDetectorControlOperation("end_streaming")}
-            isDisabled={!(detectorNodeState.is_available && detectorNodeState.is_running)}
+          <Button
+            onClick={() => sendDetectorCommandOperation("end_streaming")}
+            isDisabled={
+              !(detectorNodeState.is_available && detectorNodeState.is_running)
+            }
             opacity={!detectorNodeState.is_streaming ? 1 : 0.5}
             transition="opacity 0.2s"
           >
             End Detection Streaming
           </Button>
-
         </Flex>
-      </Flex>
+      </Flex> */}
     </Box>
   );
 };

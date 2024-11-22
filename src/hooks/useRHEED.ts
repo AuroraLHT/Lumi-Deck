@@ -82,6 +82,7 @@ const useRHEED = (videoRef: React.RefObject<HTMLVideoElement>) => {
         if (fragment) {
           appendBuffer(videoRef, sourceBufferRef, fragment.payload);
           fragId.current = fragment.header.frag_idx;
+          // console.log("RHEEDClient appending initial fragment", fragId.current);
         };
 
       } else {
@@ -89,10 +90,11 @@ const useRHEED = (videoRef: React.RefObject<HTMLVideoElement>) => {
         if (frag) {
           appendBuffer(videoRef, sourceBufferRef, frag.payload);
           fragId.current = frag.header.frag_idx;
+          // console.log("RHEEDClient appending cache fragment", fragId.current);
         }
       }
     }
-  }, [isUpdating, rheedStore.fragment, isReady]);
+  }, [isUpdating, rheedStore.initialFragments, rheedStore.cache, isReady]);
 
 
   return { isReady };

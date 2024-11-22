@@ -5,8 +5,8 @@ import { STFTPayload, STFTHeader, STFTCacheBase, STFTCache } from "../../entitie
 
 export interface STFTStore {
   stft: STFTPayload;
-  stftTime: string;
-  stftTimeStamp: string;
+  // stftTime: string;
+  // stftTimeStamp: string;
 
   cacheSTFT: STFTCache;
   maxSTFTCacheSize: number;
@@ -28,8 +28,8 @@ const createSTFTSlice: StateCreator<
   STFTStore
 > = (set) => ({
   stft: {} as STFTPayload,
-  stftTime: "",
-  stftTimeStamp: "",
+  // stftTime: "",
+  // stftTimeStamp: "",
   
   cacheSTFT: {} as STFTCache,
   maxSTFTCacheSize: 20,
@@ -42,8 +42,8 @@ const createSTFTSlice: StateCreator<
   updateSTFTFromPayload: (payload: STFTPayload, header: STFTHeader) => {
     set((state) => {
       state.stft = payload;
-      state.stftTime = payload.time_end;
-      state.stftTimeStamp = payload.timestamp_end;
+      // state.stftTime = payload.time_end;
+      // state.stftTimeStamp = payload.timestamp_end;
 
       // cache do not store the mask, other wise it will take too much memory
 
