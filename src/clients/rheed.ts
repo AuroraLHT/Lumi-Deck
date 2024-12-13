@@ -1,9 +1,11 @@
 import { create } from 'zustand';
 import { WebSocketStore } from './websocket';
-import { logWebSocketMessage, parseWebSocketMessage, prepareCommandMessage, prepareControlMessage, prepareRequestMessage } from '../utils/websocket';
+import { parseWebSocketMessage, prepareCommandMessage, prepareControlMessage, prepareRequestMessage } from '../utils/websocket';
 import { immer } from 'zustand/middleware/immer';
 import { RHEEDHeader, RHEEDFragmentBase } from '../entities/rheed';
 
+const liveRheedVideoTarget = "Live RHEED Video";
+const rheedVideoTarget = "RHEED Video";
 
 interface RHEEDStore extends WebSocketStore {
     fragment: ArrayBuffer;
@@ -62,14 +64,14 @@ const useRHEEDStore = create<RHEEDStore>()(immer((set, get) => ({
         
                 // console.log("websocket header", websocket_header);
                 if (
-                  websocket_header.target === "Live RHEED Camera" &&
+                  websocket_header.target === liveRheedVideoTarget &&
                   websocket_header.operation === "stream"
                 ) {
                     // console.log("RHEEDClient received stream message", payload_header);
                     // console.log("RHEEDClient received stream message");
                     get().updateCacheFromPayload(payload_content, payload_header);
                 } else if (
-                    websocket_header.target === "Fragment" &&
+                    websocket_header.target === rheedVideoTarget &&
                     websocket_header.operation === "response"
                 ) {
                     // console.log("RHEEDClient received initial fragments response", payload_header);
@@ -202,7 +204,7 @@ const useRHEEDStore = create<RHEEDStore>()(immer((set, get) => ({
         requestPayload?: object
       ) => {
         const message = prepareRequestMessage(
-            "Fragment",
+            rheedVideoTarget,
             requestType,
             requestPayload
           );
@@ -216,7 +218,7 @@ const useRHEEDStore = create<RHEEDStore>()(immer((set, get) => ({
         controlPayload?: object
       ) => {
         const message = prepareControlMessage(
-          "Live RHEED Camera",
+          liveRheedVideoTarget,
           controlType,
           controlPayload
         );
@@ -229,7 +231,7 @@ const useRHEEDStore = create<RHEEDStore>()(immer((set, get) => ({
         commandPayload?: object
       ) => {
         const message = prepareCommandMessage(
-          "Live RHEED Camera",
+          liveRheedVideoTarget,
           commandType,
           commandPayload
         );

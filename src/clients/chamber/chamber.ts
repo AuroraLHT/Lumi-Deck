@@ -11,6 +11,9 @@ import { immer } from "zustand/middleware/immer";
 import { parseWebSocketMessage, prepareCommandMessage, prepareControlMessage } from '../../utils/websocket';
 import { BaseResponseMessageHeader } from '../../entities/backend';
 
+const chamberLogTarget = "Live Chamber Log";
+const miModeTarget = "MI Mode";
+
 interface ChamberClientStore extends WebSocketStore {
     sendChamberLogControlOperation: (
       controlType: string,
@@ -70,7 +73,7 @@ interface ChamberClientStore extends WebSocketStore {
   
           // console.log("chamber client handle message", websocket_header);
           if (
-            websocket_header.target === "Live Chamber Log" &&
+            websocket_header.target === chamberLogTarget &&
             websocket_header.operation === "stream"
           ) {
             // DEBUG: Bypass this block
@@ -82,7 +85,7 @@ interface ChamberClientStore extends WebSocketStore {
   
             get().updateChamberLogFromPayload(chamberLogPayload, chamberLogHeader);
           } else if (
-            websocket_header.target === "MI Mode" &&
+            websocket_header.target === miModeTarget &&
             websocket_header.operation === "response"
           ) {
             let message_header = payload_header as BaseResponseMessageHeader;
@@ -94,7 +97,7 @@ interface ChamberClientStore extends WebSocketStore {
               );
             }
           } else if (
-            websocket_header.target === "MI Mode" &&
+            websocket_header.target === miModeTarget &&
             websocket_header.operation === "update"
           ) {
             const payload = JSON.parse(new TextDecoder().decode(payload_content));
@@ -124,7 +127,7 @@ interface ChamberClientStore extends WebSocketStore {
       controlPayload?: object
     ) => {
       const message = prepareControlMessage(
-        "Live Chamber Log",
+        chamberLogTarget,
         controlType,
         controlPayload
       );
@@ -136,7 +139,7 @@ interface ChamberClientStore extends WebSocketStore {
       controlPayload?: object
     ) => {
       const message = prepareControlMessage(
-        "MI Mode",
+        miModeTarget,
         controlType,
         controlPayload
       );
@@ -148,7 +151,7 @@ interface ChamberClientStore extends WebSocketStore {
       commandPayload?: object
     ) => {
       const message = prepareCommandMessage(
-        "Live Chamber Log",
+        chamberLogTarget,
         commandType,
         commandPayload
       );
@@ -160,7 +163,7 @@ interface ChamberClientStore extends WebSocketStore {
       commandPayload?: object
     ) => {
       const message = prepareCommandMessage(
-        "MI Mode",
+        miModeTarget,
         commandType,
         commandPayload
       );

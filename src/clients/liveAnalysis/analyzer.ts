@@ -25,6 +25,13 @@ import { immer } from "zustand/middleware/immer";
 // which include bboxes, classification, region2tracks, intensity oscillation, live fft.
 // for now
 
+const liveDetectionTarget = "Live RHEED Detection";
+const liveIntegratorTarget = "Live RHEED Integrator";
+const liveSTFTTarget = "Live RHEED STFT";
+const detectorTarget = "RHEED Detection";
+const integratorTarget = "RHEED Integrator";
+const stftTarget = "RHEED STFT";
+
 interface LiveAnalysisClientStore extends WebSocketStore {
   sendDetectorControlOperation: (
     controlType: string,
@@ -104,7 +111,7 @@ const createLiveAnalysisClientSlice: StateCreator<
 
         // console.log("websocket header", websocket_header);
         if (
-          websocket_header.target === "Live Detection" &&
+          websocket_header.target === liveDetectionTarget &&
           websocket_header.operation === "stream"
         ) {
           // DEBUG: Bypass this block
@@ -117,7 +124,7 @@ const createLiveAnalysisClientSlice: StateCreator<
 
           get().updateDetectionFromPayload(detectionPayload, detectionHeader);
         } else if (
-          websocket_header.target === "Live Integrator" &&
+          websocket_header.target === liveIntegratorTarget &&
           websocket_header.operation === "stream"
         ) {
           // console.log("integrator data message received");
@@ -130,7 +137,7 @@ const createLiveAnalysisClientSlice: StateCreator<
             integrationHeader
           );
         } else if (
-          websocket_header.target === "Integrator" &&
+          websocket_header.target === integratorTarget &&
           websocket_header.operation === "Response"
         ) {
           console.log("integrator cache message received response", payload_header);
@@ -138,7 +145,7 @@ const createLiveAnalysisClientSlice: StateCreator<
           const integrationPayload = payload as IntegrationCache;
           get().updateIntegratorCacheFromPayload(integrationPayload);
         } else if (
-          websocket_header.target === "STFT" &&
+          websocket_header.target === stftTarget &&
           websocket_header.operation === "Response"
         ) {
           console.log("stft cache message received response", payload_header);
@@ -146,7 +153,7 @@ const createLiveAnalysisClientSlice: StateCreator<
           const stftPayload = payload as STFTCache;
           get().updateSTFTCacheFromPayload(stftPayload);
         } else if (
-          websocket_header.target === "Live STFT" &&
+          websocket_header.target === liveSTFTTarget &&
           websocket_header.operation === "stream"
         ) {
           const payload = JSON.parse(new TextDecoder().decode(payload_content));
@@ -173,7 +180,7 @@ const createLiveAnalysisClientSlice: StateCreator<
     controlPayload?: object
   ) => {
     const message = prepareControlMessage(
-      "Live Detection",
+      liveDetectionTarget,
       controlType,
       controlPayload
     );
@@ -185,7 +192,7 @@ const createLiveAnalysisClientSlice: StateCreator<
     commandPayload?: object
   ) => {
     const message = prepareCommandMessage(
-      "Live Detection",
+      liveDetectionTarget,
       commandType,
       commandPayload
     );
@@ -193,7 +200,7 @@ const createLiveAnalysisClientSlice: StateCreator<
   },
   sendDetectorRequest: (requestType: string, requestPayload?: object) => {
     const message = prepareRequestMessage(
-      "Detection",
+      detectorTarget,
       requestType,
       requestPayload
     );
@@ -205,7 +212,7 @@ const createLiveAnalysisClientSlice: StateCreator<
     controlPayload?: object
   ) => {
     const message = prepareControlMessage(
-      "Live Integrator",
+      liveIntegratorTarget,
       controlType,
       controlPayload
     );
@@ -217,7 +224,7 @@ const createLiveAnalysisClientSlice: StateCreator<
     commandPayload?: object
   ) => {
     const message = prepareCommandMessage(
-      "Live Integrator",
+      liveIntegratorTarget,
       commandType,
       commandPayload
     );
@@ -226,7 +233,7 @@ const createLiveAnalysisClientSlice: StateCreator<
 
   sendIntegratorRequest: (requestType: string, requestPayload?: object) => {
     const message = prepareRequestMessage(
-      "Integrator",
+      integratorTarget,
       requestType,
       requestPayload
     );
@@ -235,7 +242,7 @@ const createLiveAnalysisClientSlice: StateCreator<
 
   sendSTFTControlOperation: (controlType: string, controlPayload?: object) => {
     const message = prepareControlMessage(
-      "Live STFT",
+      liveSTFTTarget,
       controlType,
       controlPayload
     );
@@ -244,7 +251,7 @@ const createLiveAnalysisClientSlice: StateCreator<
 
   sendSTFTCommandOperation: (commandType: string, commandPayload?: object) => {
     const message = prepareCommandMessage(
-      "Live STFT",
+      liveSTFTTarget,
       commandType,
       commandPayload
     );
@@ -252,7 +259,7 @@ const createLiveAnalysisClientSlice: StateCreator<
   },
 
   sendSTFTRequest: (requestType: string, requestPayload?: object) => {
-    const message = prepareRequestMessage("STFT", requestType, requestPayload);
+    const message = prepareRequestMessage(stftTarget, requestType, requestPayload);
     get().socket?.send(message);
   },
 
