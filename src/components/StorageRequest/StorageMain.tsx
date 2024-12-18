@@ -25,6 +25,7 @@ import {
 } from "react-icons/md";
 import CircularButton from "../VideoPlayer/CircularButton";
 import useHTTPClient from "../../clients/http";
+import { BaseResponseMessageHeader } from "../../entities/backend";
 
 interface StorageFormValues {
   project_name: string;
@@ -33,7 +34,13 @@ interface StorageFormValues {
   save_log: boolean;
 }
 
+type StorageResponseMessage = {
+  body: string;
+  headers: BaseResponseMessageHeader;
+}
+
 const StorageMain: React.FC = () => {
+  // TODO: should quote the isRecording by the storage node state
   const { register, handleSubmit } = useForm<StorageFormValues>();
   const [isRecording, setIsRecording] = useState(false);
   const { isOpen, onToggle } = useDisclosure();
@@ -45,22 +52,45 @@ const StorageMain: React.FC = () => {
       const endpoint = isRecording ? "/storage/end" : "/storage/start";
       const response = await client.post(endpoint, data);
 
-      console.log(response.data);
-      setIsRecording(!isRecording);
+      const responseData = response.data as StorageResponseMessage;
+      
+      const responseMessage = responseData.body;
+      const responseHeaders = responseData.headers;
+      
+      // console.log(response);
+      // console.log(responseHeaders);
 
-      toast({
-        title: "Success",
-        description: "Storage request submitted successfully",
-        status: "success",
-        duration: 3000,
-        isClosable: true,
-      });
+      // console.log(responseHeaders.succ);
+      if (responseHeaders.succ) {
+        if (endpoint == "/storage/end") {
+          setIsRecording(false);
+        } else {
+          setIsRecording(true);
+        }
+
+        toast({
+          title: "Success",
+          description: responseMessage,
+          status: "success",
+          duration: 3000,
+          isClosable: true,
+        });
+  
+      } else {
+        toast({
+          title: responseHeaders.error_type,
+          description: responseMessage,
+          status: "warning",
+          duration: 3000,
+          isClosable: true,
+        });
+      }
       
     } catch (error) {
       console.error('Error submitting form:', error);
       toast({
         title: "Error",
-        description: "Failed to submit storage request",
+        description: "Failed to submit storage request. Check Network Connection.",
         status: "error",
         duration: 3000,
         isClosable: true,
@@ -68,7 +98,7 @@ const StorageMain: React.FC = () => {
     }
   };
 
-  console.log("StorageMain rendered");
+  // console.log("StorageMain rendered");
 
   return (
     <Box pt={2}>
