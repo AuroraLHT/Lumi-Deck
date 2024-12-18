@@ -2,7 +2,7 @@ import { create } from "zustand";
 import { NodeState, Node } from "./base";
 import { immer } from "zustand/middleware/immer";
 
-interface MIModeNodeState extends NodeState {
+export interface MIModeNodeState extends NodeState {
   is_streaming: boolean;
   latest_executed_commands_uuid : string;
   num_executions : number;
