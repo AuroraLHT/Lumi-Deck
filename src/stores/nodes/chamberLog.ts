@@ -2,7 +2,7 @@ import { create } from "zustand";
 import { NodeState, Node } from "./base";
 import { immer } from "zustand/middleware/immer";
 
-interface ChamberLogNodeState extends NodeState {
+export interface ChamberLogNodeState extends NodeState {
   is_streaming: boolean;
   entries: string[];
   file_path: string | null;

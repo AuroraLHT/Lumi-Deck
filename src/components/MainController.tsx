@@ -1,6 +1,5 @@
 import {
   Box,
-  Button,
   Flex,
   FormLabel,
   Heading,
@@ -12,10 +11,12 @@ import useLiveAnalysisClient from "../clients/liveAnalysis/analyzer";
 import useChamberStore from "../clients/chamber/chamber";
 import useRHEEDStore from "../clients/rheed";
 
+
 import { ChangeEvent } from "react";
 import { useRef } from "react";
 
-import useRheedNodeStore from "../stores/nodes/rheed";
+import useRHEEDNodeStore from "../stores/nodes/rheed";
+import useRHEEDCameraNodeStore from "../stores/nodes/rheedCamera";
 import useChamberLogNodeStore from "../stores/nodes/chamberLog";
 
 // import useMIModeNodeStore from "../stores/nodes/mimode";
@@ -26,36 +27,45 @@ import useIntegratorNodeStore from "../stores/nodes/integrator";
 
 // the useXNode hooks are used to get the state of the node from the server, it also handles the SSE connection
 // might need to refactor the hook form to something like provider pattern to avoid calling the hook in each component
-import useRHEEDNode from "../hooks/useRHEEDNode";
-import useDetectorNode from "../hooks/useDetectorNode";
-import useChamberLogNode from "../hooks/useChamberLogNode";
-import useSTFTNode from "../hooks/useSTFTNode";
-import useIntegratorNode from "../hooks/useIntegratorNode";
+// import useRHEEDNode from "../hooks/useRHEEDNode";
+// import useRHEEDCamNode from "../hooks/useRHEEDCamNode";
+// import useDetectorNode from "../hooks/useDetectorNode";
+// import useChamberLogNode from "../hooks/useChamberLogNode";
+// import useSTFTNode from "../hooks/useSTFTNode";
+// import useIntegratorNode from "../hooks/useIntegratorNode";
+import useNodesState from "../hooks/useNodesState";
 
 const MainController = () => {
   // RHEED
-  const { isLoading: isRheedLoading } = useRHEEDNode();
-  const rheedNodeState = useRheedNodeStore((s) => s.state);
-  const setRHEEDNodeStreaming = useRheedNodeStore((s) => s.setStreaming);
+  const { isLoading } = useNodesState();
+
+  // const { isLoading: isRHEEDLoading } = useRHEEDNode();
+  // const { isLoading: isRHEEDCameraLoading } = useRHEEDCamNode();
+
+  const rheedNodeState = useRHEEDNodeStore((s) => s.state);
+  const setRHEEDNodeStreaming = useRHEEDNodeStore((s) => s.setStreaming);
+
+  const rheedCameraNodeState = useRHEEDCameraNodeStore((s) => s.state);
+  const setRHEEDCameraNodeStreaming = useRHEEDCameraNodeStore((s) => s.setStreaming);
 
   // Chamber Log
-  const { isLoading: isChamberLogLoading } = useChamberLogNode();
+  // const { isLoading: isChamberLogLoading } = useChamberLogNode();
   const chamberNodeState = useChamberLogNodeStore((s) => s.state);
   const setChamberNodeStreaming = useChamberLogNodeStore((s) => s.setStreaming);
 
   // Detector
-  const { isLoading: isDetectorLoading } = useDetectorNode();
+  // const { isLoading: isDetectorLoading } = useDetectorNode();
   const detectorNodeState = useDetectorNodeStore((s) => s.state);
   const setDetectorNodeStreaming = useDetectorNodeStore((s) => s.setStreaming);
 
   // STFT
-  const { isLoading: isSTFTLoading } = useSTFTNode();
+  // const { isLoading: isSTFTLoading } = useSTFTNode();
   const stftNodeState = useSTFTNodeStore((s) => s.state);
   const setSTFTNodeStreaming = useSTFTNodeStore((s) => s.setStreaming);
 
   // Integrator
   const integratorNodeState = useIntegratorNodeStore((s) => s.state);
-  const { isLoading: isIntegratorLoading } = useIntegratorNode();
+  // const { isLoading: isIntegratorLoading } = useIntegratorNode();
   const setIntegratorNodeStreaming = useIntegratorNodeStore(
     (s) => s.setStreaming
   );
@@ -64,28 +74,15 @@ const MainController = () => {
   const rheedAISwitchRef = useRef<HTMLInputElement>(null);
   const chamberLogSwitchRef = useRef<HTMLInputElement>(null);
 
-  // useEffect(() => {
-  //   if (rheedVideoSwitchRef.current) {
-  //     console.log("RHEED", rheedNodeState);
-  //   }
-  // }, [rheedNodeState]);
-
-  // useEffect(() => {
-  //   if (rheedAISwitchRef.current) {
-  //     console.log("RHEED AI", RHEEDAINode);
-  //   }
-  // }, [RHEEDAINode]);
-
-  // useEffect(() => {
-  //   if (chamberLogSwitchRef.current) {
-  //     console.log("Chamber", ChamberNode);
-  //   }
-  // }, [ChamberNode]);
 
   const rheedSocket = useRHEEDStore((s) => s.socket);
 
-  const sendRheedControlOperation = useRHEEDStore(
+  const sendRHEEDControlOperation = useRHEEDStore(
     (s) => s.sendRHEEDControlOperation
+  );
+
+  const sendRHEEDCameraControlOperation = useRHEEDStore(
+    (s) => s.sendRHEEDCameraControlOperation
   );
 
   const sendChamberLogControlOperation = useChamberStore(
@@ -95,9 +92,9 @@ const MainController = () => {
   const sendDetectorControlOperation = useLiveAnalysisClient(
     (s) => s.sendDetectorControlOperation
   );
-  const sendDetectorCommandOperation = useLiveAnalysisClient(
-    (s) => s.sendDetectorCommandOperation
-  );
+  // const sendDetectorCommandOperation = useLiveAnalysisClient(
+  //   (s) => s.sendDetectorCommandOperation
+  // );
 
   const chamberSocket = useChamberStore((s) => s.socket);
   const sendSTFTControlOperation = useLiveAnalysisClient(
@@ -111,7 +108,7 @@ const MainController = () => {
   );
   // const sendIntegratorCommandOperation = useLiveAnalysisClient(s=>s.sendIntegratorCommandOperation);
 
-  // console.log(sendRheedMessage, sendLogMessage, sendDetectionMessage);
+  // console.log(sendRHEEDMessage, sendLogMessage, sendDetectionMessage);
   // ... existing code ...
 
   type SocketOperation = {
@@ -131,14 +128,21 @@ const MainController = () => {
   };
 
   // Replace the individual handlers with:
-  const handleRheedVideoSwitch = (event: ChangeEvent<HTMLInputElement>) =>
+  const handleRHEEDVideoSwitch = (event: ChangeEvent<HTMLInputElement>) =>
     handleSocketSwitch(event, {
       socket: rheedSocket,
-      controlOperation: sendRheedControlOperation,
+      controlOperation: sendRHEEDControlOperation,
       setStreaming: setRHEEDNodeStreaming,
     });
 
-  const handleRheedAISwitch = (event: ChangeEvent<HTMLInputElement>) =>
+  const handleRHEEDCameraSwitch = (event: ChangeEvent<HTMLInputElement>) =>
+    handleSocketSwitch(event, {
+      socket: rheedSocket,
+      controlOperation: sendRHEEDCameraControlOperation,
+      setStreaming: setRHEEDCameraNodeStreaming,
+    });
+
+  const handleRHEEDAISwitch = (event: ChangeEvent<HTMLInputElement>) =>
     handleSocketSwitch(event, {
       socket: analyzerSocket,
       controlOperation: sendDetectorControlOperation,
@@ -197,8 +201,8 @@ const MainController = () => {
             isDisabled={
               !(rheedNodeState.is_available && rheedNodeState.is_running)
             }
-            onChange={handleRheedVideoSwitch}
-            opacity={!isRheedLoading ? 1 : 0.5}
+            onChange={handleRHEEDVideoSwitch}
+            opacity={!isLoading ? 1 : 0.5}
             transition="opacity 0.2s"
           />
         </Flex>
@@ -215,8 +219,8 @@ const MainController = () => {
             isDisabled={
               !(detectorNodeState.is_available && detectorNodeState.is_running)
             }
-            onChange={handleRheedAISwitch}
-            opacity={!isDetectorLoading ? 1 : 0.5}
+            onChange={handleRHEEDAISwitch}
+            opacity={!isLoading ? 1 : 0.5}
             transition="opacity 0.2s"
           />
         </Flex>
@@ -234,7 +238,7 @@ const MainController = () => {
               !(chamberNodeState.is_available && chamberNodeState.is_running)
             }
             onChange={handleChamberLogSwitch}
-            opacity={!isChamberLogLoading ? 1 : 0.5}
+            opacity={!isLoading ? 1 : 0.5}
             transition="opacity 0.2s"
           />
         </Flex>
@@ -254,7 +258,7 @@ const MainController = () => {
               )
             }
             onChange={handleIntegratorSwitch}
-            opacity={!isIntegratorLoading ? 1 : 0.5}
+            opacity={!isLoading ? 1 : 0.5}
             transition="opacity 0.2s"
           />
         </Flex>
@@ -271,11 +275,29 @@ const MainController = () => {
               !(stftNodeState.is_available && stftNodeState.is_running)
             }
             onChange={handleSTFTSwitch}
-            opacity={!isSTFTLoading ? 1 : 0.5}
+            opacity={!isLoading ? 1 : 0.5}
             transition="opacity 0.2s"
           />
         </Flex>
       </Flex>
+
+      <Flex mr={4} alignItems="center">
+          <FormLabel htmlFor="rheed-cam" mb={{ base: "2", md: "0" }}>
+            RHEED Cam
+          </FormLabel>
+          <Switch
+            id="rheed-cam"
+            colorScheme="green"
+            isChecked={rheedCameraNodeState.is_streaming}
+            isDisabled={
+              !(rheedCameraNodeState.is_available && rheedCameraNodeState.is_running)
+            }
+            onChange={handleRHEEDCameraSwitch}
+            opacity={!isLoading ? 1 : 0.5}
+            transition="opacity 0.2s"
+          />
+      </Flex>
+
 
       {/* <Flex
         direction={{

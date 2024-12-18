@@ -3,7 +3,7 @@ import { create } from "zustand";
 import { StreamNode, StreamNodeState } from "./base";
 import { immer } from "zustand/middleware/immer";
 
-interface IntegratorNodeState extends StreamNodeState {
+export interface IntegratorNodeState extends StreamNodeState {
 }
 
 interface IntegratorNode extends StreamNode<IntegratorNodeState> {}

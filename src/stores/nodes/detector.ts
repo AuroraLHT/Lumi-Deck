@@ -3,7 +3,7 @@ import { create } from "zustand";
 import { StreamNode, StreamNodeState } from "./base";
 import { immer } from "zustand/middleware/immer";
 
-interface DetectorNodeState extends StreamNodeState {
+export interface DetectorNodeState extends StreamNodeState {
   pattern_dim: number[];
   detection_metas: string[];
   classifier_classes: string[];

@@ -3,7 +3,7 @@ import { create } from "zustand";
 import { StreamNode, StreamNodeState } from "./base";
 import { immer } from "zustand/middleware/immer";
 
-interface RheedNodeState extends StreamNodeState {
+export interface RHEEDNodeState extends StreamNodeState {
   frame_dims: number[];
   frame_metas: string[];
   video_fps: number;
@@ -11,9 +11,9 @@ interface RheedNodeState extends StreamNodeState {
   video_width: number;
 }
 
-interface RheedNode extends StreamNode<RheedNodeState> {}
+interface RHEEDNode extends StreamNode<RHEEDNodeState> {}
 
-const useRheedNodeStore = create<RheedNode>()(
+const useRHEEDNodeStore = create<RHEEDNode>()(
   immer((set) => ({
     state: {
       is_available: false,
@@ -35,4 +35,4 @@ const useRheedNodeStore = create<RheedNode>()(
   }))
 );
 
-export default useRheedNodeStore;
+export default useRHEEDNodeStore;
