@@ -6,6 +6,7 @@ import { RHEEDHeader, RHEEDFragmentBase } from '../entities/rheed';
 
 const liveRheedVideoTarget = "Live RHEED Video";
 const rheedVideoTarget = "RHEED Video";
+const liveRheedCameraTarget = "Live RHEED Camera";
 
 interface RHEEDStore extends WebSocketStore {
     fragment: ArrayBuffer;
@@ -33,6 +34,14 @@ interface RHEEDStore extends WebSocketStore {
     sendRHEEDCommandOperation: (
         commandType: string,
         commandPayload?: object
+      ) => void;
+    sendRHEEDCameraControlOperation: (
+        cameraType: string,
+        cameraPayload?: object
+      ) => void;
+    sendRHEEDCameraCommandOperation: (
+        cameraType: string,
+        cameraPayload?: object
       ) => void;
 }
 
@@ -237,6 +246,30 @@ const useRHEEDStore = create<RHEEDStore>()(immer((set, get) => ({
         );
         get().socket?.send(message);
         // logWebSocketMessage(message);
+      },
+
+    sendRHEEDCameraCommandOperation: (
+        cameraType: string,
+        cameraPayload?: object
+      ) => {
+        const message = prepareCommandMessage(
+          liveRheedCameraTarget,
+          cameraType,
+          cameraPayload
+        );
+        get().socket?.send(message);
+      },
+
+      sendRHEEDCameraControlOperation: (
+        cameraType: string,
+        cameraPayload?: object
+      ) => {
+        const message = prepareControlMessage(
+          liveRheedCameraTarget,
+          cameraType,
+          cameraPayload
+        );
+        get().socket?.send(message);
       },
 })));
 
