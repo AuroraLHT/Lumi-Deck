@@ -21,7 +21,7 @@ const MainWebsocketsProvider: React.FC<MainWebsocketsProps> = ({ children }) => 
   useEffect(() => {
     // remove all websockets if the Host is changed
     if (!selectedHost) return;
-    connect_rheed((`ws://${selectedHost}/RHEED/cam/live`), "arraybuffer");
+    connect_rheed((`ws://${selectedHost}/RHEED/data/live`), "arraybuffer");
     connect_log((`ws://${selectedHost}/chamber/live`), "arraybuffer");
     connect_analyzer((`ws://${selectedHost}/RHEED/analysis/live`), "arraybuffer");
   }, [selectedHost]);
