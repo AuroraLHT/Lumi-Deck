@@ -1,18 +1,17 @@
-import { Spinner } from "@chakra-ui/react";
+// import { Spinner } from "@chakra-ui/react";
 import useRHEED from "../../hooks/useRHEED";
-import styles from './VideoPlayer.module.css'
+import styles from "./VideoPlayer.module.css";
 
 interface VideoPlayerProps {
   videoRef: React.RefObject<HTMLVideoElement>;
 }
 
 const VideoPlayer = ({ videoRef }: VideoPlayerProps) => {
-
   const { isReady } = useRHEED(videoRef);
 
   return (
     <>
-      {!isReady && (
+      {/* {!isReady && (
         <Spinner
           thickness="4px"
           speed="0.65s"
@@ -20,9 +19,17 @@ const VideoPlayer = ({ videoRef }: VideoPlayerProps) => {
           color="blue.500"
           size="xl"
         />
-      )}
+      )} */}
 
-      <video ref={videoRef} id="video" controls={false} autoPlay={true} className={styles['video-player']} width="100%" height="auto">
+      <video
+        ref={videoRef}
+        id="video"
+        controls={false}
+        autoPlay={true}
+        className={styles["video-player"]}
+        width={isReady ? "100%" : "540px"}
+        height={isReady ? "auto" : "720px"}
+      >
         Your browser does not support the video tag.
       </video>
     </>

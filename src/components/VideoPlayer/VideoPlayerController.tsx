@@ -1,24 +1,42 @@
-import { Flex, Slider, SliderFilledTrack, SliderThumb, SliderTrack } from "@chakra-ui/react";
+import {
+  Flex,
+  // Slider,
+  // SliderFilledTrack,
+  // SliderThumb,
+  // SliderTrack,
+} from "@chakra-ui/react";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import CircularButton from "./CircularButton";
 import { FaPause, FaPlay, FaStepForward } from "react-icons/fa";
 import { RiCheckboxMultipleBlankLine } from "react-icons/ri";
 
+import { GoScreenFull } from "react-icons/go";
+import { GoScreenNormal } from "react-icons/go";
+
 interface VideoPlayerControllerProps {
   videoRef: React.RefObject<HTMLVideoElement>;
   showDetections: boolean;
+  isFocused: boolean;
   setShowDetections: React.Dispatch<React.SetStateAction<boolean>>;
+  setIsFocused: React.Dispatch<React.SetStateAction<boolean>>;
+  zIndex: number;
 }
 
-const VideoPlayerController = ({ videoRef, showDetections, setShowDetections }: VideoPlayerControllerProps) => {
+const VideoPlayerController = ({
+  videoRef,
+  showDetections,
+  setShowDetections,
+  isFocused,
+  setIsFocused,
+  zIndex,
+}: VideoPlayerControllerProps) => {
   // console.log("VideoPlayerController rendered");
   const [isPlaying, setIsPlaying] = useState(false);
-//   const [progress, setProgress] = useState(0);
-//   const [lastBufferedTime, setLastBufferedTime] = useState(0);
-    const progressRef = useRef(0); // Use ref for progress
-    const lastBufferedTimeRef = useRef(0); // Use ref for lastBufferedTime
-    const sliderRef = useRef<HTMLInputElement>(null);
-
+  //   const [progress, setProgress] = useState(0);
+  //   const [lastBufferedTime, setLastBufferedTime] = useState(0);
+  const progressRef = useRef(0); // Use ref for progress
+  const lastBufferedTimeRef = useRef(0); // Use ref for lastBufferedTime
+  const sliderRef = useRef<HTMLInputElement>(null);
 
   const updateProgress = useCallback(() => {
     const video = videoRef.current;
@@ -32,7 +50,7 @@ const VideoPlayerController = ({ videoRef, showDetections, setShowDetections }: 
     progressRef.current = progress; // Update ref
     // console.log("Updating progress value:", progress);
     if (sliderRef.current) {
-    //   sliderRef.current.value = Math.round(progress).toString();
+      //   sliderRef.current.value = Math.round(progress).toString();
       console.log("Slider value:", sliderRef.current.value);
     }
   }, [videoRef]);
@@ -70,7 +88,9 @@ const VideoPlayerController = ({ videoRef, showDetections, setShowDetections }: 
     const updateBuffered = () => {
       if (video.buffered.length > 0) {
         // setLastBufferedTime(video.buffered.end(video.buffered.length - 1));
-        lastBufferedTimeRef.current = video.buffered.end(video.buffered.length - 1);
+        lastBufferedTimeRef.current = video.buffered.end(
+          video.buffered.length - 1
+        );
       }
     };
 
@@ -82,8 +102,15 @@ const VideoPlayerController = ({ videoRef, showDetections, setShowDetections }: 
   // it is disable now. we can try throttling or debouncing the updateProgress function
 
   return (
-    <Flex bg="gray.600" p={2} alignItems="center" justifyContent="center" borderRadius="full" gap={2}>
-
+    <Flex
+      bg="gray.600"
+      p={2}
+      alignItems="center"
+      justifyContent="center"
+      borderRadius="full"
+      gap={2}
+      zIndex={zIndex}
+    >
       <CircularButton
         aria-label={isPlaying ? "Pause" : "Play"}
         icon={isPlaying ? <FaPause /> : <FaPlay />}
@@ -118,6 +145,12 @@ const VideoPlayerController = ({ videoRef, showDetections, setShowDetections }: 
         aria-label="Jump to last buffered"
         icon={<FaStepForward />}
         onClick={jumpToLastBuffered}
+      />
+
+      <CircularButton
+        aria-label="Focus"
+        icon={isFocused ? <GoScreenNormal size={20} /> : <GoScreenFull size={20} />}
+        onClick={() => setIsFocused(!isFocused)}
       />
 
       <CircularButton
