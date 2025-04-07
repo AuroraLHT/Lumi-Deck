@@ -33,7 +33,7 @@ const createIntegratorSlice: StateCreator<
   integrationFrameUUID: "",
   
   cacheIntegrator: {} as IntegrationCache,
-  maxIntegratorCacheSize: 200,
+  maxIntegratorCacheSize: 5000,
 
   setMaxIntegratorCacheSize: (maxCacheSize: number) =>
     set((state) => {
