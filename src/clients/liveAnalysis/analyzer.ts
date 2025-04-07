@@ -138,20 +138,14 @@ const createLiveAnalysisClientSlice: StateCreator<
           );
         } else if (
           websocket_header.target === integratorTarget &&
-          websocket_header.operation === "Response"
+          websocket_header.operation === "response"
         ) {
-          console.log("integrator cache message received response", payload_header);
-          const payload = JSON.parse(new TextDecoder().decode(payload_content));
-          const integrationPayload = payload as IntegrationCache;
-          get().updateIntegratorCacheFromPayload(integrationPayload);
+          console.log("integrator cache message received response", payload_header, payload_content);
         } else if (
           websocket_header.target === stftTarget &&
-          websocket_header.operation === "Response"
+          websocket_header.operation === "response"
         ) {
-          console.log("stft cache message received response", payload_header);
-          const payload = JSON.parse(new TextDecoder().decode(payload_content));
-          const stftPayload = payload as STFTCache;
-          get().updateSTFTCacheFromPayload(stftPayload);
+          console.log("stft cache message received response", payload_header, payload_content);
         } else if (
           websocket_header.target === liveSTFTTarget &&
           websocket_header.operation === "stream"
@@ -160,6 +154,8 @@ const createLiveAnalysisClientSlice: StateCreator<
           const stftPayload = payload as STFTPayload;
           const stftHeader = payload_header as STFTHeader;
           get().updateSTFTFromPayload(stftPayload, stftHeader);
+        } else {
+          console.log("unknown message received", websocket_header.target, websocket_header.operation);
         }
       };
       socket.onmessage = handleMessage;
