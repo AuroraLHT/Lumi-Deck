@@ -26,20 +26,20 @@ const DetectionAnalyzerMain = () => {
             </GridItem>
             <GridItem>
               <Flex>
-              <Text fontWeight="bold">Name:</Text>
-              <Text>{focusedDetection.name}</Text>
+              <Text fontWeight="bold" mr={2}>Name:</Text>
+              <Text> {focusedDetection.name}</Text>
 
               </Flex>
             </GridItem>
             <GridItem>
               <Flex>
-                <Text fontWeight="bold">Label:</Text>
+                <Text fontWeight="bold" mr={2}>Label:</Text>
                 <Text>{focusedDetection.label}</Text>
               </Flex>
             </GridItem>
             <GridItem>
               <Flex>
-                <Text fontWeight="bold">Score:</Text>
+                <Text fontWeight="bold" mr={2}>Score:</Text>
                 <Text>{focusedDetection.score.toFixed(2)}</Text>
               </Flex>
             </GridItem>
