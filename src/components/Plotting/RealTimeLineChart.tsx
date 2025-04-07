@@ -30,11 +30,7 @@ export const filterByTimeWindow = ({ windowSize, data }: TimeWindowOptions) => {
   // const now = new Date();
   if (data.length === 0) { return data; }
   else {
-    console.log("data", data);
-    console.log("windowSize", windowSize);
-    console.log("data[data.length - 1].x", data[data.length - 1].x.getTime());
     const cutoff = data[data.length - 1].x.getTime() - windowSize;
-    console.log("cutoff", cutoff);
   
     return data.filter(point => point.x.getTime() > cutoff);  
   }
@@ -61,7 +57,7 @@ const RealTimeLineChart: React.FC<Props> = ({ chartData, xaxisName, yaxisName, x
     })
   }));
 
-  console.log("windowedChartData", windowedChartData);
+  // console.log("windowedChartData", windowedChartData);
 
   if (windowedChartData.length === 0) { return null; }
 

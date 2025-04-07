@@ -3,7 +3,7 @@ import Detection from "./Detection";
 import styles from "./VideoPlayer.module.css";
 
 import { useState, useRef } from "react";
-import { Box, Switch } from "@chakra-ui/react";
+import { Box } from "@chakra-ui/react";
 import VideoPlayerController from "./VideoPlayerController";
 
 const VideoMain = () => {
