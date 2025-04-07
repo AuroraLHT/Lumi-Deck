@@ -63,6 +63,7 @@ const RealTimeTemperature = () => {
         xaxisMax="auto"
         yaxisMin={0}
         yaxisMax={1000}
+        windowSize={10*60*1000}
       />
     </MediumContainer>
   );

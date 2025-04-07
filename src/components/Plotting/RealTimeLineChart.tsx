@@ -1,7 +1,13 @@
 import React, { useEffect, useState } from "react";
 import { ResponsiveLineCanvas } from "@nivo/line";
 import { Serie } from "@nivo/line";
-import {v4 as uuidv4} from 'uuid';
+import { useMemo } from 'react';
+
+export interface TimeWindowOptions {
+  windowSize: number; // in milliseconds
+  data: Array<{ x: Date; y: number }>;
+}
+
 
 export interface DataPoint {
   x: number | Date;
@@ -17,21 +23,45 @@ interface Props {
   xaxisMax: Date | string;
   yaxisMin: number | "auto";
   yaxisMax: number | "auto";
+  windowSize: number;
 }
 
-const RealTimeLineChart: React.FC<Props> = ({ chartData, xaxisName, yaxisName, xaxisMin, xaxisMax, yaxisMin, yaxisMax }: Props) => {
+export const filterByTimeWindow = ({ windowSize, data }: TimeWindowOptions) => {
+  // const now = new Date();
+  if (data.length === 0) { return data; }
+  else {
+    console.log("data", data);
+    console.log("windowSize", windowSize);
+    console.log("data[data.length - 1].x", data[data.length - 1].x.getTime());
+    const cutoff = data[data.length - 1].x.getTime() - windowSize;
+    console.log("cutoff", cutoff);
+  
+    return data.filter(point => point.x.getTime() > cutoff);  
+  }
+};
+
+const RealTimeLineChart: React.FC<Props> = ({ chartData, xaxisName, yaxisName, xaxisMin, xaxisMax, yaxisMin, yaxisMax, windowSize }: Props) => {
   //   const [isPaused, setIsPaused] = useState(false);
   // TODO: add some ui for windows size selection
 
   // console.log("RealTimeLineChart re-rendered", new Date().toISOString(), uuidv4());
 
-  const windowSize = 100;
+  // const windowSize = 100;
+  // const windowedChartData = chartData.map(serie => ({
+  //       ...serie,
+  //       data: serie.data.slice(        
+  //         -windowSize)
+  //     }));
+
   const windowedChartData = chartData.map(serie => ({
-        ...serie,
-        data: serie.data.slice(        
-          -windowSize)
-      }));
-      
+    ...serie,
+    data: filterByTimeWindow({
+      windowSize: windowSize,
+      data: [...serie.data] as Array<{ x: Date; y: number }>
+    })
+  }));
+
+  console.log("windowedChartData", windowedChartData);
 
   if (windowedChartData.length === 0) { return null; }
 
@@ -52,13 +82,13 @@ const RealTimeLineChart: React.FC<Props> = ({ chartData, xaxisName, yaxisName, x
         // }}
         axisTop={{
           format: "%H:%M:%S",
-          tickValues: 5,
+          tickValues: 4,
           // tickValues: 'every 15 minutes',
         }}
         axisBottom={{
           format: "%H:%M:%S",
           // tickValues: 'every 15 minutes',
-          tickValues: 5,
+          tickValues: 4,
           // legend: `${chartData[0].data[0]?.x} ——— ${chartData[0].data[chartData[0].data.length-1]?.x}}`,
           legend: xaxisName,
           legendPosition: "middle",

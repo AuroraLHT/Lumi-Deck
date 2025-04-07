@@ -1,6 +1,6 @@
 import { Grid, GridItem } from "@chakra-ui/react";
 import RealTimePressure from "./Chamber/RealTimePressure";
-import RealTimeTemperature from "./Chamber/RealTImeTemperature";
+import RealTimeTemperature from "./Chamber/RealTimeTemperature";
 import RealTimeClassification from "./RealTimeClassification";
 import RealTimePulseLaser from "./Chamber/RealTimePulseLaser";
 

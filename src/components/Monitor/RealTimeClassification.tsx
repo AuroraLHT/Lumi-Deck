@@ -26,17 +26,18 @@ const RealTimeClassification = () => {
       },
     ])
   const { cache } = useDetectionCache();
+  // console.log("cache", cache[0].classification);
 
   if (cache.length > 0) {
     // console.log("cacheDetection", cache.length);
     let prob_transmission = cache.map((item) => ({
       x: new Date(item.header.time_stamp),
-      y: parseFloat(item.classification["transmission"]),
+      y: parseFloat(item.classification["Transmission"]),
     }));
   
     let prob_polycrystalline = cache.map((item) => ({
       x: new Date(item.header.time_stamp),
-      y: parseFloat(item.classification["Powder"]),
+      y: parseFloat(item.classification["Polycrystalline"]),
     }));
   
     let prob_epitaxial = cache.map((item) => ({
@@ -72,6 +73,7 @@ const RealTimeClassification = () => {
         xaxisMax="auto"
         yaxisMin={0}
         yaxisMax={1}
+        windowSize={20000}
       />
     </MediumContainer>
   );

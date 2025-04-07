@@ -62,6 +62,7 @@ const RealTimePressure = () => {
         xaxisMax="auto"
         yaxisMin={-11}
         yaxisMax={3}
+        windowSize={10*60*1000}
       />
     </MediumContainer>
   );
