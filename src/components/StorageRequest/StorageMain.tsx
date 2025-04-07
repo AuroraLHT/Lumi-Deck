@@ -41,7 +41,15 @@ type StorageResponseMessage = {
 
 const StorageMain: React.FC = () => {
   // TODO: should quote the isRecording by the storage node state
-  const { register, handleSubmit } = useForm<StorageFormValues>();
+  const { register, handleSubmit } = useForm<StorageFormValues>(
+    {
+      defaultValues: {
+        save_frame: true,
+        save_ai: true,
+        save_log: true,
+      }
+    }
+  );
   const [isRecording, setIsRecording] = useState(false);
   const { isOpen, onToggle } = useDisclosure();
   const client = useHTTPClient();
@@ -84,6 +92,10 @@ const StorageMain: React.FC = () => {
           duration: 3000,
           isClosable: true,
         });
+
+        if (responseHeaders.error_type == "StorageTerminationError") {
+          setIsRecording(false);
+        }
       }
       
     } catch (error) {
