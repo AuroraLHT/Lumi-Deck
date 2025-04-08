@@ -5,6 +5,7 @@ import styles from "./VideoPlayer.module.css";
 import { useState, useRef } from "react";
 import { Box } from "@chakra-ui/react";
 import VideoPlayerController from "./VideoPlayerController";
+import RectangleSelector from "../Drawing/RectangleSelector";
 
 const VideoMain = () => {
   console.log("VideoMain rendered");
@@ -12,6 +13,7 @@ const VideoMain = () => {
 
   const [showDetections, setShowDetections] = useState(true);
   const [isFocused, setIsFocused] = useState(false);
+  const [isManualBox, setIsManualBox] = useState(false);
 
   return (
       <Box 
@@ -40,6 +42,7 @@ const VideoMain = () => {
           <Box width="100%" height="100%" position="relative">
             <VideoPlayer videoRef={videoRef} />
             {showDetections && <Detection />}
+            {isManualBox && <RectangleSelector />}
           </Box>
 
           <VideoPlayerController 
@@ -49,6 +52,8 @@ const VideoMain = () => {
             setIsFocused={setIsFocused}  // Pass this to your controller
             isFocused={isFocused}            // Pass this to your controller
             zIndex={isFocused ? 3 : 0}
+            isManualBox={isManualBox}
+            setIsManualBox={setIsManualBox}
           />
         </Box>
       </Box>

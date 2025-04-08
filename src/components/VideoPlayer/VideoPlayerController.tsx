@@ -9,6 +9,7 @@ import React, { useCallback, useEffect, useRef, useState } from "react";
 import CircularButton from "./CircularButton";
 import { FaPause, FaPlay, FaStepForward } from "react-icons/fa";
 import { RiCheckboxMultipleBlankLine } from "react-icons/ri";
+import { RiEditBoxLine } from "react-icons/ri";
 
 import { GoScreenFull } from "react-icons/go";
 import { GoScreenNormal } from "react-icons/go";
@@ -17,8 +18,10 @@ interface VideoPlayerControllerProps {
   videoRef: React.RefObject<HTMLVideoElement>;
   showDetections: boolean;
   isFocused: boolean;
+  isManualBox: boolean;
   setShowDetections: React.Dispatch<React.SetStateAction<boolean>>;
   setIsFocused: React.Dispatch<React.SetStateAction<boolean>>;
+  setIsManualBox: React.Dispatch<React.SetStateAction<boolean>>;
   zIndex: number;
 }
 
@@ -28,6 +31,8 @@ const VideoPlayerController = ({
   setShowDetections,
   isFocused,
   setIsFocused,
+  isManualBox,
+  setIsManualBox,
   zIndex,
 }: VideoPlayerControllerProps) => {
   // console.log("VideoPlayerController rendered");
@@ -157,13 +162,22 @@ const VideoPlayerController = ({
         aria-label="Select multiple"
         icon={<RiCheckboxMultipleBlankLine />}
         onClick={() => {
-          console.log("Select multiple");
+          // console.log("Select multiple");
           setShowDetections(!showDetections);
         }}
         {...(showDetections ? { colorScheme: "red" } : {})}
         // color={showDetections ? "current" : "white"}
       />
 
+      <CircularButton
+        aria-label="Manual box"
+        icon={<RiEditBoxLine />}
+        onClick={() => {
+          // console.log("Select multiple");
+          setIsManualBox(!isManualBox);
+        }}
+        {...(isManualBox ? { colorScheme: "red" } : {})}
+      />
     </Flex>
   );
 };
