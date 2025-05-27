@@ -13,6 +13,7 @@ import { RiEditBoxLine } from "react-icons/ri";
 
 import { GoScreenFull } from "react-icons/go";
 import { GoScreenNormal } from "react-icons/go";
+import { IoIosSettings } from "react-icons/io";
 
 interface VideoPlayerControllerProps {
   videoRef: React.RefObject<HTMLVideoElement>;
@@ -22,6 +23,8 @@ interface VideoPlayerControllerProps {
   setShowDetections: React.Dispatch<React.SetStateAction<boolean>>;
   setIsFocused: React.Dispatch<React.SetStateAction<boolean>>;
   setIsManualBox: React.Dispatch<React.SetStateAction<boolean>>;
+  isCameraConfig: boolean;
+  setIsCameraConfig: React.Dispatch<React.SetStateAction<boolean>>;
   zIndex: number;
 }
 
@@ -34,6 +37,8 @@ const VideoPlayerController = ({
   isManualBox,
   setIsManualBox,
   zIndex,
+  isCameraConfig,
+  setIsCameraConfig,
 }: VideoPlayerControllerProps) => {
   // console.log("VideoPlayerController rendered");
   const [isPlaying, setIsPlaying] = useState(false);
@@ -178,6 +183,17 @@ const VideoPlayerController = ({
         }}
         {...(isManualBox ? { colorScheme: "red" } : {})}
       />
+
+      <CircularButton
+        aria-label="Camera Config"
+        icon={<IoIosSettings size={20} />}
+        onClick={() => {
+          // console.log("Select multiple");
+          setIsCameraConfig(!isCameraConfig);
+        }}
+        {...(isCameraConfig ? { colorScheme: "red" } : {})}
+      />
+
     </Flex>
   );
 };

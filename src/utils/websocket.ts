@@ -9,7 +9,7 @@ export interface WebSocketHeader {
   payload_type: "json" | "text" | "bytes";
 }
 
-export function encodeObjectToBuffer(obj: any): ArrayBuffer {
+export function encodeObjectToBuffer(obj: any): Uint8Array<ArrayBuffer> {
   const json = JSON.stringify(obj);
   const encoder = new TextEncoder();
   return encoder.encode(json);
@@ -62,7 +62,7 @@ export function packHeader(header: any): ArrayBuffer {
 export function packWebSocketMessage(
   websocket_header: WebSocketHeader,
   payload_header: any,
-  payload_content: ArrayBuffer
+  payload_content: Uint8Array<ArrayBuffer>
 ): ArrayBuffer {
   const packedWebsocketHeader = packHeader(websocket_header);
   const packedPayloadHeader = packHeader(payload_header);
@@ -80,7 +80,7 @@ export function packWebSocketMessage(
     packedWebsocketHeader.byteLength
   );
   resultView.set(
-    new Uint8Array(payload_content),
+    payload_content,
     packedWebsocketHeader.byteLength + packedPayloadHeader.byteLength
   );
 
@@ -105,7 +105,7 @@ export const prepareControlMessage = (
       payload_type: "json",
     },
     header,
-    controlPayload ? encodeObjectToBuffer(controlPayload) : new ArrayBuffer(0)
+    controlPayload ? encodeObjectToBuffer(controlPayload) : new Uint8Array(new ArrayBuffer(0))
   );
 };
 
@@ -121,7 +121,7 @@ export const prepareCommandMessage = (
       payload_type: "json",
     },
     { command_type: commandType },
-    commandPayload ? encodeObjectToBuffer(commandPayload) : new ArrayBuffer(0)
+    commandPayload ? encodeObjectToBuffer(commandPayload) : new Uint8Array(new ArrayBuffer(0))
   );
 };
 
@@ -138,7 +138,7 @@ export const prepareRequestMessage = (
       payload_type: "json",
     },
     header,
-    requestPayload ? encodeObjectToBuffer(requestPayload) : new ArrayBuffer(0)
+    requestPayload ? encodeObjectToBuffer(requestPayload) : new Uint8Array(new ArrayBuffer(0))
   );
 };
 

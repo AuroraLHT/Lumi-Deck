@@ -6,6 +6,8 @@ import { useState, useRef } from "react";
 import { Box } from "@chakra-ui/react";
 import VideoPlayerController from "./VideoPlayerController";
 import RectangleSelector from "../Drawing/RectangleSelector";
+import CameraConfigModal from "./CameraConfigModal";
+
 
 const VideoMain = () => {
   console.log("VideoMain rendered");
@@ -14,6 +16,8 @@ const VideoMain = () => {
   const [showDetections, setShowDetections] = useState(true);
   const [isFocused, setIsFocused] = useState(false);
   const [isManualBox, setIsManualBox] = useState(false);
+  const [isCameraConfig, setIsCameraConfig] = useState(false);
+
 
   return (
       <Box 
@@ -54,8 +58,15 @@ const VideoMain = () => {
             zIndex={isFocused ? 3 : 0}
             isManualBox={isManualBox}
             setIsManualBox={setIsManualBox}
+            isCameraConfig={isCameraConfig}
+            setIsCameraConfig={setIsCameraConfig}
           />
         </Box>
+
+        <CameraConfigModal 
+          isCameraConfig={isCameraConfig} 
+          setIsCameraConfig={setIsCameraConfig} 
+        />
       </Box>
   );
 };

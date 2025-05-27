@@ -3,19 +3,22 @@ import { WebSocketStore } from './websocket';
 import { parseWebSocketMessage, prepareCommandMessage, prepareControlMessage, prepareRequestMessage } from '../utils/websocket';
 import { immer } from 'zustand/middleware/immer';
 import { RHEEDHeader, RHEEDFragmentBase } from '../entities/rheed';
+import { CameraConfigForm } from '../components/VideoPlayer/CameraConfigModal';
 
 const liveRheedVideoTarget = "Live RHEED Video";
 const rheedVideoTarget = "RHEED Video";
 const liveRheedCameraTarget = "Live RHEED Camera";
-
+const rheedCameraTarget = "RHEED Camera";
 interface RHEEDStore extends WebSocketStore {
     fragment: ArrayBuffer;
     initialFragments: RHEEDFragmentBase[];
     initialFragmentsLastId: number;
     cache: RHEEDFragmentBase[];
     readedCacheIndex: number;
-
     maxCacheSize: number;
+
+    cameraConfig: CameraConfigForm;
+    setCameraConfig: (cameraConfig: CameraConfigForm) => void;
     setMaxCacheSize: (maxCacheSize: number) => void;
     updateCacheFromPayload: (payload: ArrayBuffer, header:RHEEDHeader) => void;
     updateInitialFragments: (payload: ArrayBuffer, header: { [key: string]: RHEEDHeader }) => void;
@@ -23,6 +26,8 @@ interface RHEEDStore extends WebSocketStore {
     getUnreadedCache: () => RHEEDFragmentBase[];
     getFrag: () => RHEEDFragmentBase | null;
     requestInitialFragments: () => void;
+    requestCameraConfig: () => void;
+    requestCameraConfigUpdate: (cameraConfig: CameraConfigForm) => void;
     sendRHEEDRequestOperation: (
         requestType: string,
         requestPayload?: object
@@ -34,6 +39,10 @@ interface RHEEDStore extends WebSocketStore {
     sendRHEEDCommandOperation: (
         commandType: string,
         commandPayload?: object
+      ) => void;
+    sendRHEEDCameraRequestOperation: (
+        requestType: string,
+        requestPayload?: object
       ) => void;
     sendRHEEDCameraControlOperation: (
         cameraType: string,
@@ -56,6 +65,11 @@ const useRHEEDStore = create<RHEEDStore>()(immer((set, get) => ({
     readedCacheIndex :0,
     initialFragmentsLastId: 0,
     maxCacheSize: 100,
+
+    cameraConfig: {
+        exposure_time: 0,
+        gain: 0
+    },
 
     connectWebSocket: (host: string, binaryType: "arraybuffer" | "blob") =>
         set((state) => {
@@ -85,6 +99,18 @@ const useRHEEDStore = create<RHEEDStore>()(immer((set, get) => ({
                 ) {
                     // console.log("RHEEDClient received initial fragments response", payload_header);
                     get().updateInitialFragments(payload_content, payload_header);
+                } else if (
+                    websocket_header.target === rheedCameraTarget &&
+                    websocket_header.operation === "response"
+                ) {
+                  // console.log("RHEEDClient received camera config response", payload_header, "content", payload_content);
+                    if ((payload_header.request_type === "get_camera_config") || (payload_header.request_type === "update_camera_config")) {
+                      if (payload_header.succ) {
+                        const payload = JSON.parse(new TextDecoder().decode(payload_content));
+                        // console.log("RHEEDClient received camera config", payload);
+                        get().setCameraConfig(payload);
+                      }
+                    }
                 } else {
                     console.log("RHEEDClient received unknown message", websocket_header);
                 }
@@ -109,6 +135,7 @@ const useRHEEDStore = create<RHEEDStore>()(immer((set, get) => ({
 
             state.socket = socket;
         }),
+
     disconnectWebSocket: () =>
         set((state) => {
             state.socket = null;
@@ -121,6 +148,12 @@ const useRHEEDStore = create<RHEEDStore>()(immer((set, get) => ({
         set((state) => {
             state.isConnected = isConnected;
         }),
+
+    setCameraConfig: (cameraConfig: CameraConfigForm) =>
+        set((state) => {
+            state.cameraConfig = cameraConfig;
+        }),
+
     setMaxCacheSize: (maxCacheSize: number) =>
         set((state) => {
             state.maxCacheSize = maxCacheSize;
@@ -208,6 +241,14 @@ const useRHEEDStore = create<RHEEDStore>()(immer((set, get) => ({
         get().sendRHEEDRequestOperation("initial_fragments");
     },
 
+    requestCameraConfig: () => {
+        get().sendRHEEDCameraRequestOperation("get_camera_config");
+    },
+
+    requestCameraConfigUpdate: (cameraConfig: CameraConfigForm) => {
+      get().sendRHEEDCameraRequestOperation("update_camera_config", cameraConfig);
+    },
+
     sendRHEEDRequestOperation: (
         requestType: string,
         requestPayload?: object
@@ -247,6 +288,20 @@ const useRHEEDStore = create<RHEEDStore>()(immer((set, get) => ({
         get().socket?.send(message);
         // logWebSocketMessage(message);
       },
+
+    sendRHEEDCameraRequestOperation: (
+      requestType: string,
+      requestPayload?: object
+    ) => {
+      const message = prepareRequestMessage(
+          rheedCameraTarget,
+          requestType,
+          requestPayload
+        );
+        get().socket?.send(message);
+      //   logWebSocketMessage(message);
+
+    },
 
     sendRHEEDCameraCommandOperation: (
         cameraType: string,

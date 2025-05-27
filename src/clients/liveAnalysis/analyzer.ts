@@ -4,9 +4,8 @@ import { DetectionPayload, DetectionHeader } from "../../entities/detector";
 import {
   IntegrationHeader,
   IntegrationPayload,
-  IntegrationCache,
 } from "../../entities/integrator";
-import { STFTCache, STFTPayload, STFTHeader } from "../../entities/stft";
+import { STFTPayload, STFTHeader } from "../../entities/stft";
 import {
   parseWebSocketMessage,
   // packWebSocketMessage,
