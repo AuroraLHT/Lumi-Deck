@@ -32,6 +32,7 @@ interface StorageFormValues {
   save_frame: boolean;
   save_ai: boolean;
   save_log: boolean;
+  save_integration: boolean;
 }
 
 type StorageResponseMessage = {
@@ -47,6 +48,7 @@ const StorageMain: React.FC = () => {
         save_frame: true,
         save_ai: true,
         save_log: true,
+        save_integration: true,
       }
     }
   );
@@ -165,6 +167,11 @@ const StorageMain: React.FC = () => {
                   <Checkbox id="save_log" {...register("save_log")}>
                     Log
                   </Checkbox>
+
+                  <Checkbox id="save_integration" {...register("save_integration")}>
+                    Integration
+                  </Checkbox>
+
                 </Stack>
               </CheckboxGroup>
             </Box>
