@@ -5,8 +5,8 @@ import useIntegrationCache from "../../hooks/useIntegrationCache";
 import SmallContainer from "../Plotting/SmallContainer";
 import PlottingToolbar from "../Plotting/ToolBar";
 import { useState } from "react";
-import ToolBarMenu from "../Plotting/ToolBarMenu";
-import { RangeValue } from "../Plotting/ToolBarMenu";
+import RTVToolBarMenu from "../Plotting/RTVToolBarMenu";
+import { RangeValue } from "../Plotting/RTVToolBarMenu";
 
 const IntegratorVisualizer = () => {
   const focusedDetectionID = useLiveAnalysisStore((s) => s.focusedDetectionID);
@@ -14,6 +14,7 @@ const IntegratorVisualizer = () => {
   const [windowSize, setWindowSize] = useState(10000);
   const [rangeMin, setRangeMin] = useState<RangeValue>("auto");
   const [rangeMax, setRangeMax] = useState<RangeValue>("auto");
+  const [isVisible, setIsVisible] = useState(true);
 
   let data: Serie[] = [
     {
@@ -47,7 +48,7 @@ const IntegratorVisualizer = () => {
   }
 
   const settingsMenu = (
-    <ToolBarMenu
+    <RTVToolBarMenu
       WindowSize={windowSize}
       onWindowSizeChange={setWindowSize}
       RangeMin={rangeMin}
@@ -59,17 +60,19 @@ const IntegratorVisualizer = () => {
 
   return (
     <SmallContainer>
-      <PlottingToolbar onMinimize={() => {}} settingsMenu={settingsMenu} />
-      <RealTimeLineChart
-        chartData={data}
-        xaxisName="Time"
-        yaxisName="Intensity"
-        xaxisMin="auto"
-        xaxisMax="auto"
-        yaxisMin={rangeMin}
+      <PlottingToolbar isMinimized={!isVisible} onMinimize={() => {setIsVisible(!isVisible)}} settingsMenu={settingsMenu} />
+      {isVisible && (
+        <RealTimeLineChart
+          chartData={data}
+          xaxisName="Time"
+          yaxisName="Intensity"
+          xaxisMin="auto"
+          xaxisMax="auto"
+          yaxisMin={rangeMin}
         yaxisMax={rangeMax}
-        windowSize={windowSize}
-      />
+          windowSize={windowSize}
+        />
+      )}
     </SmallContainer>
   );
 };

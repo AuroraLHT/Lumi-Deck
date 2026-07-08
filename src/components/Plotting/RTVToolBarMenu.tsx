@@ -3,7 +3,7 @@ import { useRef, useEffect } from "react";
 
 export type RangeValue = number | "auto";
 
-interface ToolBarMenuProps {
+interface RTVToolBarMenuProps {
   RangeMin: RangeValue;
   onRangeMinChange: (min: RangeValue) => void;
   RangeMax: RangeValue;
@@ -12,7 +12,7 @@ interface ToolBarMenuProps {
   onWindowSizeChange: (size: number) => void;
 }
 
-const ToolBarMenu: React.FC<ToolBarMenuProps> = ({ RangeMin, onRangeMinChange, RangeMax, onRangeMaxChange, WindowSize, onWindowSizeChange }) => {
+const RTVToolBarMenu: React.FC<RTVToolBarMenuProps> = ({ RangeMin, onRangeMinChange, RangeMax, onRangeMaxChange, WindowSize, onWindowSizeChange }) => {
   const inputWindowSizeRef = useRef<HTMLInputElement>(null);
   const inputRangeMinRef = useRef<HTMLInputElement>(null);
   const inputRangeMaxRef = useRef<HTMLInputElement>(null);
@@ -84,4 +84,4 @@ const ToolBarMenu: React.FC<ToolBarMenuProps> = ({ RangeMin, onRangeMinChange, R
   );
 };
 
-export default ToolBarMenu;
+export default RTVToolBarMenu;

@@ -4,12 +4,23 @@ import useLiveAnalysisStore from "../../stores/liveAnalysis";
 import useSTFTCache from "../../hooks/useSTFTCache";
 import LineChart from "../Plotting/LineChart";
 import SmallContainer from "../Plotting/SmallContainer";
+
+import PlottingToolbar from "../Plotting/ToolBar";
+import STFTToolBarMenu, { RangeValue } from "./STFTToolBarMenu";
+import { useState } from "react";
+
 // import { v4 as uuidv4 } from "uuid";
 
 const STFTVisualizer = () => {
   // console.log("Rendering STFTVisualizer", new Date().toISOString(), uuidv4());
   const { cache } = useSTFTCache();
   const focusedDetectionID = useLiveAnalysisStore((s) => s.focusedDetectionID);
+
+  const [rangeMin, setRangeMin] = useState<RangeValue>("auto");
+  const [rangeMax, setRangeMax] = useState<RangeValue>("auto");
+  const [frequencyMin, setFrequencyMin] = useState<RangeValue>("auto");
+  const [frequencyMax, setFrequencyMax] = useState<RangeValue>("auto");
+  const [isVisible, setIsVisible] = useState(false);
 
   let data: Serie[] = [
     {
@@ -48,17 +59,38 @@ const STFTVisualizer = () => {
     }
   }
 
+  const settingsMenu = (
+    <STFTToolBarMenu
+      RangeMin={rangeMin}
+      onRangeMinChange={setRangeMin}
+      RangeMax={rangeMax}
+      onRangeMaxChange={setRangeMax}
+      FrequencyMin={frequencyMin}
+      onFrequencyMinChange={setFrequencyMin}
+      FrequencyMax={frequencyMax}
+      onFrequencyMaxChange={setFrequencyMax}
+    />
+  );
   return (
     <SmallContainer>
-      <LineChart
-        chartData={data}
-        xaxisName="Frequency (Hz)"
-        yaxisName="Magnitude"
-        xaxisMin={0}
-        xaxisMax={1}
-        yaxisMin="auto"
-        yaxisMax="auto"
+      <PlottingToolbar
+        isMinimized={!isVisible}
+        onMinimize={() => {
+          setIsVisible(!isVisible);
+        }}
+        settingsMenu={settingsMenu}
       />
+      {isVisible && (
+        <LineChart
+          chartData={data}
+          xaxisName="Frequency (Hz)"
+          yaxisName="Magnitude"
+          xaxisMin={0}
+          xaxisMax={1}
+          yaxisMin="auto"
+          yaxisMax="auto"
+        />
+      )}
     </SmallContainer>
   );
 };

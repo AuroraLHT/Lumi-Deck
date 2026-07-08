@@ -4,10 +4,19 @@ import RealTimeLineChart from "../Plotting/RealTimeLineChart";
 import useDetectionCache from "../../hooks/useDetectionCache";
 // import useLiveAnalysisClient from "../../clients/liveAnalysis/analyzer";
 import MediumContainer from "../Plotting/MediumContainer";
+import PlottingToolbar from "../Plotting/ToolBar";
+import RTVToolBarMenu, {RangeValue} from "../Plotting/RTVToolBarMenu";
+import { useState } from "react";
+
 // import { DetectionBase } from "../../entities/detector";
 // import {v4 as uuidv4} from 'uuid';
 
 const RealTimeClassification = () => {
+  const [rangeMin, setRangeMin] = useState<RangeValue>("auto");
+  const [rangeMax, setRangeMax] = useState<RangeValue>("auto");
+  const [windowSize, setWindowSize] = useState(20000);
+  const [isVisible, setIsVisible] = useState(true);
+
   // console.log("RealTimeClassification re-rendered", new Date().toISOString(), uuidv4());
   let data = ([
       {
@@ -63,18 +72,32 @@ const RealTimeClassification = () => {
     ]);  
   }
 
+  const settingsMenu = (
+    <RTVToolBarMenu
+      RangeMin={rangeMin}
+      onRangeMinChange={setRangeMin}
+      RangeMax={rangeMax}
+      onRangeMaxChange={setRangeMax}
+      WindowSize={windowSize}
+      onWindowSizeChange={setWindowSize}
+    />
+  );
+
   return (
     <MediumContainer>
-      <RealTimeLineChart
-        chartData={data}
-        xaxisName="Time"
-        yaxisName="Probability"
-        xaxisMin="auto"
-        xaxisMax="auto"
+      <PlottingToolbar isMinimized={!isVisible} onMinimize={() => {setIsVisible(!isVisible)}} settingsMenu={settingsMenu} />
+      {isVisible && (
+        <RealTimeLineChart
+          chartData={data}
+          xaxisName="Time"
+          yaxisName="Probability"
+          xaxisMin="auto"
+          xaxisMax="auto"
         yaxisMin={0}
         yaxisMax={1}
-        windowSize={20000}
-      />
+          windowSize={windowSize}
+        />
+      )}
     </MediumContainer>
   );
 };

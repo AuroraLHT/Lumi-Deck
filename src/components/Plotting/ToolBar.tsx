@@ -1,13 +1,14 @@
 import { Box, IconButton, HStack, Collapse } from '@chakra-ui/react'
-import { MinusIcon, SettingsIcon } from '@chakra-ui/icons'
+import { MinusIcon, AddIcon, SettingsIcon } from '@chakra-ui/icons'
 import { useState } from 'react';
 
 interface PlottingToolbarProps {
+  isMinimized: boolean;
   onMinimize: () => void;
   settingsMenu?: React.ReactNode; // Accept any React component for settings
 }
 
-const PlottingToolbar = ({ onMinimize, settingsMenu }: PlottingToolbarProps) => {
+const PlottingToolbar = ({ isMinimized, onMinimize, settingsMenu }: PlottingToolbarProps) => {
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
 
   const toggleSettings = () => {
@@ -34,7 +35,7 @@ const PlottingToolbar = ({ onMinimize, settingsMenu }: PlottingToolbarProps) => 
           />
           <IconButton
             aria-label="Minimize"
-            icon={<MinusIcon />}
+            icon={isMinimized ? <AddIcon /> : <MinusIcon />}
             size="sm"
             variant="ghost"
             onClick={onMinimize}
