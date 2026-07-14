@@ -17,12 +17,12 @@ const PlottingToolbar = ({ isMinimized, onMinimize, settingsMenu }: PlottingTool
 
   return (
     <Box position="relative">
-      <Box 
-        w="100%" 
-        p={2} 
-        borderBottom="1px" 
-        borderColor="gray.200"
-        bg="white"
+      <Box
+        w="100%"
+        p={2}
+        borderBottom="1px"
+        borderColor="panel.border"
+        bg="panel.header"
       >
         <HStack spacing={2} justifyContent="flex-end">
           

@@ -1,6 +1,7 @@
 import React from "react";
 import { ResponsiveLineCanvas } from "@nivo/line";
 import { Serie } from "@nivo/line";
+import useNivoTheme from "./nivoTheme";
 
 export interface DataPoint {
   x: number | Date;
@@ -27,9 +28,11 @@ const LineChart: React.FC<Props> = ({
   yaxisMin,
   yaxisMax,
 }: Props) => {
+  const nivoTheme = useNivoTheme();
   //   const [isPaused, setIsPaused] = useState(false);
   return (
     <ResponsiveLineCanvas
+      theme={nivoTheme}
       // data={chartData}
       data={chartData}
       margin={{ top: 30, right: 30, bottom: 50, left: 80 }}

@@ -1,27 +1,38 @@
-import { StrictMode } from "react";
 import { ChakraProvider, ColorModeScript } from "@chakra-ui/react";
 import { createRoot } from "react-dom/client";
+import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
 
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { ReactQueryDevtools } from "@tanstack/react-query-devtools";
 
 import theme from "./theme.ts";
-
-//TODO : replace the app page with a router
 import App from "./App.tsx";
-// import "./index.css";
+import LoginPage from "./components/Auth/LoginPage.tsx";
+import ProtectedRoute from "./components/Auth/ProtectedRoute.tsx";
 
 const queryClient = new QueryClient();
-// console.log(theme.config.initialColorMode, "initial color mode");
 
 createRoot(document.getElementById("root")!).render(
-  // <StrictMode>
-    <ChakraProvider theme={theme}>
-      <ColorModeScript initialColorMode={theme.config.initialColorMode} />
-      <QueryClientProvider client={queryClient}>
-        <App />
-        <ReactQueryDevtools />
-      </QueryClientProvider>
-    </ChakraProvider>
-  // </StrictMode>
+  // StrictMode stays off: it double-invokes effects, which opens and immediately
+  // tears down every websocket and MJPEG stream on mount.
+  <ChakraProvider theme={theme}>
+    <ColorModeScript initialColorMode={theme.config.initialColorMode} />
+    <QueryClientProvider client={queryClient}>
+      <BrowserRouter>
+        <Routes>
+          <Route path="/login" element={<LoginPage />} />
+          <Route
+            path="/"
+            element={
+              <ProtectedRoute>
+                <App />
+              </ProtectedRoute>
+            }
+          />
+          <Route path="*" element={<Navigate to="/" replace />} />
+        </Routes>
+      </BrowserRouter>
+      <ReactQueryDevtools />
+    </QueryClientProvider>
+  </ChakraProvider>
 );

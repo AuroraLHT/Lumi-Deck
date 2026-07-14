@@ -1,24 +1,20 @@
-import { Box, useColorModeValue } from "@chakra-ui/react";
+import { Box } from "@chakra-ui/react";
 
 interface Props {
   children: React.ReactNode;
 }
 
+/** Compact chart surface. See MediumContainer for why the height is a minimum. */
 const SmallContainer: React.FC<Props> = ({ children }: Props) => {
-  const bg = useColorModeValue("white", "white");
-  const color = useColorModeValue("black", "black");
   return (
     <Box
       width="100%"
-      height={{
-        base: "100px",
-        sm: "150px",
-        md: "200px",
-        lg: "250px",
-        xl: "300px",
-      }}
-      bg={bg}
-      color={color}
+      flex="1"
+      minHeight={{ base: "140px", md: "180px" }}
+      bg="plot.bg"
+      color="text.primary"
+      borderRadius="lg"
+      overflow="hidden"
     >
       {children}
     </Box>

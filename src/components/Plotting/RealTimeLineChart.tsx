@@ -1,7 +1,8 @@
-import React, { useEffect, useState } from "react";
+import React from "react";
 import { ResponsiveLineCanvas } from "@nivo/line";
 import { Serie } from "@nivo/line";
-import { useMemo } from 'react';
+import useNivoTheme from "./nivoTheme";
+
 
 export interface TimeWindowOptions {
   windowSize: number; // in milliseconds
@@ -37,6 +38,7 @@ export const filterByTimeWindow = ({ windowSize, data }: TimeWindowOptions) => {
 };
 
 const RealTimeLineChart: React.FC<Props> = ({ chartData, xaxisName, yaxisName, xaxisMin, xaxisMax, yaxisMin, yaxisMax, windowSize }: Props) => {
+  const nivoTheme = useNivoTheme();
   //   const [isPaused, setIsPaused] = useState(false);
   // TODO: add some ui for windows size selection
 
@@ -63,6 +65,7 @@ const RealTimeLineChart: React.FC<Props> = ({ chartData, xaxisName, yaxisName, x
 
   return (
       <ResponsiveLineCanvas
+      theme={nivoTheme}
         // data={chartData}
         data={windowedChartData}
         margin={{ top: 30, right: 30, bottom: 50, left: 80 }}

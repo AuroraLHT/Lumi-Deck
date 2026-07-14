@@ -1,5 +1,5 @@
 // import React from 'react'
-import { Box, Grid, GridItem, Heading } from "@chakra-ui/react";
+import { Box, Grid, GridItem } from "@chakra-ui/react";
 import DetectionAnalyzerSidebar from "./DetectionAnalyzerSidebar";
 import DetectionAnalyzerMain from "./DetectionAnalyzerMain";
 

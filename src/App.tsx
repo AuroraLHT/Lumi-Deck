@@ -1,60 +1,31 @@
-// import { useState } from 'react'
-// import reactLogo from './assets/react.svg'
-// import viteLogo from '/vite.svg'
-// import  DemoComponent  from "./components/Demo"
-import VideoMain from "./components/VideoPlayer/VideoMain";
-// import HostSelector from "./components/HostSelector";
-import MainController from "./components/MainController";
+import { Box } from "@chakra-ui/react";
+
 import MainWebsocketsProvider from "./components/MainWebSockets";
-import Navbar from "./navbar";
-import { Box, Grid, GridItem } from "@chakra-ui/react";
-import RealTimeMonitor from "./components/Monitor/RealTimeMonitor";
-import RealTimeDetectionAnalyzer from "./components/DetectionAnalyzer/RealTimeDetectionAnalyzer";
-import StorageMain from "./components/StorageRequest/StorageMain";
-// import MainControllerSimulator from "./components/MainControlSimulator"
-// import './App.css'
+import DashboardGrid from "./components/Dashboard/DashboardGrid";
+import Navbar from "./components/Shell/Navbar";
+import useSettingsSync from "./hooks/useSettingsSync";
 
+/**
+ * The dashboard shell.
+ *
+ * The layout is no longer hard-coded here: panels are placed by the user and
+ * persisted per-account (see stores/dashboard.ts and hooks/useSettingsSync.ts).
+ * This component only wires the websockets, the settings sync and the grid
+ * together.
+ */
 function App() {
+  const { status: syncStatus } = useSettingsSync();
+
   return (
-    <>
-      <Navbar></Navbar>
+    <Box minH="100vh" bg="app.bg">
+      <Navbar syncStatus={syncStatus} />
 
-      <Box padding={4}>
-        <MainWebsocketsProvider>
-          <Grid
-            templateRows="4fr 2fr 6fr"
-            templateColumns="4fr 4fr 6fr"
-            templateAreas={`
-                "rheed ai vis"
-                "controller other other"
-              `}
-            gap={2}
-          >
-            <GridItem area="rheed">
-              <VideoMain></VideoMain>
-              <StorageMain></StorageMain>
-            </GridItem>
-
-            <GridItem area="ai">
-              <RealTimeDetectionAnalyzer></RealTimeDetectionAnalyzer>
-              {/* <Box bg="red">
-                <Text fontSize="2xl" textAlign="center">
-                  AI Placeholder Content
-                </Text>
-              </Box> */}
-            </GridItem>
-
-            <GridItem area="vis">
-              <RealTimeMonitor></RealTimeMonitor>
-            </GridItem>
-
-            <GridItem rowSpan={2} colSpan={4} area="controller">
-              <MainController></MainController>
-            </GridItem>
-          </Grid>
-        </MainWebsocketsProvider>
-      </Box>
-    </>
+      <MainWebsocketsProvider>
+        <Box px={{ base: 2, md: 3 }} py={3}>
+          <DashboardGrid />
+        </Box>
+      </MainWebsocketsProvider>
+    </Box>
   );
 }
 

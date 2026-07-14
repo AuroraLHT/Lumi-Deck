@@ -3,10 +3,8 @@ import {
   Button,
   FormLabel,
   Input,
-  Stack,
   VStack,
   Grid,
-  GridItem,
 } from "@chakra-ui/react";
 import { useRef, useEffect } from "react";
 

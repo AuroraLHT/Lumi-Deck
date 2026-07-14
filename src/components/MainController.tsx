@@ -2,7 +2,6 @@ import {
   Box,
   Flex,
   FormLabel,
-  Heading,
   Switch,
 } from "@chakra-ui/react";
 
@@ -171,13 +170,9 @@ const MainController = () => {
     });
 
   return (
-    <Box p={5}>
-      <Heading as="h1" mb={4} color="green.500">
-        Server control
-      </Heading>
-
-      <Heading as="h3" mb={4}></Heading>
-
+    // No heading here any more: the panel chrome already titles this "Controller",
+    // so an in-body <h1> just repeated it.
+    <Box p={2}>
       <Flex
         direction={{
           base: "column",

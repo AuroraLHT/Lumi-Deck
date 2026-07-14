@@ -9,7 +9,7 @@ export interface WebSocketHeader {
   payload_type: "json" | "text" | "bytes";
 }
 
-export function encodeObjectToBuffer(obj: any): Uint8Array<ArrayBuffer> {
+export function encodeObjectToBuffer(obj: any): Uint8Array {
   const json = JSON.stringify(obj);
   const encoder = new TextEncoder();
   return encoder.encode(json);
@@ -62,7 +62,7 @@ export function packHeader(header: any): ArrayBuffer {
 export function packWebSocketMessage(
   websocket_header: WebSocketHeader,
   payload_header: any,
-  payload_content: Uint8Array<ArrayBuffer>
+  payload_content: Uint8Array
 ): ArrayBuffer {
   const packedWebsocketHeader = packHeader(websocket_header);
   const packedPayloadHeader = packHeader(payload_header);

@@ -6,7 +6,7 @@ import useDetectorNodeStore from "../../stores/nodes/detector";
 import useRheedNodeStore from "../../stores/nodes/rheed";
 
 const Detection = () => {
-  const { bboxes, cropSetup, socket } = useDetection();
+  const { bboxes, socket } = useDetection();
   const detectorNodeState = useDetectorNodeStore(s => s.state);
   const rheedNodeState = useRheedNodeStore(s => s.state);
   const canvasRef = useRef<HTMLCanvasElement>(null);
