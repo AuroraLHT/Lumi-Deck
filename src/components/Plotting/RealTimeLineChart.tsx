@@ -1,4 +1,5 @@
 import React from "react";
+import { Box } from "@chakra-ui/react";
 import { ResponsiveLineCanvas } from "@nivo/line";
 import { Serie } from "@nivo/line";
 import useNivoTheme from "./nivoTheme";
@@ -28,13 +29,20 @@ interface Props {
 }
 
 export const filterByTimeWindow = ({ windowSize, data }: TimeWindowOptions) => {
-  // const now = new Date();
   if (data.length === 0) { return data; }
-  else {
-    const cutoff = data[data.length - 1].x.getTime() - windowSize;
-  
-    return data.filter(point => point.x.getTime() > cutoff);  
+
+  const cutoff = data[data.length - 1].x.getTime() - windowSize;
+  const windowed = data.filter(point => point.x.getTime() > cutoff);
+
+  // A single point draws nothing. When the sample interval is wider than the
+  // window (e.g. one log every few minutes against a 60s window), the filter
+  // keeps only the newest point and the trace vanishes. Fall back to the last
+  // two samples so a line is always drawn when we actually have the data for one.
+  if (windowed.length < 2 && data.length >= 2) {
+    return data.slice(-2);
   }
+
+  return windowed;
 };
 
 const RealTimeLineChart: React.FC<Props> = ({ chartData, xaxisName, yaxisName, xaxisMin, xaxisMax, yaxisMin, yaxisMax, windowSize }: Props) => {
@@ -64,6 +72,7 @@ const RealTimeLineChart: React.FC<Props> = ({ chartData, xaxisName, yaxisName, x
   if (windowedChartData.length === 0) { return null; }
 
   return (
+    <Box flex="1" minH={0} width="100%">
       <ResponsiveLineCanvas
       theme={nivoTheme}
         // data={chartData}
@@ -164,6 +173,7 @@ const RealTimeLineChart: React.FC<Props> = ({ chartData, xaxisName, yaxisName, x
           },
         ]}
       />
+    </Box>
   );
 };
 

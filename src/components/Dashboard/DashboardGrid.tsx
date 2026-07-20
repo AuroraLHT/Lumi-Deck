@@ -50,9 +50,51 @@ const breakpointForWidth = (width: number): string => {
 
 const DashboardGrid = () => {
   const panels = useDashboardStore((s) => s.panels);
+  const maximizedPanelId = useDashboardStore((s) => s.maximizedPanelId);
+  const setMaximized = useDashboardStore((s) => s.setMaximized);
+
+  const maximizedPanel = useMemo(
+    () => panels.find((p) => p.id === maximizedPanelId) ?? null,
+    [panels, maximizedPanelId]
+  );
+
+  // A maximized panel leaves the grid entirely and fills the viewport. Rendering
+  // it inside the grid and merely making it large would still clip it to the
+  // grid's own box.
+  //
+  // Crucially we render the maximized panel *instead of* `DashboardGridBody`, so
+  // the body -- and with it `useContainerWidth` -- unmounts. If the body stayed
+  // mounted, its width-measuring ResizeObserver would see its detached container
+  // report a width of 0 and never re-measure on restore, leaving the whole grid
+  // collapsed to nothing the moment you left full screen.
+  if (maximizedPanel) {
+    return (
+      <Box position="fixed" inset={0} zIndex={20} bg="app.bg" p={3}>
+        <Panel
+          title={getPanelTitle(maximizedPanel)}
+          maximized
+          locked
+          onMaximize={() => setMaximized(null)}
+          style={{ height: "100%" }}
+        >
+          {PANEL_REGISTRY[maximizedPanel.type].render()}
+        </Panel>
+      </Box>
+    );
+  }
+
+  return <DashboardGridBody />;
+};
+
+/**
+ * The grid itself. Split out from `DashboardGrid` so that maximizing a panel
+ * unmounts it: `useContainerWidth` then tears down and, on restore, mounts fresh
+ * and re-measures the real container instead of a stale detached one.
+ */
+const DashboardGridBody = () => {
+  const panels = useDashboardStore((s) => s.panels);
   const layouts = useDashboardStore((s) => s.layouts);
   const locked = useDashboardStore((s) => s.locked);
-  const maximizedPanelId = useDashboardStore((s) => s.maximizedPanelId);
 
   const setLayoutForBreakpoint = useDashboardStore(
     (s) => s.setLayoutForBreakpoint
@@ -111,30 +153,6 @@ const DashboardGrid = () => {
   );
 
   const resizeConfig = useMemo(() => ({ enabled: !locked }), [locked]);
-
-  const maximizedPanel = useMemo(
-    () => panels.find((p) => p.id === maximizedPanelId) ?? null,
-    [panels, maximizedPanelId]
-  );
-
-  // A maximized panel leaves the grid entirely and fills the viewport. Rendering
-  // it inside the grid and merely making it large would still clip it to the
-  // grid's own box.
-  if (maximizedPanel) {
-    return (
-      <Box position="fixed" inset={0} zIndex={20} bg="app.bg" p={3}>
-        <Panel
-          title={getPanelTitle(maximizedPanel)}
-          maximized
-          locked
-          onMaximize={() => setMaximized(null)}
-          style={{ height: "100%" }}
-        >
-          {PANEL_REGISTRY[maximizedPanel.type].render()}
-        </Panel>
-      </Box>
-    );
-  }
 
   if (panels.length === 0) {
     return (

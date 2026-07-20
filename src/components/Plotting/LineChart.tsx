@@ -1,4 +1,5 @@
 import React from "react";
+import { Box } from "@chakra-ui/react";
 import { ResponsiveLineCanvas } from "@nivo/line";
 import { Serie } from "@nivo/line";
 import useNivoTheme from "./nivoTheme";
@@ -31,6 +32,7 @@ const LineChart: React.FC<Props> = ({
   const nivoTheme = useNivoTheme();
   //   const [isPaused, setIsPaused] = useState(false);
   return (
+    <Box flex="1" minH={0} width="100%">
     <ResponsiveLineCanvas
       theme={nivoTheme}
       // data={chartData}
@@ -86,6 +88,7 @@ const LineChart: React.FC<Props> = ({
         },
       ]}
     />
+    </Box>
   );
 };
 

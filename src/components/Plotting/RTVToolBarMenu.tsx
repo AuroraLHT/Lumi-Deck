@@ -43,7 +43,16 @@ const RTVToolBarMenu: React.FC<RTVToolBarMenuProps> = ({ RangeMin, onRangeMinCha
   };
 
   return (
-    <Box bg="gray.100" p={4} borderRadius="md" fontSize="sm">
+    <Box
+      bg="panel.bgElevated"
+      color="text.primary"
+      borderWidth="1px"
+      borderColor="panel.border"
+      boxShadow="md"
+      p={4}
+      borderRadius="md"
+      fontSize="sm"
+    >
       <VStack spacing={4} align="stretch">
         <Grid templateColumns="1fr 2fr" gap={4} alignItems="center">
           <FormLabel htmlFor="setWindowsSize" mb="0" fontSize="xs">Window Size (s):</FormLabel>

@@ -79,7 +79,16 @@ const STFTToolBarMenu: React.FC<STFTToolBarMenuProps> = ({
   };
 
   return (
-    <Box bg="gray.100" p={4} borderRadius="md" fontSize="sm">
+    <Box
+      bg="panel.bgElevated"
+      color="text.primary"
+      borderWidth="1px"
+      borderColor="panel.border"
+      boxShadow="md"
+      p={4}
+      borderRadius="md"
+      fontSize="sm"
+    >
       <VStack spacing={4} align="stretch">
         
         <Grid templateColumns="1fr 2fr" gap={4} alignItems="center">
@@ -97,15 +106,15 @@ const STFTToolBarMenu: React.FC<STFTToolBarMenuProps> = ({
         </Grid>
 
         <Grid templateColumns="1fr 2fr" gap={4} alignItems="center">
-          <FormLabel htmlFor="setFrequencyMin" mb="0" fontSize="xs">
+          <FormLabel htmlFor="setFrequencyMax" mb="0" fontSize="xs">
             Frequency Max:
           </FormLabel>
           <Input
-            ref={inputFrequencyMinRef}
-            defaultValue={FrequencyMin}
-            placeholder="Enter minimum frequency or 'auto'"
+            ref={inputFrequencyMaxRef}
+            defaultValue={FrequencyMax}
+            placeholder="Enter maximum frequency or 'auto'"
             size="xs"
-            id="setFrequencyMin"
+            id="setFrequencyMax"
             type="number"
           />
         </Grid>

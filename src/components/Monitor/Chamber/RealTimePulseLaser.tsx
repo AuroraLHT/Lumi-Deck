@@ -19,7 +19,7 @@ const RealTimeTemperature = () => {
   // const { logs, recentLog } = useLog();
   const [rangeMin, setRangeMin] = useState<RangeValue>("auto");
   const [rangeMax, setRangeMax] = useState<RangeValue>("auto");
-  const [windowSize, setWindowSize] = useState(60 * 1000);
+  const [windowSize, setWindowSize] = useState(10 * 60 * 1000);
   const [isVisible, setIsVisible] = useState(true);
 
   let data: Serie[] = [

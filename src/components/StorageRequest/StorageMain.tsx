@@ -149,7 +149,15 @@ const StorageMain: React.FC = () => {
           </Flex>
 
           <Collapse in={isOpen} animateOpacity>
-            <Box bg="gray.100" p={4} borderRadius="md">
+            <Box
+              bg="panel.bgElevated"
+              color="text.primary"
+              borderWidth="1px"
+              borderColor="panel.border"
+              boxShadow="md"
+              p={4}
+              borderRadius="md"
+            >
               <CheckboxGroup colorScheme="green">
                 <Stack spacing={[1, 5]} direction={["column", "row"]}>
                   <FormLabel htmlFor="save_frame">Options:</FormLabel>
