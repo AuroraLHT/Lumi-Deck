@@ -1,335 +1,329 @@
+import { useEffect, useState } from "react";
 import {
+  Badge,
   Box,
+  Button,
   Flex,
-  FormLabel,
+  HStack,
+  Spinner,
   Switch,
+  Text,
+  Tooltip,
+  VStack,
+  useToast,
 } from "@chakra-ui/react";
 
-import useLiveAnalysisClient from "../clients/liveAnalysis/analyzer";
-// import useChamberLogStore from "../clients/chamber/chamberLog";
-import useChamberStore from "../clients/chamber/chamber";
-import useRHEEDStore from "../clients/rheed";
+import useSystemRegistry from "../hooks/useSystemRegistry";
+import useTransportStore from "../clients/transport";
+import useAuthStore from "../stores/auth";
+import ConfirmButton from "./Controller/ConfirmButton";
+import NodeSupervision from "./Controller/NodeSupervision";
+import {
+  CapabilityPresence,
+  NodeRecord,
+  NodeStatus,
+  SystemSupervisorClient,
+} from "../generated/lumi";
 
+// Node liveness -> a Chakra colour scheme for the status badge.
+const STATUS_SCHEME: Record<NodeStatus, string> = {
+  up: "green",
+  down: "red",
+  leaving: "yellow",
+};
 
-import { ChangeEvent } from "react";
-import { useRef } from "react";
+// A capability has a server-push stream (and therefore start/stop control verbs)
+// only for these kinds; rpc/pubsub have no stream to toggle.
+const isStreamable = (cap: CapabilityPresence): boolean =>
+  cap.kind === "stream" || cap.kind === "duplex";
 
-import useRHEEDNodeStore from "../stores/nodes/rheed";
-import useRHEEDCameraNodeStore from "../stores/nodes/rheedCamera";
-import useChamberLogNodeStore from "../stores/nodes/chamberLog";
+/** "just now" / "12s ago" / "3m ago" from an ISO timestamp. */
+const relativeTime = (iso: string): string => {
+  const then = new Date(iso).getTime();
+  if (Number.isNaN(then)) return "";
+  const secs = Math.max(0, Math.round((Date.now() - then) / 1000));
+  if (secs < 5) return "just now";
+  if (secs < 60) return `${secs}s ago`;
+  if (secs < 3600) return `${Math.floor(secs / 60)}m ago`;
+  return `${Math.floor(secs / 3600)}h ago`;
+};
 
-// import useMIModeNodeStore from "../stores/nodes/mimode";
+const CapabilityRow = ({
+  node,
+  cap,
+  canControl,
+}: {
+  node: NodeRecord;
+  cap: CapabilityPresence;
+  canControl: boolean;
+}) => {
+  const transport = useTransportStore((s) => s.transport);
+  const toast = useToast();
 
-import useDetectorNodeStore from "../stores/nodes/detector";
-import useSTFTNodeStore from "../stores/nodes/stft";
-import useIntegratorNodeStore from "../stores/nodes/integrator";
+  const streamable = isStreamable(cap);
+  const serverStreaming = Boolean(cap.is_streaming);
 
-// the useXNode hooks are used to get the state of the node from the server, it also handles the SSE connection
-// might need to refactor the hook form to something like provider pattern to avoid calling the hook in each component
-// import useRHEEDNode from "../hooks/useRHEEDNode";
-// import useRHEEDCamNode from "../hooks/useRHEEDCamNode";
-// import useDetectorNode from "../hooks/useDetectorNode";
-// import useChamberLogNode from "../hooks/useChamberLogNode";
-// import useSTFTNode from "../hooks/useSTFTNode";
-// import useIntegratorNode from "../hooks/useIntegratorNode";
-import useNodesState from "../hooks/useNodesState";
+  // Optimistic target while a start/stop is in flight and until the registry
+  // reports the new state. The Switch is otherwise driven purely by the server's
+  // is_streaming, which lags the click by a heartbeat (~1-2s), so without this
+  // the control feels dead on click.
+  const [pending, setPending] = useState<boolean | null>(null);
 
-const MainController = () => {
-  // RHEED
-  const { isLoading } = useNodesState();
+  useEffect(() => {
+    // Server truth caught up to what we asked for -- drop the optimistic override.
+    if (pending !== null && serverStreaming === pending) setPending(null);
+  }, [serverStreaming, pending]);
 
-  // const { isLoading: isRHEEDLoading } = useRHEEDNode();
-  // const { isLoading: isRHEEDCameraLoading } = useRHEEDCamNode();
+  // Only a running node's stream can be toggled, the transport must be up, and
+  // stopping a stream is server-wide -- so it is gated on an operator/admin role
+  // (see AUTH note). Viewers see the state read-only.
+  const disabled = !streamable || !cap.is_running || !transport || !canControl;
+  const checked = pending ?? serverStreaming;
 
-  const rheedNodeState = useRHEEDNodeStore((s) => s.state);
-  const setRHEEDNodeStreaming = useRHEEDNodeStore((s) => s.setStreaming);
-
-  const rheedCameraNodeState = useRHEEDCameraNodeStore((s) => s.state);
-  const setRHEEDCameraNodeStreaming = useRHEEDCameraNodeStore((s) => s.setStreaming);
-
-  // Chamber Log
-  // const { isLoading: isChamberLogLoading } = useChamberLogNode();
-  const chamberNodeState = useChamberLogNodeStore((s) => s.state);
-  const setChamberNodeStreaming = useChamberLogNodeStore((s) => s.setStreaming);
-
-  // Detector
-  // const { isLoading: isDetectorLoading } = useDetectorNode();
-  const detectorNodeState = useDetectorNodeStore((s) => s.state);
-  const setDetectorNodeStreaming = useDetectorNodeStore((s) => s.setStreaming);
-
-  // STFT
-  // const { isLoading: isSTFTLoading } = useSTFTNode();
-  const stftNodeState = useSTFTNodeStore((s) => s.state);
-  const setSTFTNodeStreaming = useSTFTNodeStore((s) => s.setStreaming);
-
-  // Integrator
-  const integratorNodeState = useIntegratorNodeStore((s) => s.state);
-  // const { isLoading: isIntegratorLoading } = useIntegratorNode();
-  const setIntegratorNodeStreaming = useIntegratorNodeStore(
-    (s) => s.setStreaming
-  );
-
-  const rheedVideoSwitchRef = useRef<HTMLInputElement>(null);
-  const rheedAISwitchRef = useRef<HTMLInputElement>(null);
-  const chamberLogSwitchRef = useRef<HTMLInputElement>(null);
-
-
-  const rheedSocket = useRHEEDStore((s) => s.socket);
-
-  const sendRHEEDControlOperation = useRHEEDStore(
-    (s) => s.sendRHEEDControlOperation
-  );
-
-  const sendRHEEDCameraControlOperation = useRHEEDStore(
-    (s) => s.sendRHEEDCameraControlOperation
-  );
-
-  const sendChamberLogControlOperation = useChamberStore(
-    (s) => s.sendChamberLogControlOperation
-  );
-
-  const sendDetectorControlOperation = useLiveAnalysisClient(
-    (s) => s.sendDetectorControlOperation
-  );
-  // const sendDetectorCommandOperation = useLiveAnalysisClient(
-  //   (s) => s.sendDetectorCommandOperation
-  // );
-
-  const chamberSocket = useChamberStore((s) => s.socket);
-  const sendSTFTControlOperation = useLiveAnalysisClient(
-    (s) => s.sendSTFTControlOperation
-  );
-  // const sendSTFTCommandOperation = useLiveAnalysisClient(s=>s.sendSTFTCommandOperation);
-
-  const analyzerSocket = useLiveAnalysisClient((s) => s.socket);
-  const sendIntegratorControlOperation = useLiveAnalysisClient(
-    (s) => s.sendIntegratorControlOperation
-  );
-  // const sendIntegratorCommandOperation = useLiveAnalysisClient(s=>s.sendIntegratorCommandOperation);
-
-  // console.log(sendRHEEDMessage, sendLogMessage, sendDetectionMessage);
-  // ... existing code ...
-
-  type SocketOperation = {
-    socket: WebSocket | null;
-    controlOperation: (control: string) => void;
-    setStreaming: (isStreaming: boolean) => void;
-  };
-
-  const handleSocketSwitch = (
-    event: ChangeEvent<HTMLInputElement>,
-    { socket, controlOperation, setStreaming }: SocketOperation
-  ) => {
-    if (socket?.readyState === WebSocket.OPEN) {
-      controlOperation(event.target.checked ? "start_server" : "stop_server");
+  const handleToggle = async (next: boolean) => {
+    if (!transport) return;
+    setPending(next); // immediate feedback
+    // Every typed client's target is `${equipment}.${capability}` (e.g.
+    // "rheed.camera"), so the control verb is addressable generically without a
+    // per-capability client. This is what startStreaming()/stopStreaming() do.
+    const target = `${node.equipment}.${cap.name}`;
+    try {
+      await transport.controlCall(target, next ? "start" : "stop");
+      // `pending` clears once the registry reports is_streaming === next (above).
+      // Safety net: revert the optimistic state if that report never arrives.
+      window.setTimeout(
+        () => setPending((p) => (p === next ? null : p)),
+        8000
+      );
+    } catch (err) {
+      setPending(null); // revert on failure
+      toast({
+        title: `Could not ${next ? "start" : "stop"} ${target}`,
+        description: err instanceof Error ? err.message : String(err),
+        status: "error",
+        duration: 5000,
+        isClosable: true,
+      });
     }
-    setStreaming(event.target.checked);
   };
-
-  // Replace the individual handlers with:
-  const handleRHEEDVideoSwitch = (event: ChangeEvent<HTMLInputElement>) =>
-    handleSocketSwitch(event, {
-      socket: rheedSocket,
-      controlOperation: sendRHEEDControlOperation,
-      setStreaming: setRHEEDNodeStreaming,
-    });
-
-  const handleRHEEDCameraSwitch = (event: ChangeEvent<HTMLInputElement>) =>
-    handleSocketSwitch(event, {
-      socket: rheedSocket,
-      controlOperation: sendRHEEDCameraControlOperation,
-      setStreaming: setRHEEDCameraNodeStreaming,
-    });
-
-  const handleRHEEDAISwitch = (event: ChangeEvent<HTMLInputElement>) =>
-    handleSocketSwitch(event, {
-      socket: analyzerSocket,
-      controlOperation: sendDetectorControlOperation,
-      setStreaming: setDetectorNodeStreaming,
-    });
-
-  const handleChamberLogSwitch = (event: ChangeEvent<HTMLInputElement>) =>
-    handleSocketSwitch(event, {
-      socket: chamberSocket,
-      controlOperation: sendChamberLogControlOperation,
-      setStreaming: setChamberNodeStreaming,
-    });
-
-  const handleSTFTSwitch = (event: ChangeEvent<HTMLInputElement>) =>
-    handleSocketSwitch(event, {
-      socket: analyzerSocket,
-      controlOperation: sendSTFTControlOperation,
-      setStreaming: setSTFTNodeStreaming,
-    });
-
-  const handleIntegratorSwitch = (event: ChangeEvent<HTMLInputElement>) =>
-    handleSocketSwitch(event, {
-      socket: analyzerSocket,
-      controlOperation: sendIntegratorControlOperation,
-      setStreaming: setIntegratorNodeStreaming,
-    });
 
   return (
-    // No heading here any more: the panel chrome already titles this "Controller",
-    // so an in-body <h1> just repeated it.
+    <Flex align="center" justify="space-between" py={1}>
+      <HStack spacing={2} minW={0}>
+        <Text fontSize="sm" color="text.primary" noOfLines={1}>
+          {cap.name}
+        </Text>
+        <Text fontSize="xs" color="text.muted">
+          {cap.kind}
+        </Text>
+        {cap.is_running ? (
+          <Badge colorScheme="green" variant="subtle" fontSize="0.65rem">
+            running
+          </Badge>
+        ) : (
+          <Badge colorScheme="gray" variant="subtle" fontSize="0.65rem">
+            idle
+          </Badge>
+        )}
+      </HStack>
+
+      {streamable && (
+        <HStack spacing={2} flexShrink={0}>
+          {pending !== null && <Spinner size="xs" color="text.muted" />}
+          <Tooltip
+            isDisabled={canControl}
+            label="Stopping a stream affects every connected user, so it needs an operator/admin role."
+          >
+            <Box>
+              <Switch
+                size="sm"
+                colorScheme="green"
+                isChecked={checked}
+                isDisabled={disabled}
+                onChange={(e) => handleToggle(e.target.checked)}
+              />
+            </Box>
+          </Tooltip>
+        </HStack>
+      )}
+    </Flex>
+  );
+};
+
+const NodeRow = ({
+  node,
+  canControl,
+  canSupervise,
+}: {
+  node: NodeRecord;
+  canControl: boolean;
+  canSupervise: boolean;
+}) => {
+  const transport = useTransportStore((s) => s.transport);
+  const toast = useToast();
+
+  // A dead node has no process to act on; the registry keeps showing it through
+  // the grave period, but kill/restart only make sense while it is up/leaving.
+  const isLive = node.status !== "down";
+
+  const supervise = async (action: "kill" | "restart") => {
+    if (!transport) return;
+    const supervisor = new SystemSupervisorClient(transport);
+    try {
+      if (action === "kill") {
+        await supervisor.kill({ instance_id: node.instance_id });
+      } else {
+        await supervisor.restart({ instance_id: node.instance_id });
+      }
+      toast({
+        title: `${action === "kill" ? "Killing" : "Restarting"} ${node.equipment}`,
+        status: "success",
+        duration: 3000,
+        isClosable: true,
+      });
+    } catch (err) {
+      toast({
+        title: `Could not ${action} ${node.equipment}`,
+        description: err instanceof Error ? err.message : String(err),
+        status: "error",
+        duration: 5000,
+        isClosable: true,
+      });
+    }
+  };
+
+  return (
+    <Box
+      borderWidth="1px"
+      borderColor="panel.border"
+      borderRadius="md"
+      bg="panel.bgElevated"
+      p={3}
+    >
+      <Flex align="center" justify="space-between" mb={2} gap={2}>
+        <HStack spacing={2} minW={0}>
+          <Text fontWeight="semibold" color="text.primary" noOfLines={1}>
+            {node.equipment}
+          </Text>
+          <Badge colorScheme={STATUS_SCHEME[node.status]} variant="solid">
+            {node.status}
+          </Badge>
+          {node.contract_matches === false && (
+            <Tooltip label="This node's contract differs from the backend's -- it may be running stale code.">
+              <Badge colorScheme="orange" variant="subtle">
+                contract mismatch
+              </Badge>
+            </Tooltip>
+          )}
+        </HStack>
+
+        <HStack spacing={2} flexShrink={0}>
+          {canSupervise && isLive && (
+            <>
+              <Button
+                size="xs"
+                variant="outline"
+                onClick={() => supervise("restart")}
+              >
+                Restart
+              </Button>
+              <ConfirmButton
+                size="xs"
+                colorScheme="red"
+                variant="outline"
+                confirmLabel={`Kill ${node.equipment}?`}
+                onConfirm={() => supervise("kill")}
+              >
+                Kill
+              </ConfirmButton>
+            </>
+          )}
+          <Text fontSize="xs" color="text.muted" whiteSpace="nowrap">
+            {relativeTime(node.last_seen)}
+          </Text>
+        </HStack>
+      </Flex>
+
+    <Text fontSize="xs" color="text.secondary" mb={2} noOfLines={1}>
+      {node.host} · pid {node.pid} · {node.instance_id}
+    </Text>
+
+    {node.capabilities && node.capabilities.length > 0 ? (
+      <VStack align="stretch" spacing={0}>
+        {node.capabilities.map((cap) => (
+          <CapabilityRow
+            key={cap.name}
+            node={node}
+            cap={cap}
+            canControl={canControl}
+          />
+        ))}
+      </VStack>
+      ) : (
+        <Text fontSize="xs" color="text.muted">
+          No capabilities reported
+        </Text>
+      )}
+    </Box>
+  );
+};
+
+const MainController = () => {
+  const { nodes, isLoading, error, status } = useSystemRegistry();
+  const user = useAuthStore((s) => s.user);
+  // A viewer is technically permitted to start/stop a stream, but stop is
+  // server-wide, so the control is limited to operator/admin (guide §4). Fall
+  // back to is_admin for sessions persisted before `role` existed.
+  const canControl =
+    user?.role === "operator" ||
+    user?.role === "admin" ||
+    Boolean(user?.is_admin);
+  // Node supervision (spawn/kill/restart) is admin-only on the backend.
+  const canSupervise = user?.role === "admin" || Boolean(user?.is_admin);
+
+  return (
     <Box p={2}>
-      <Flex
-        direction={{
-          base: "column",
-          md: "row",
-        }}
-        alignItems={{
-          base: "center",
-          md: "flex-start",
-        }}
-        mb={4}
-      >
-        <Flex mr={4} alignItems="center">
-          <FormLabel htmlFor="rheed-video" mb={{ base: "2", md: "0" }}>
-            RHEED
-          </FormLabel>
-          <Switch
-            ref={rheedVideoSwitchRef}
-            id="rheed-video"
-            colorScheme="green"
-            isChecked={rheedNodeState.is_streaming}
-            isDisabled={
-              !(rheedNodeState.is_available && rheedNodeState.is_running)
-            }
-            onChange={handleRHEEDVideoSwitch}
-            opacity={!isLoading ? 1 : 0.5}
-            transition="opacity 0.2s"
-          />
-        </Flex>
+      {status !== "open" && (
+        <Text fontSize="xs" color="text.muted" mb={2}>
+          {status === "unauthorized"
+            ? "Not authorized -- please log in again."
+            : status === "connecting"
+            ? "Connecting to server..."
+            : "Disconnected -- retrying..."}
+        </Text>
+      )}
 
-        <Flex mr={4} alignItems="center">
-          <FormLabel htmlFor="rheed-ai" mb={{ base: "2", md: "0" }}>
-            Detect
-          </FormLabel>
-          <Switch
-            ref={rheedAISwitchRef}
-            id="rheed-ai"
-            colorScheme="green"
-            isChecked={detectorNodeState.is_streaming}
-            isDisabled={
-              !(detectorNodeState.is_available && detectorNodeState.is_running)
-            }
-            onChange={handleRHEEDAISwitch}
-            opacity={!isLoading ? 1 : 0.5}
-            transition="opacity 0.2s"
-          />
+      {isLoading && nodes.length === 0 ? (
+        <Flex align="center" gap={2} color="text.secondary" py={4}>
+          <Spinner size="sm" />
+          <Text fontSize="sm">Loading nodes...</Text>
         </Flex>
+      ) : error && nodes.length === 0 ? (
+        <Text fontSize="sm" color="status.error" py={4}>
+          Could not load nodes: {error.message}
+        </Text>
+      ) : nodes.length === 0 ? (
+        <Text fontSize="sm" color="text.muted" py={4}>
+          No nodes reported.
+        </Text>
+      ) : (
+        <VStack align="stretch" spacing={2}>
+          {nodes.map((node) => (
+            <NodeRow
+              key={node.instance_id}
+              node={node}
+              canControl={canControl}
+              canSupervise={canSupervise}
+            />
+          ))}
+        </VStack>
+      )}
 
-        <Flex mr={4} alignItems="center">
-          <FormLabel htmlFor="chamber-log" mb={{ base: "2", md: "0" }}>
-            Chamber
-          </FormLabel>
-          <Switch
-            ref={chamberLogSwitchRef}
-            id="chamber-log"
-            colorScheme="green"
-            isChecked={chamberNodeState.is_streaming}
-            isDisabled={
-              !(chamberNodeState.is_available && chamberNodeState.is_running)
-            }
-            onChange={handleChamberLogSwitch}
-            opacity={!isLoading ? 1 : 0.5}
-            transition="opacity 0.2s"
-          />
-        </Flex>
-
-        <Flex mr={4} alignItems="center">
-          <FormLabel htmlFor="integrator" mb={{ base: "2", md: "0" }}>
-            Integrator
-          </FormLabel>
-          <Switch
-            id="integrator"
-            colorScheme="green"
-            isChecked={integratorNodeState.is_streaming}
-            isDisabled={
-              !(
-                integratorNodeState.is_available &&
-                integratorNodeState.is_running
-              )
-            }
-            onChange={handleIntegratorSwitch}
-            opacity={!isLoading ? 1 : 0.5}
-            transition="opacity 0.2s"
-          />
-        </Flex>
-
-        <Flex mr={4} alignItems="center">
-          <FormLabel htmlFor="stft" mb={{ base: "2", md: "0" }}>
-            STFT
-          </FormLabel>
-          <Switch
-            id="stft"
-            colorScheme="green"
-            isChecked={stftNodeState.is_streaming}
-            isDisabled={
-              !(stftNodeState.is_available && stftNodeState.is_running)
-            }
-            onChange={handleSTFTSwitch}
-            opacity={!isLoading ? 1 : 0.5}
-            transition="opacity 0.2s"
-          />
-        </Flex>
-      </Flex>
-
-      <Flex mr={4} alignItems="center">
-          <FormLabel htmlFor="rheed-cam" mb={{ base: "2", md: "0" }}>
-            RHEED Cam
-          </FormLabel>
-          <Switch
-            id="rheed-cam"
-            colorScheme="green"
-            isChecked={rheedCameraNodeState.is_streaming}
-            isDisabled={
-              !(rheedCameraNodeState.is_available && rheedCameraNodeState.is_running)
-            }
-            onChange={handleRHEEDCameraSwitch}
-            opacity={!isLoading ? 1 : 0.5}
-            transition="opacity 0.2s"
-          />
-      </Flex>
-
-
-      {/* <Flex
-        direction={{
-          base: "column",
-          md: "row",
-        }}
-        alignItems={{
-          base: "center",
-          md: "flex-start",
-        }}
-        mb={4}
-      >
-        <Flex mr={4} alignItems="center">
-          <Button
-            onClick={() => sendDetectorCommandOperation("start_streaming")}
-            isDisabled={
-              !(detectorNodeState.is_available && detectorNodeState.is_running)
-            }
-            opacity={!detectorNodeState.is_streaming ? 1 : 0.5}
-            transition="opacity 0.2s"
-          >
-            Start Detection Streaming
-          </Button>
-        </Flex>
-        <Flex mr={4} alignItems="center">
-          <Button
-            onClick={() => sendDetectorCommandOperation("end_streaming")}
-            isDisabled={
-              !(detectorNodeState.is_available && detectorNodeState.is_running)
-            }
-            opacity={!detectorNodeState.is_streaming ? 1 : 0.5}
-            transition="opacity 0.2s"
-          >
-            End Detection Streaming
-          </Button>
-        </Flex>
-      </Flex> */}
+      {canSupervise && status === "open" && (
+        <Box mt={3}>
+          <NodeSupervision />
+        </Box>
+      )}
     </Box>
   );
 };

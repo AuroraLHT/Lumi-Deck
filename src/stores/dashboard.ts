@@ -30,8 +30,6 @@ interface DashboardState {
 
   /** True once settings have been fetched, so we don't save defaults over a real save. */
   hydrated: boolean;
-  /** The panel currently expanded to fill the viewport, if any. */
-  maximizedPanelId: string | null;
   /** Locked layouts cannot be dragged or resized -- guards against nudging a panel mid-run. */
   locked: boolean;
 
@@ -43,7 +41,6 @@ interface DashboardState {
   addPanel: (type: PanelType) => void;
   removePanel: (id: string) => void;
   toggleCollapsed: (id: string) => void;
-  setMaximized: (id: string | null) => void;
   setLocked: (locked: boolean) => void;
   resetToDefaults: () => void;
 
@@ -121,7 +118,6 @@ const useDashboardStore = create<DashboardState>((set, get) => ({
   panels: DEFAULT_PANELS,
   layouts: DEFAULT_LAYOUTS,
   hydrated: false,
-  maximizedPanelId: null,
   locked: false,
 
   setLayoutForBreakpoint: (breakpoint, layout) =>
@@ -158,8 +154,6 @@ const useDashboardStore = create<DashboardState>((set, get) => ({
       return {
         panels: state.panels.filter((p) => p.id !== id),
         layouts,
-        maximizedPanelId:
-          state.maximizedPanelId === id ? null : state.maximizedPanelId,
       };
     }),
 
@@ -170,15 +164,12 @@ const useDashboardStore = create<DashboardState>((set, get) => ({
       ),
     })),
 
-  setMaximized: (id) => set({ maximizedPanelId: id }),
-
   setLocked: (locked) => set({ locked }),
 
   resetToDefaults: () =>
     set({
       panels: DEFAULT_PANELS,
       layouts: DEFAULT_LAYOUTS,
-      maximizedPanelId: null,
     }),
 
   hydrate: (settings) => {

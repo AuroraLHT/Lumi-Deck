@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
   Box,
   Checkbox,
@@ -22,8 +22,8 @@ import {
   MdStop,
 } from "react-icons/md";
 import CircularButton from "../VideoPlayer/CircularButton";
-import useHTTPClient from "../../clients/http";
-import { BaseResponseMessageHeader } from "../../entities/backend";
+import { StorageStorageClient } from "../../generated/lumi";
+import useTransportStore from "../../clients/transport";
 
 interface StorageFormValues {
   project_name: string;
@@ -33,13 +33,7 @@ interface StorageFormValues {
   save_integration: boolean;
 }
 
-type StorageResponseMessage = {
-  body: string;
-  headers: BaseResponseMessageHeader;
-}
-
 const StorageMain: React.FC = () => {
-  // TODO: should quote the isRecording by the storage node state
   const { register, handleSubmit } = useForm<StorageFormValues>(
     {
       defaultValues: {
@@ -52,57 +46,72 @@ const StorageMain: React.FC = () => {
   );
   const [isRecording, setIsRecording] = useState(false);
   const { isOpen, onToggle } = useDisclosure();
-  const client = useHTTPClient();
+  const transport = useTransportStore((s) => s.transport);
   const toast = useToast();
 
+  // Recording is server-side state: a session started before this tab was opened
+  // is still running, so the button has to reflect the node rather than assume
+  // "not recording" on mount.
+  useEffect(() => {
+    if (!transport) return;
+    let cancelled = false;
+    new StorageStorageClient(transport)
+      .getState()
+      .then((state) => {
+        if (!cancelled) setIsRecording(state.is_storing ?? false);
+      })
+      .catch((err) => console.error("Storage getState failed:", err));
+    return () => {
+      cancelled = true;
+    };
+  }, [transport]);
+
   const onSubmit: SubmitHandler<StorageFormValues> = async (data) => {
+    if (!transport) {
+      toast({
+        title: "Not connected",
+        description: "No connection to the server. Check the selected host.",
+        status: "error",
+        duration: 3000,
+        isClosable: true,
+      });
+      return;
+    }
+
+    const client = new StorageStorageClient(transport);
     try {
-      const endpoint = isRecording ? "/storage/end" : "/storage/start";
-      const response = await client.post(endpoint, data);
+      const status = isRecording
+        ? await client.stop_recording()
+        : await client.start_recording(data);
 
-      const responseData = response.data as StorageResponseMessage;
-      
-      const responseMessage = responseData.body;
-      const responseHeaders = responseData.headers;
-      
-      // console.log(response);
-      // console.log(responseHeaders);
-
-      // console.log(responseHeaders.succ);
-      if (responseHeaders.succ) {
-        if (endpoint == "/storage/end") {
-          setIsRecording(false);
-        } else {
-          setIsRecording(true);
-        }
-
+      if (status.ok) {
+        setIsRecording(!isRecording);
         toast({
           title: "Success",
-          description: responseMessage,
+          description: status.message ?? (isRecording ? "Recording stopped" : "Recording started"),
           status: "success",
           duration: 3000,
           isClosable: true,
         });
-  
       } else {
         toast({
-          title: responseHeaders.error_type,
-          description: responseMessage,
+          title: isRecording ? "Could not stop recording" : "Could not start recording",
+          description: status.message,
           status: "warning",
           duration: 3000,
           isClosable: true,
         });
-
-        if (responseHeaders.error_type == "StorageTerminationError") {
-          setIsRecording(false);
-        }
       }
-      
     } catch (error) {
-      console.error('Error submitting form:', error);
+      console.error("Error submitting form:", error);
       toast({
         title: "Error",
-        description: "Failed to submit storage request. Check Network Connection.",
+        // The capability rejects with `[ErrorType] message`, which says more than
+        // a generic failure notice -- surface it.
+        description:
+          error instanceof Error
+            ? error.message
+            : "Failed to submit storage request. Check Network Connection.",
         status: "error",
         duration: 3000,
         isClosable: true,

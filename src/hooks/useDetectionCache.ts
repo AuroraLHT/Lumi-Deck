@@ -1,13 +1,12 @@
-// import { useCallback, useEffect, useState } from "react";
-// import useWebSocketStore from "../stores/websocket";
-import useLiveAnalysisClient from "../clients/liveAnalysis/analyzer";
+import useDetectionStore from "../stores/detection";
 
-
+/**
+ * Reads the detection history the classification chart plots. Filled by
+ * `useDetectionStream`, which owns the single `detection.overlay` subscription.
+ */
 const useDetectionCache = () => {
-  const cache = useLiveAnalysisClient(s=>s.cacheDetection);
-  // console.log("detection cache length:", cache.length);
-  // console.log("detection cache[0]:", cache[0]);
-  return { cache, };
+  const cache = useDetectionStore((s) => s.cache);
+  return { cache };
 };
 
 export default useDetectionCache;

@@ -18,8 +18,7 @@ const MemoizedDetectionRect = React.memo(DetectionRect);
 const MemoizedFocusedDetectionRect = React.memo(FocusedDetectionRect);
 
 const Detection = () => {
-  // const { bboxes, cropSetup, isConnected } = useDetection();
-  const { bboxes, cropSetup, socket } = useDetection();
+  const { bboxes, cropSetup, isConnected } = useDetection();
 
   const detectorNodeState = useDetectorNodeStore((s) => s.state);
   const rheedNodeState = useRheedNodeStore((s) => s.state);
@@ -75,8 +74,7 @@ const Detection = () => {
 
   return (
     <>
-      {socket ? null : <Spinner />}
-      {/* {isConnected ? null : <Spinner />} */}
+      {isConnected ? null : <Spinner />}
       <svg
         ref={svgRef}
         className={styles["svg-detection"]}

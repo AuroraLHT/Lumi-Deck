@@ -1,6 +1,6 @@
 import { Box } from "@chakra-ui/react";
 
-import MainWebsocketsProvider from "./components/MainWebSockets";
+import LumiTransportProvider from "./components/LumiTransportProvider";
 import DashboardGrid from "./components/Dashboard/DashboardGrid";
 import Navbar from "./components/Shell/Navbar";
 import useSettingsSync from "./hooks/useSettingsSync";
@@ -10,7 +10,7 @@ import useSettingsSync from "./hooks/useSettingsSync";
  *
  * The layout is no longer hard-coded here: panels are placed by the user and
  * persisted per-account (see stores/dashboard.ts and hooks/useSettingsSync.ts).
- * This component only wires the websockets, the settings sync and the grid
+ * This component only wires the transport, the settings sync and the grid
  * together.
  */
 function App() {
@@ -20,11 +20,11 @@ function App() {
     <Box minH="100vh" bg="app.bg">
       <Navbar syncStatus={syncStatus} />
 
-      <MainWebsocketsProvider>
+      <LumiTransportProvider>
         <Box px={{ base: 2, md: 3 }} py={3}>
           <DashboardGrid />
         </Box>
-      </MainWebsocketsProvider>
+      </LumiTransportProvider>
     </Box>
   );
 }

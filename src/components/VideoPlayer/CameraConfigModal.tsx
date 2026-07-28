@@ -11,7 +11,7 @@ import {
   VStack,
   FormErrorMessage,
 } from "@chakra-ui/react";
-import useRHEEDStore from "../../clients/rheed";
+import useRheedCameraConfig from "../../hooks/useRheedCameraConfig";
 import { useForm } from "react-hook-form";
 import { useEffect } from "react";
 
@@ -29,11 +29,7 @@ const CameraConfigModal = ({
   isCameraConfig,
   setIsCameraConfig,
 }: CameraConfigModalProps) => {
-  const cameraConfig = useRHEEDStore((s) => s.cameraConfig);
-  const requestCameraConfigUpdate = useRHEEDStore(
-    (s) => s.requestCameraConfigUpdate
-  );
-  const requestCameraConfig = useRHEEDStore((s) => s.requestCameraConfig);
+  const { cameraConfig, updateCameraConfig } = useRheedCameraConfig(isCameraConfig);
 
   const {
     register,
@@ -45,20 +41,12 @@ const CameraConfigModal = ({
   });
 
   useEffect(() => {
-    if (isCameraConfig) {
-    //   console.log("requesting camera config");
-      requestCameraConfig();
-    }
-  }, [isCameraConfig, requestCameraConfig]);
-
-  useEffect(() => {
     // console.log("camera config updated", cameraConfig);
     reset(cameraConfig);
   }, [cameraConfig, reset]);
 
   const onSubmit = (data: CameraConfigForm) => {
-    // console.log("updating camera config", data);
-    requestCameraConfigUpdate(data);
+    updateCameraConfig(data);
     // setIsCameraConfig(false);
   };
 

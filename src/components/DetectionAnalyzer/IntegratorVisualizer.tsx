@@ -4,7 +4,7 @@ import useLiveAnalysisStore from "../../stores/liveAnalysis";
 import useIntegrationCache from "../../hooks/useIntegrationCache";
 import SmallContainer from "../Plotting/SmallContainer";
 import PlottingToolbar from "../Plotting/ToolBar";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import RTVToolBarMenu from "../Plotting/RTVToolBarMenu";
 import { RangeValue } from "../Plotting/RTVToolBarMenu";
 
@@ -16,36 +16,27 @@ const IntegratorVisualizer = () => {
   const [rangeMax, setRangeMax] = useState<RangeValue>("auto");
   const [isVisible, setIsVisible] = useState(true);
 
-  let data: Serie[] = [
-    {
-      id: "",
-      data: [{ x: new Date(), y: 0 }],
-    },
-  ];
   const { cache: cacheIntegrator } = useIntegrationCache();
 
-  if (!cacheIntegrator || Object.keys(cacheIntegrator).length === 0) {
-    // No action needed
-  } else {
-    if (focusedDetectionID && focusedDetectionID in cacheIntegrator) {
-      // console.log("Focused detection in cache");
-      let cacheFocused = cacheIntegrator[focusedDetectionID];
-      // console.log("cacheIntegrator Focused", cacheFocused.length);
+  // Memoized on the focused series: this runs over the whole cache (up to
+  // maxCacheSize entries), so re-running it for unrelated re-renders -- a
+  // toolbar toggle, a parent update -- is what makes the panel feel sluggish.
+  // `item.x` is parsed once at ingest; see stores/integrator.ts.
+  const data: Serie[] = useMemo(() => {
+    const cacheFocused =
+      focusedDetectionID != null ? cacheIntegrator?.[focusedDetectionID] : undefined;
 
-      let liveIntegration = cacheFocused.map((item) => ({
-        x: new Date(item.header.time_stamp),
-        y: item.content.mean,
-      }));
-
-      data = [
-        {
-          id: `Oscillation`,
-          data: liveIntegration,
-        },
-      ];
-      // console.log(data);
+    if (!cacheFocused || cacheFocused.length === 0) {
+      return [{ id: "", data: [{ x: new Date(), y: 0 }] }];
     }
-  }
+
+    return [
+      {
+        id: "Oscillation",
+        data: cacheFocused.map((item) => ({ x: item.x, y: item.content.mean })),
+      },
+    ];
+  }, [cacheIntegrator, focusedDetectionID]);
 
   const settingsMenu = (
     <RTVToolBarMenu

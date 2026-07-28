@@ -17,6 +17,7 @@ import {
   Text,
   Tooltip,
   useColorMode,
+  useDisclosure,
 } from "@chakra-ui/react";
 import {
   LuLayoutGrid,
@@ -26,10 +27,12 @@ import {
   LuRotateCcw,
   LuSun,
   LuUnlock,
+  LuUserCog,
 } from "react-icons/lu";
 import { useNavigate } from "react-router-dom";
 
 import { logout } from "../../clients/auth";
+import AccountModal from "../Account/AccountModal";
 import useAppStore, { DEFAULT_HOSTS } from "../../stores/app";
 import useAuthStore from "../../stores/auth";
 import useDashboardStore from "../../stores/dashboard";
@@ -74,6 +77,7 @@ const SyncIndicator = ({ status }: { status: SyncStatus }) => {
 const Navbar = ({ syncStatus }: NavbarProps) => {
   const navigate = useNavigate();
   const { colorMode, toggleColorMode } = useColorMode();
+  const account = useDisclosure();
 
   const user = useAuthStore((s) => s.user);
   const selectedHost = useAppStore((s) => s.selectedHost);
@@ -254,6 +258,9 @@ const Navbar = ({ syncStatus }: NavbarProps) => {
               </HStack>
             </Box>
             <MenuDivider />
+            <MenuItem icon={<Icon as={LuUserCog} />} onClick={account.onOpen}>
+              Account settings
+            </MenuItem>
             <MenuItem
               icon={<Icon as={LuLayoutGrid} />}
               onClick={resetToDefaults}
@@ -266,6 +273,8 @@ const Navbar = ({ syncStatus }: NavbarProps) => {
           </MenuList>
         </Menu>
       </HStack>
+
+      <AccountModal isOpen={account.isOpen} onClose={account.onClose} />
     </Flex>
   );
 };

@@ -1,5 +1,5 @@
 // import { Spinner } from "@chakra-ui/react";
-import useRHEED from "../../hooks/useRHEED";
+import useRheedVideo from "../../hooks/useRheedVideo";
 import styles from "./VideoPlayer.module.css";
 
 interface VideoPlayerProps {
@@ -7,7 +7,7 @@ interface VideoPlayerProps {
 }
 
 const VideoPlayer = ({ videoRef }: VideoPlayerProps) => {
-  const { isReady } = useRHEED(videoRef);
+  const { isReady } = useRheedVideo(videoRef);
 
   return (
     <>

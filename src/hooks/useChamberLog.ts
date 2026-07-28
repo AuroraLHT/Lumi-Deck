@@ -1,15 +1,14 @@
-// import { useCallback, useEffect, useRef, useState } from "react";
-// import useWebSocketStore from "../stores/websocket";
-// import useChamberLogStore from "../clients/chamber/chamberLog";
-import useChamberClient from "../clients/chamber/chamber";
+import useChamberLogStore, { Log, Logs } from "../stores/chamberLog";
 
-export type Log = { [key: string]: string}
-export type Logs = Log[]
+export type { Log, Logs };
 
+/**
+ * Reads the chamber log cache. The rows are put there by `useChamberLogStream`,
+ * which owns the single `chamber.log` subscription over the shared transport.
+ */
 const useLog = () => {
-  const logs = useChamberClient((s) => s.cacheLogs );
-  const recentLog = useChamberClient((s) => s.log);
-  // console.log("chamber log length:", logs.length);
+  const logs = useChamberLogStore((s) => s.logs);
+  const recentLog = useChamberLogStore((s) => s.recentLog);
   return { recentLog, logs };
 };
 

@@ -12,7 +12,7 @@ import {
   ChevronUpIcon,
   CloseIcon,
 } from "@chakra-ui/icons";
-import { LuGripVertical, LuMaximize2, LuMinimize2 } from "react-icons/lu";
+import { LuGripVertical } from "react-icons/lu";
 
 /** Class the grid uses as its drag handle. Only the header grabs. */
 export const PANEL_DRAG_HANDLE = "panel-drag-handle";
@@ -22,12 +22,10 @@ interface PanelProps {
   children: ReactNode;
 
   collapsed?: boolean;
-  maximized?: boolean;
   /** Hides the drag grip and the resize affordance cue. */
   locked?: boolean;
 
   onCollapse?: () => void;
-  onMaximize?: () => void;
   onRemove?: () => void;
 
   /** Rendered in the header, left of the window controls (e.g. a live badge). */
@@ -43,8 +41,8 @@ interface PanelProps {
 }
 
 /**
- * The chrome around every dashboard panel: a grab handle, collapse, maximise
- * and close, plus a scrollable body.
+ * The chrome around every dashboard panel: a grab handle, collapse and close,
+ * plus a scrollable body.
  *
  * `forwardRef` and the pass-through of style/className/mouse handlers are
  * required by react-grid-layout, which clones this element and positions it.
@@ -55,10 +53,8 @@ const Panel = forwardRef<HTMLDivElement, PanelProps>(
       title,
       children,
       collapsed = false,
-      maximized = false,
       locked = false,
       onCollapse,
-      onMaximize,
       onRemove,
       headerAccessory,
       style,
@@ -134,18 +130,6 @@ const Panel = forwardRef<HTMLDivElement, PanelProps>(
                   size="xs"
                   variant="panelGhost"
                   onClick={onCollapse}
-                />
-              </Tooltip>
-            )}
-
-            {onMaximize && (
-              <Tooltip label={maximized ? "Restore" : "Maximize"} openDelay={400}>
-                <IconButton
-                  aria-label={maximized ? "Restore panel" : "Maximize panel"}
-                  icon={maximized ? <LuMinimize2 /> : <LuMaximize2 />}
-                  size="xs"
-                  variant="panelGhost"
-                  onClick={onMaximize}
                 />
               </Tooltip>
             )}

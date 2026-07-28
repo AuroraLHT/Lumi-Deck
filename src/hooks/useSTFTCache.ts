@@ -1,13 +1,12 @@
-// import { useCallback, useEffect, useState } from "react";
-// import useWebSocketStore from "../stores/websocket";
-import useLiveAnalysisClient from "../clients/liveAnalysis/analyzer";
+import useSTFTStore from "../stores/stft";
 
-
+/**
+ * Reads the STFT cache. The windows are put there by `useAnalysisStreams`, which
+ * owns the single `rheed.stft` subscription over the shared transport.
+ */
 const useSTFTCache = () => {
-  const cache = useLiveAnalysisClient(s=>s.cacheSTFT);
-  // console.log("detection cache length:", cache.length);
-  // console.log("detection cache[0]:", cache[0]);
-  return { cache, };
+  const cache = useSTFTStore((s) => s.cache);
+  return { cache };
 };
 
 export default useSTFTCache;

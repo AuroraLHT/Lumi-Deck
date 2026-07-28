@@ -1,17 +1,17 @@
-// import { useCallback, useEffect, useState } from "react";
-// import useWebSocketStore from "../stores/websocket";
-import useLiveAnalysisClient from "../clients/liveAnalysis/analyzer";
+import useDetectionStore from "../stores/detection";
+import useTransportStore from "../clients/transport";
 
-
+/**
+ * Reads the latest detections for the video overlay. The boxes are put there by
+ * `useDetectionStream`, which owns the single `detection.overlay` subscription
+ * over the shared transport.
+ */
 const useDetection = () => {
-  // const detectorNodeState  = useDetectorNodeStore( s => s.state );
-  // const store = useLiveAnalysisClient();
-  const bboxes = useLiveAnalysisClient(s=>s.bboxes);
-  const cropSetup = useLiveAnalysisClient(s=>s.cropSetup);
-  const socket = useLiveAnalysisClient(s=>s.socket);
-  const isConnected = useLiveAnalysisClient(s=>s.isConnected);
-  // console.log(store.cache);
-  return { bboxes, cropSetup, socket, isConnected };
+  const bboxes = useDetectionStore((s) => s.bboxes);
+  const cropSetup = useDetectionStore((s) => s.cropSetup);
+  // Replaces the old raw `socket` object the overlay used as a readiness flag.
+  const isConnected = useTransportStore((s) => s.status === "open");
+  return { bboxes, cropSetup, isConnected };
 };
 
 export default useDetection;

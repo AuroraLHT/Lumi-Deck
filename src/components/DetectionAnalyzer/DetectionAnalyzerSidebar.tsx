@@ -4,7 +4,7 @@ import { CloseIcon } from "@chakra-ui/icons";
 // Assuming you have a hook to connect to your store
 import useLiveAnalysisStore from "../../stores/liveAnalysis";
 import styles from "./DetectionAnalyzer.module.css";
-import useLiveAnalysisClient from "../../clients/liveAnalysis/analyzer";
+import useAnalyzerControl from "../../hooks/useAnalyzerControl";
 
 const DetectionAnalyzerSidebar = () => {
   const selectedDetections = useLiveAnalysisStore((s) => s.selectedDetection); // Hook to fetch detections and remove action
@@ -14,8 +14,7 @@ const DetectionAnalyzerSidebar = () => {
   const setFocusedDetectionID = useLiveAnalysisStore(
     (s) => s.setFocusedDetectionID
   );
-  const sendIntegratorRequest = useLiveAnalysisClient(s=>s.sendIntegratorRequest);
-  const sendSTFTRequest = useLiveAnalysisClient(s=>s.sendSTFTRequest);
+  const { sendIntegratorRequest, sendSTFTRequest } = useAnalyzerControl();
   // console.log(selectedDetections);
 
   return (

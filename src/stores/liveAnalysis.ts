@@ -3,7 +3,7 @@ import { create } from "zustand";
 import { DetectionBBox } from "../entities/detector";
 import { immer } from "zustand/middleware/immer";
 
-interface SelectedDetection extends DetectionBBox {
+export interface SelectedDetection extends DetectionBBox {
   id: string;
   name: string;
   isRunningSTFT: boolean;

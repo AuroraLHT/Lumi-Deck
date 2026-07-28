@@ -7,7 +7,8 @@
     "dev": "vite --host 0.0.0.0",
     "build": "tsc -b && vite build",
     "lint": "eslint .",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "sync:client": "cp ../Autonomous-Servers/.claude/worktrees/refactor-contract-nodes/web/src/generated/lumi.ts src/generated/lumi.ts"
   },
   "dependencies": {
     "@chakra-ui/icons": "^2.1.1",

@@ -2,15 +2,14 @@ import { Box, Grid, GridItem, Text, Flex, Switch, FormControl, FormLabel } from 
 import useLiveAnalysisStore from "../../stores/liveAnalysis";
 import IntegratorVisualizer from "./IntegratorVisualizer";
 import STFTVisualizer from "./STFTVisualizer";
-import useLiveAnalysisClient from "../../clients/liveAnalysis/analyzer";
+import useAnalyzerControl from "../../hooks/useAnalyzerControl";
 // import React from "react";
 
 const DetectionAnalyzerMain = () => {
   const focusedDetectionID = useLiveAnalysisStore(s => s.focusedDetectionID); // Hook to fetch detections and remove action
   const focusedDetection = useLiveAnalysisStore(s => s.getFocusedDetection());
   // const removeSelectedDetection = store.removeSelectedDetection;
-  const sendIntegratorRequest = useLiveAnalysisClient(s=>s.sendIntegratorRequest);
-  const sendSTFTRequest  = useLiveAnalysisClient(s=>s.sendSTFTRequest);
+  const { sendIntegratorRequest, sendSTFTRequest } = useAnalyzerControl();
   const updateFocusedDetection = useLiveAnalysisStore(s => s.updateFocusedDetection);
 
   return (

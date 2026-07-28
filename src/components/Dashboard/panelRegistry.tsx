@@ -75,11 +75,11 @@ export const PANEL_REGISTRY: Record<PanelType, PanelDefinition> = {
   },
   controller: {
     type: "controller",
-    title: "Controller",
+    title: "Server Nodes",
     render: () => <MainController />,
     defaultSize: { w: 8, h: 8 },
     minSize: { w: 4, h: 5 },
-    description: "MI-mode command console",
+    description: "Live node status and stream control",
   },
   storage: {
     type: "storage",

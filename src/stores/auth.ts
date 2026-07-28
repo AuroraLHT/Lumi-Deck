@@ -6,6 +6,12 @@ export interface User {
   username: string;
   full_name: string;
   is_admin: boolean;
+  /**
+   * Backend authorization role carried in the login response and the JWT the
+   * `/ws` bridge gates on. Optional so sessions persisted before the field
+   * existed still deserialize; callers fall back to `is_admin`.
+   */
+  role?: "viewer" | "operator" | "admin" | "node";
 }
 
 interface AuthState {
