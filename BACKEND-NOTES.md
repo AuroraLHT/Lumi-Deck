@@ -17,6 +17,72 @@ Nodes up during these runs: `chamber`, `rheed`, `storage`, `system` — all
 
 ---
 
+# UPDATE 2026-07-30 — every node-published stream is silent, not just video
+
+**Contract hash now `ce6fc72764fb3b9f`; frontend has taken the MJPEG contract and
+the `useChamberCamera.ts` rewrite from `FRONTEND-NOTES.md` is done and building.**
+
+Re-probing after the JPEG deploy, §0 turns out not to be specific to
+`rheed.video`. **Every stream published by a node process is silent**, while the
+two served from inside the API process work fine. One socket, all eight streams
+subscribed together, 10s sample, auth disabled (`/auth/me` → role `admin`):
+
+```
+target:stream                     codec       frames   status
+chamber.log:log                   JSON            11   OK
+system.registry:registry_event    JSON            10   OK
+chamber.camera:frame              RAW/jpeg         0   SILENT
+rheed.camera:frame                NPY              0   SILENT
+rheed.video:fragment              RAW/h264         0   SILENT
+rheed.integrator:integration      JSON             0   SILENT
+detection.overlay:overlay         RAW              0   SILENT
+detection.detection:detection      JSON            0   SILENT
+```
+
+The split is not codec-related — JSON streams appear on both sides — and not a
+permissions problem. It tracks exactly one thing: **who publishes**. In-process
+publishers are delivered; anything crossing the broker from a node is not.
+
+**The subscribe path itself is provably healthy.** Bisecting on the same socket:
+
+```
+subscribe nosuch.target:frame     -> error UnknownTarget      (reached _subscribe)
+subscribe chamber.camera:bogus    -> error NoStream           (reached the spec lookup,
+                                                               so cap.stream.name == "frame")
+subscribe chamber.camera:frame    -> accepted, no error, no frames, ever
+```
+
+So `_subscribe` runs to completion, binds, and returns without raising.
+
+**The producers are alive and the broker is up for RPCs.** `chamber.camera.state`
+returns `n_encoded` climbing 5353 → 5515 over 8s (~20/s), and that field only
+exists in the new contract — so the JPEG encoder is running, publishing, and
+answering RPCs *from the pascal node over the broker*. Requests reach nodes;
+their stream publishes do not come back.
+
+Two candidates worth checking first:
+
+1. **`BridgeSession._subscribe`'s `forward` raising.** It runs in the stream
+   consumer task, so an exception there is invisible to the browser *and* never
+   reaches the `log.exception` in `run()` — the session just goes quiet. Worth a
+   `try/except` with a log line around the `encode_body` + `_send` body.
+2. **The per-session queue binding not matching the node's publish routing key.**
+   `make_stream_client` binds per session; if the bound pattern and
+   `keys.publish` have drifted apart, the broker silently drops into a queue
+   nobody feeds, which looks exactly like this.
+
+Note this also means §0's "not a subscribe-side problem" conclusion was right but
+under-scoped, and §1/§2 (STFT register, transposed width/height) could not be
+re-verified this round — the integrator stream is silent for the same reason.
+
+**Frontend impact:** the Chamber Camera panel sits on "Connecting" forever rather
+than erroring, because `state` only advances on a decoded frame. That is honest —
+nothing has arrived — but see `FRONTEND-NOTES.md` §4: polling `n_encoded` would
+let the panel say "encoder alive, frames not arriving", which is the distinction
+that matters here. Happy to wire that up if this turns out to be slow to fix.
+
+---
+
 ## 0. `rheed.video` publishes no fragments despite `is_streaming: true` — video feed is dead
 
 **This is the most user-visible one: the RHEED video panel shows nothing.**
