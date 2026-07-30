@@ -17,69 +17,101 @@ Nodes up during these runs: `chamber`, `rheed`, `storage`, `system` — all
 
 ---
 
-# UPDATE 2026-07-30 — every node-published stream is silent, not just video
+# UPDATE 2026-07-30 — `chamber.camera:frame` is the only stream still silent
 
 **Contract hash now `ce6fc72764fb3b9f`; frontend has taken the MJPEG contract and
 the `useChamberCamera.ts` rewrite from `FRONTEND-NOTES.md` is done and building.**
 
-Re-probing after the JPEG deploy, §0 turns out not to be specific to
-`rheed.video`. **Every stream published by a node process is silent**, while the
-two served from inside the API process work fine. One socket, all eight streams
-subscribed together, 10s sample, auth disabled (`/auth/me` → role `admin`):
+**§0 is fixed** — `rheed.video:fragment` now delivers 279 fragments / 56.8 KB
+each / ~1.6 MB/s. Whatever killed the publisher thread is gone.
+
+One socket, all eight streams, 10s, auth disabled (`/auth/me` → role `admin`):
 
 ```
 target:stream                     codec       frames   status
+rheed.video:fragment              RAW/h264       279   OK   (§0 fixed)
+rheed.camera:frame                NPY            159   OK   (after `start`)
 chamber.log:log                   JSON            11   OK
 system.registry:registry_event    JSON            10   OK
 chamber.camera:frame              RAW/jpeg         0   SILENT
-rheed.camera:frame                NPY              0   SILENT
-rheed.video:fragment              RAW/h264         0   SILENT
-rheed.integrator:integration      JSON             0   SILENT
-detection.overlay:overlay         RAW              0   SILENT
-detection.detection:detection      JSON            0   SILENT
+rheed.integrator:integration      JSON             0   —    (expected: no bbox registered)
+detection.overlay:overlay         RAW              0   not retested
+detection.detection:detection     JSON            0   not retested
 ```
 
-The split is not codec-related — JSON streams appear on both sides — and not a
-permissions problem. It tracks exactly one thing: **who publishes**. In-process
-publishers are delivered; anything crossing the broker from a node is not.
+`chamber.camera` is the only capability that is *supposed* to be emitting and
+isn't. Note `chamber.log` streams fine **from the same pascal node**, so this is
+capability-specific, not a node or broker problem.
 
-**The subscribe path itself is provably healthy.** Bisecting on the same socket:
+## What is ruled out
 
-```
-subscribe nosuch.target:frame     -> error UnknownTarget      (reached _subscribe)
-subscribe chamber.camera:bogus    -> error NoStream           (reached the spec lookup,
-                                                               so cap.stream.name == "frame")
-subscribe chamber.camera:frame    -> accepted, no error, no frames, ever
-```
+Everything on the paper path checks out. Specifically:
 
-So `_subscribe` runs to completion, binds, and returns without raising.
+- **Subscribe reaches the right spec.** `chamber.camera:bogus` → `NoStream`,
+  which proves `_subscribe` runs and `cap.stream.name == "frame"`.
+  `chamber.camera:frame` → accepted, no error, no frames, ever.
+- **The `_streaming` gate is open.** `server.py:412-413` sets `self._streaming`
+  and `state.update(is_streaming=True)` together, and state reports
+  `is_streaming: true`. So `_stream_loop` is past line 306 and calling
+  `handler.next()`.
+- **Not a state desync.** A `stop` → `start` cycle with a live subscription
+  changes nothing: 0 frames before, 0 after, `is_streaming` true throughout.
+- **Wiring is correct.** `nodes/pascal.py:51` mounts
+  `JpegCameraHandler(camera, jpeg_encoder)`; the omitted `stream_queue` falls
+  back to `encoder.frames` (`handlers.py:106`), which is what the encoder fills.
+- **Handler, codec and contract are correct — verified by running them.**
+  Building the sim camera + encoder + handler in-process and doing exactly what
+  `_stream_loop` does:
 
-**The producers are alive and the broker is up for RPCs.** `chamber.camera.state`
-returns `n_encoded` climbing 5353 → 5515 over 8s (~20/s), and that field only
-exists in the new contract — so the JPEG encoder is running, publishing, and
-answering RPCs *from the pascal node over the broker*. Requests reach nodes;
-their stream publishes do not come back.
+  ```
+  n_encoded: 61  n_dropped: 57  n_failures: 0  encoder.error: None
+  next() ok: bytes 52789 {'time': 1785432525.1, 'uuid': 'f345891a-…',
+             'width': 640, 'height': 480, 'quality': 80, 'channels': 3}
+  encode ok: 52789 bytes
+  ```
 
-Two candidates worth checking first:
+  `next()` returns a valid `(JpegMeta, bytes)` and `encode(model, Codec.RAW, …)`
+  succeeds. The 52.8 KB is right on the predicted q80 size.
 
-1. **`BridgeSession._subscribe`'s `forward` raising.** It runs in the stream
-   consumer task, so an exception there is invisible to the browser *and* never
-   reaches the `log.exception` in `run()` — the session just goes quiet. Worth a
-   `try/except` with a log line around the `encode_body` + `_send` body.
-2. **The per-session queue binding not matching the node's publish routing key.**
-   `make_stream_client` binds per session; if the bound pattern and
-   `keys.publish` have drifted apart, the broker silently drops into a queue
-   nobody feeds, which looks exactly like this.
+## Where it must be
 
-Note this also means §0's "not a subscribe-side problem" conclusion was right but
-under-scoped, and §1/§2 (STFT register, transposed width/height) could not be
-re-verified this round — the integrator stream is silent for the same reason.
+That leaves the two failure paths inside `_stream_loop` (`src/lumi/base/mq/server.py`):
 
-**Frontend impact:** the Chamber Camera panel sits on "Connecting" forever rather
-than erroring, because `state` only advances on a decoded frame. That is honest —
-nothing has arrived — but see `FRONTEND-NOTES.md` §4: polling `n_encoded` would
-let the panel say "encoder alive, frames not arriving", which is the distinction
-that matters here. Happy to wire that up if this turns out to be slow to fix.
+- **line 313** — `handler.next()` raised → `log.exception("%s stream handler failed")`
+- **line 325** — `encode()` raised → `log.exception("%s could not encode a stream item")`
+
+Both `continue` the loop and send nothing to the subscriber, and both write **only
+to the pascal node's own stdout**. Nothing about either is visible to the bridge,
+the browser, or `CameraState.error` — which is why the capability looks perfectly
+healthy from outside while emitting nothing. **`nodes/pascal.py`'s console output
+is the one place the answer is, and it is the only thing I cannot read from here.**
+
+If neither line is logging, then the loop is publishing and the frames are being
+dropped between `exchange.publish` and the bridge's per-session queue — i.e. the
+binding on `keys.publish` for `CHAMBER`/`camera`, which would be worth dumping.
+
+## Aside: `n_encoded` is not a liveness signal
+
+`FRONTEND-NOTES.md` §4 suggests preferring "`n_encoded` advancing" over
+`is_streaming` to tell a live feed from a dead one. That does not work as
+written. `JpegEncoder._put` (`jpeg_stream.py:150-166`) increments `n_encoded`
+*after* evicting the oldest frame to make room, so a queue that nothing drains
+still counts up at full rate — measured above as 61 encoded against 57 dropped,
+with no consumer at all. It says the encoder thread is alive; it says nothing
+about frames reaching a subscriber, which is the distinction that matters here.
+`n_dropped` (not currently on `CameraReadout`) is the one that would have made
+this obvious immediately — worth exposing.
+
+## Frontend impact
+
+The Chamber Camera panel sits on "Waiting for frames…" indefinitely rather than
+erroring, because its state only advances on a decoded frame. That is honest —
+nothing has arrived — and it is what the user is seeing. Given the point above,
+a liveness chip would need `n_dropped` or a published-frame counter to be
+meaningful; happy to wire that up once there is a field that means it.
+
+Also: §1/§2 (STFT register, transposed width/height) were not re-verified this
+round — no bbox is registered, so the integrator stream has nothing to emit.
 
 ---
 
