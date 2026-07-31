@@ -8,6 +8,10 @@ import useAnalysisStreams from "../hooks/useAnalysisStreams";
 import useDetectionStream from "../hooks/useDetectionStream";
 import useNodeStates from "../hooks/useNodeStates";
 import useSystemRegistryStream from "../hooks/useSystemRegistryStream";
+import {
+  useBackendBoxReconciliation,
+  useRegisteredBoxesSync,
+} from "../hooks/useRegisteredBoxes";
 
 /**
  * Connects the shared LumiTransport to the refactored backend bridge for the
@@ -29,6 +33,12 @@ const LumiTransportProvider = ({ children }: { children: ReactNode }) => {
   useAnalysisStreams();
   useDetectionStream();
   useNodeStates();
+  // Order matters: useNodeStates fills the registered id lists from the
+  // heartbeat, the sync hook fetches the matching geometry, and reconciliation
+  // reads both. Within a render they all see the previous commit's stores, so
+  // this only costs a tick -- but reading them in the other order would.
+  useRegisteredBoxesSync();
+  useBackendBoxReconciliation();
 
   useEffect(() => {
     // No host or session yet: nothing to connect to. withAuthToken reads the

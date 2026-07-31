@@ -1,6 +1,11 @@
 import { useEffect } from "react";
 
-import { CameraState, NodeRecord } from "../generated/lumi";
+import {
+  CameraState,
+  IntegratorState,
+  NodeRecord,
+  STFTState,
+} from "../generated/lumi";
 import useSystemRegistry from "./useSystemRegistry";
 import useRHEEDNodeStore from "../stores/nodes/rheed";
 import useRHEEDCameraNodeStore from "../stores/nodes/rheedCamera";
@@ -72,8 +77,24 @@ const useNodeStates = () => {
     });
 
     setRHEEDCameraNodeState(common(rheed, "camera"));
-    setIntegratorNodeState(common(rheed, "integrator"));
-    setSTFTNodeState(common(rheed, "stft"));
+
+    // The registered box ids ride the heartbeat, so this projection is also the
+    // live feed of *who else* has registered a box -- see `useRegisteredBoxes`.
+    // Defaulting to [] when the node is absent is deliberate: with no node there
+    // is no registry, and claiming the last-known boxes are still registered
+    // would be a lie the UI cannot recover from.
+    const integrator = capabilityState(rheed, "integrator") as IntegratorState | undefined;
+    setIntegratorNodeState({
+      ...common(rheed, "integrator"),
+      registered_bboxes: integrator?.registered_bboxes ?? [],
+    });
+
+    const stft = capabilityState(rheed, "stft") as STFTState | undefined;
+    setSTFTNodeState({
+      ...common(rheed, "stft"),
+      registered_bboxes: stft?.registered_bboxes ?? [],
+    });
+
     setChamberLogNodeState(common(chamber, "log"));
     setDetectorNodeState(common(detection, "detection"));
   }, [

@@ -85,6 +85,63 @@ emit. `detection.*` streams were likewise not retested.
 
 ---
 
+# UPDATE 2026-07-31 — the box registry is now mirrored live in the UI
+
+The frontend now shows every box registered on `rheed.integrator`, whoever
+registered it, and follows changes made by other clients. **No backend change was
+needed for this** -- it is built entirely on what the contract already provides.
+Recording how, because it is a pattern worth reusing, and then two things that
+would make it better.
+
+## How it works, so it does not get broken by accident
+
+`IntegratorReadout.registered_bboxes` is part of the capability's state; capability
+state rides the node's 2s heartbeat; and `NodeRegistry.on_heartbeat` emits
+`state_changed` whenever a heartbeat's capabilities blob differs from the previous
+one (`registry.py:77`). A register or remove by *anyone* makes that true, so the
+id list is already being pushed to every subscriber of `system.registry`. The
+frontend just watches it and calls `bboxes()` for coordinates when the id set
+moves.
+
+Measured against the live backend: another client's `register` is visible in
+**~850ms**, and on a fresh page load the list is populated in **130ms** (from the
+`list_nodes()` seed, which carries the same state). Three `bboxes()` calls over a
+19s session -- one per actual change, none on idle heartbeats.
+
+The load-bearing part is that `registered_bboxes` stays in the readout rather than
+moving somewhere the heartbeat does not reach. If it ever does, the UI silently
+stops following other clients -- it will not error, it will just go stale.
+
+## 5. Registered boxes do not survive a node restart
+
+`Integrator.bboxes` is a plain dict built in `__init__` (`rheed/integrator.py:43`),
+so every box and its integration cache is lost when the RHEED node restarts. The
+frontend can now recover boxes across a *browser* reload, which is most of what
+the user hits day to day, but it cannot recover them across a node restart --
+there is nothing left to read.
+
+This is worth considering because the boxes are hand-placed against a specific
+diffraction pattern: re-drawing them is not just a click, it is re-deciding where
+the streak was. Persisting `{bbox_id: bbox}` on register/remove and reloading it
+on start would make a node restart invisible to an operator mid-growth. The
+integration *cache* does not need persisting -- only the regions.
+
+## 6. `integrator.remove` can orphan an STFT registration
+
+`IntegratorHandler.remove` calls `integrator.remove_bbox(id)` and nothing else,
+while `STFTHandler.remove` deliberately leaves the integration alone. So removing
+a box from the integrator while an STFT is running on it leaves
+`calculator.registered_integrations` holding an id the integrator no longer has:
+`stft.registered_bboxes` reports a box that `integrator.bboxes()` cannot describe.
+
+The frontend joins on the integrator's ids, so such a box simply stops being
+listed -- it does not crash, and no coordinates are invented for it. But the node
+is then computing (or failing to compute) an STFT over a series nobody is
+producing. Dropping the STFT registration inside `integrator.remove` would close
+it.
+
+---
+
 ## 0. `rheed.video` publishes no fragments despite `is_streaming: true` — video feed is dead
 
 **This is the most user-visible one: the RHEED video panel shows nothing.**
