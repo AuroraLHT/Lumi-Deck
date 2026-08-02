@@ -3,20 +3,26 @@ import Detection from "./Detection";
 import styles from "./VideoPlayer.module.css";
 
 import { useState, useRef } from "react";
-import { Box } from "@chakra-ui/react";
+import { Box, Text } from "@chakra-ui/react";
 import VideoPlayerController from "./VideoPlayerController";
 import RectangleSelector from "../Drawing/RectangleSelector";
 import CameraConfigModal from "./CameraConfigModal";
+import useLiveAnalysisStore from "../../stores/liveAnalysis";
 
 
 const VideoMain = () => {
-  console.log("VideoMain rendered");
   const videoRef = useRef<HTMLVideoElement>(null);
 
   const [showDetections, setShowDetections] = useState(true);
   const [isFocused, setIsFocused] = useState(false);
   const [isManualBox, setIsManualBox] = useState(false);
   const [isCameraConfig, setIsCameraConfig] = useState(false);
+
+  // Set by the analyzer's "redraw" button, which lives in a different panel.
+  // Arming the overlay from here saves the user having to also find the
+  // manual-box button over on the video before their drag does anything.
+  const redrawTargetID = useLiveAnalysisStore((s) => s.redrawTargetID);
+  const isSelecting = isManualBox || redrawTargetID !== null;
 
 
   return (
@@ -46,7 +52,28 @@ const VideoMain = () => {
           <Box width="100%" height="100%" position="relative">
             <VideoPlayer videoRef={videoRef} />
             {showDetections && <Detection />}
-            {isManualBox && <RectangleSelector />}
+            {isSelecting && <RectangleSelector />}
+
+            {redrawTargetID !== null && (
+              <Text
+                position="absolute"
+                top={2}
+                left="50%"
+                transform="translateX(-50%)"
+                px={3}
+                py={1}
+                borderRadius="full"
+                bg="blackAlpha.700"
+                color="white"
+                fontSize="xs"
+                fontWeight="600"
+                pointerEvents="none"
+                zIndex={3}
+                whiteSpace="nowrap"
+              >
+                {`Drag to redraw box ${redrawTargetID} — Esc to cancel`}
+              </Text>
+            )}
           </Box>
 
           <VideoPlayerController 

@@ -87,7 +87,35 @@ const useAnalyzerControl = () => {
     [transport]
   );
 
-  return { sendIntegratorRequest, sendSTFTRequest };
+  /**
+   * Push a box's new geometry to whichever analyses are already running over it.
+   *
+   * `register` on an id the node already knows is the update path, not a
+   * conflict: `Integrator.register_bbox` overwrites `bboxes[bbox_id]` and
+   * *replaces* that box's integration cache, because intensities measured over
+   * the old region say nothing about the new one. The frontend caches are
+   * cleared to match -- otherwise the chart would splice the new series onto the
+   * tail of the old one and show a step that never happened.
+   *
+   * A box that is not running anything is left alone: its coordinates live only
+   * in this browser until the user switches an analysis on, and that toggle
+   * registers the current geometry anyway.
+   */
+  const applyGeometryChange = useCallback(
+    (detection: SelectedDetection) => {
+      if (detection.isRunningOscillation) {
+        useIntegratorStore.getState().clearBox(detection.id);
+        sendIntegratorRequest("register", detection);
+      }
+      if (detection.isRunningSTFT) {
+        useSTFTStore.getState().clearBox(detection.id);
+        sendSTFTRequest("register", detection);
+      }
+    },
+    [sendIntegratorRequest, sendSTFTRequest]
+  );
+
+  return { sendIntegratorRequest, sendSTFTRequest, applyGeometryChange };
 };
 
 export default useAnalyzerControl;

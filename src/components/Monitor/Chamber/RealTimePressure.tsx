@@ -16,7 +16,6 @@ const RealTimePressure = () => {
   const [rangeMin, setRangeMin] = useState<RangeValue>("auto");
   const [rangeMax, setRangeMax] = useState<RangeValue>("auto");
   const [windowSize, setWindowSize] = useState(10*60*1000);
-  const [isVisible, setIsVisible] = useState(true);
 
   let data: Serie[] = [
     // {
@@ -134,19 +133,17 @@ const RealTimePressure = () => {
   
   return (
     <MediumContainer>
-      <PlottingToolbar isMinimized={!isVisible} onMinimize={() => {setIsVisible(!isVisible)}} settingsMenu={settingsMenu} />
-      {isVisible && (
-        <RealTimeLineChart
-          chartData={data}
-          xaxisName="Time"
-          yaxisName="log₁₀ Pressure (Torr)"
-          xaxisMin="auto"
-          xaxisMax="auto"
-          yaxisMin={-11}
-          yaxisMax={3}
-          windowSize={windowSize}
-        />
-      )}
+      <PlottingToolbar title="Pressure" settingsMenu={settingsMenu} />
+      <RealTimeLineChart
+        chartData={data}
+        xaxisName="Time"
+        yaxisName="log₁₀ Pressure (Torr)"
+        xaxisMin="auto"
+        xaxisMax="auto"
+        yaxisMin={-11}
+        yaxisMax={3}
+        windowSize={windowSize}
+      />
     </MediumContainer>
   );
 };

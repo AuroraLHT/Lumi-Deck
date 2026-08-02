@@ -14,7 +14,6 @@ const IntegratorVisualizer = () => {
   const [windowSize, setWindowSize] = useState(10000);
   const [rangeMin, setRangeMin] = useState<RangeValue>("auto");
   const [rangeMax, setRangeMax] = useState<RangeValue>("auto");
-  const [isVisible, setIsVisible] = useState(true);
 
   const { cache: cacheIntegrator } = useIntegrationCache();
 
@@ -51,19 +50,17 @@ const IntegratorVisualizer = () => {
 
   return (
     <SmallContainer>
-      <PlottingToolbar isMinimized={!isVisible} onMinimize={() => {setIsVisible(!isVisible)}} settingsMenu={settingsMenu} />
-      {isVisible && (
-        <RealTimeLineChart
-          chartData={data}
-          xaxisName="Time"
-          yaxisName="Intensity"
-          xaxisMin="auto"
-          xaxisMax="auto"
-          yaxisMin={rangeMin}
+      <PlottingToolbar title="Oscillation" settingsMenu={settingsMenu} />
+      <RealTimeLineChart
+        chartData={data}
+        xaxisName="Time"
+        yaxisName="Intensity"
+        xaxisMin="auto"
+        xaxisMax="auto"
+        yaxisMin={rangeMin}
         yaxisMax={rangeMax}
-          windowSize={windowSize}
-        />
-      )}
+        windowSize={windowSize}
+      />
     </SmallContainer>
   );
 };

@@ -9,18 +9,11 @@ import PlottingToolbar from "../../Plotting/ToolBar";
 import RTVToolBarMenu, { RangeValue } from "../../Plotting/RTVToolBarMenu";
 import { useState } from "react";
 
-const RealTimeTemperature = () => {
-  // console.log(
-  //   "RealTimeTemperature Re-render",
-  //   new Date().toISOString(),
-  //   uuidv4()
-  // );
-
+const RealTimePulseLaser = () => {
   // const { logs, recentLog } = useLog();
   const [rangeMin, setRangeMin] = useState<RangeValue>("auto");
   const [rangeMax, setRangeMax] = useState<RangeValue>("auto");
   const [windowSize, setWindowSize] = useState(10 * 60 * 1000);
-  const [isVisible, setIsVisible] = useState(true);
 
   let data: Serie[] = [
     {
@@ -101,27 +94,19 @@ const RealTimeTemperature = () => {
 
   return (
     <MediumContainer>
-      <PlottingToolbar
-        isMinimized={!isVisible}
-        onMinimize={() => {
-          setIsVisible(!isVisible);
-        }}
-        settingsMenu={settingsMenu}
+      <PlottingToolbar title="Pulse Laser" settingsMenu={settingsMenu} />
+      <RealTimeLineChart
+        chartData={data}
+        xaxisName="Time"
+        yaxisName="Pulse (count)"
+        xaxisMin="auto"
+        xaxisMax="auto"
+        yaxisMin={0}
+        yaxisMax="auto"
+        windowSize={windowSize}
       />
-      {isVisible && (
-        <RealTimeLineChart
-          chartData={data}
-          xaxisName="Time"
-          yaxisName="Pulse (count)"
-          xaxisMin="auto"
-          xaxisMax="auto"
-          yaxisMin={0}
-          yaxisMax="auto"
-          windowSize={windowSize}
-        />
-      )}
     </MediumContainer>
   );
 };
 
-export default RealTimeTemperature;
+export default RealTimePulseLaser;

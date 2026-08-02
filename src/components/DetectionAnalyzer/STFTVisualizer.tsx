@@ -20,7 +20,6 @@ const STFTVisualizer = () => {
   const [rangeMax, setRangeMax] = useState<RangeValue>("auto");
   const [frequencyMin, setFrequencyMin] = useState<RangeValue>("auto");
   const [frequencyMax, setFrequencyMax] = useState<RangeValue>("auto");
-  const [isVisible, setIsVisible] = useState(false);
 
   let data: Serie[] = [
     {
@@ -73,24 +72,16 @@ const STFTVisualizer = () => {
   );
   return (
     <SmallContainer>
-      <PlottingToolbar
-        isMinimized={!isVisible}
-        onMinimize={() => {
-          setIsVisible(!isVisible);
-        }}
-        settingsMenu={settingsMenu}
+      <PlottingToolbar title="Short-time FT" settingsMenu={settingsMenu} />
+      <LineChart
+        chartData={data}
+        xaxisName="Frequency (Hz)"
+        yaxisName="Magnitude"
+        xaxisMin={0}
+        xaxisMax={1}
+        yaxisMin="auto"
+        yaxisMax="auto"
       />
-      {isVisible && (
-        <LineChart
-          chartData={data}
-          xaxisName="Frequency (Hz)"
-          yaxisName="Magnitude"
-          xaxisMin={0}
-          xaxisMax={1}
-          yaxisMin="auto"
-          yaxisMax="auto"
-        />
-      )}
     </SmallContainer>
   );
 };

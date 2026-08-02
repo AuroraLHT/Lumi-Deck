@@ -12,7 +12,6 @@ const RealTimeTemperature = () => {
   const [rangeMin, setRangeMin] = useState<RangeValue>("auto");
   const [rangeMax, setRangeMax] = useState<RangeValue>("auto");
   const [windowSize, setWindowSize] = useState(10*60*1000);
-  const [isVisible, setIsVisible] = useState(true);
 
   // console.log(
   //   "RealTimeTemperature Re-render",
@@ -72,19 +71,17 @@ const RealTimeTemperature = () => {
 
   return (
     <MediumContainer>
-      <PlottingToolbar isMinimized={!isVisible} onMinimize={() => {setIsVisible(!isVisible)}} settingsMenu={settingsMenu} />
-      {isVisible && (
-        <RealTimeLineChart
-          chartData={data}
-          xaxisName="Time"
-          yaxisName="Temperature (°C)"
-          xaxisMin="auto"
-          xaxisMax="auto"
-          yaxisMin={0}
-          yaxisMax={1000}
-          windowSize={windowSize}
-        />
-      )}
+      <PlottingToolbar title="Temperature" settingsMenu={settingsMenu} />
+      <RealTimeLineChart
+        chartData={data}
+        xaxisName="Time"
+        yaxisName="Temperature (°C)"
+        xaxisMin="auto"
+        xaxisMax="auto"
+        yaxisMin={0}
+        yaxisMax={1000}
+        windowSize={windowSize}
+      />
     </MediumContainer>
   );
 };

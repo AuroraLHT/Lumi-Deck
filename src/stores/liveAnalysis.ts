@@ -28,11 +28,34 @@ interface LiveAnalysisState {
   detectionNextID: number;
   selectedDetection: { [key: string]: SelectedDetection };
   focusedDetectionID: string | null;
+  /**
+   * The box the user is currently redrawing on the video, or null.
+   *
+   * The analyzer and the RHEED video are separate dashboard panels with no
+   * parent between them, so "the next rectangle drawn replaces this box rather
+   * than creating a new one" has to live here. `RectangleSelector` reads it when
+   * a drag finishes; `VideoMain` reads it to arm the overlay without the user
+   * having to reach for the manual-box button first.
+   */
+  redrawTargetID: string | null;
   addSelectedDetection: (detection: DetectionBBox, name?: string) => void;
   removeSelectedDetection: (key: string) => void;
   setFocusedDetectionID: (id: string) => void;
   updateFocusedDetection: (update: Partial<SelectedDetection>) => void;
   getFocusedDetection: () => SelectedDetection | null;
+  /** Arm redraw mode for a box, focusing it so the user can see what they are moving. */
+  beginRedraw: (id: string) => void;
+  cancelRedraw: () => void;
+  /**
+   * Move a box. Corner form `[x1, y1, x2, y2]`, in camera-frame pixels.
+   *
+   * Only the geometry: the id (which is also the backend's bbox_id), the name
+   * and the analysis flags are all preserved, so a redraw keeps the box's
+   * identity rather than orphaning a registration under the old id. Pushing the
+   * new coordinates to the node is the caller's job -- see
+   * `useAnalyzerControl.applyGeometryChange`.
+   */
+  setDetectionBBox: (id: string, bbox: number[]) => void;
   /** Adopt the backend's registry; see the implementation for what it may touch. */
   reconcileWithBackend: (boxes: RegisteredBox[]) => void;
 }
@@ -41,6 +64,7 @@ const useLiveAnalysisStore = create(
   immer<LiveAnalysisState>((set, get) => ({
     detectionNextID: 0,
     focusedDetectionID: null,
+    redrawTargetID: null,
     selectedDetection: {},
 
     addSelectedDetection: (detection: DetectionBBox, name?: string) =>
@@ -57,7 +81,10 @@ const useLiveAnalysisStore = create(
         state.selectedDetection[id] = {
           ...detection,
           id,
-          name: name || `Box ${id}`,
+          // Just the number. The sidebar is a narrow rail in a 4-of-12 panel and
+          // "Box 12" was being clipped to nothing there; the geometry that used
+          // to justify a longer label is in the row's tooltip instead.
+          name: name || id,
           isRunningSTFT: false,
           isRunningOscillation: false,
           isRegistered: false,
@@ -71,6 +98,9 @@ const useLiveAnalysisStore = create(
         // rendering charts for it. Clearing it also lets `reconcileWithBackend`
         // fill the focus with a box that is still registered.
         if (state.focusedDetectionID === key) state.focusedDetectionID = null;
+        // Likewise a redraw armed at a box that has since been deleted: the next
+        // drag would otherwise be swallowed instead of creating a new box.
+        if (state.redrawTargetID === key) state.redrawTargetID = null;
       }),
 
     setFocusedDetectionID: (id: string) =>
@@ -95,6 +125,28 @@ const useLiveAnalysisStore = create(
       }
       return null;
     },
+
+    beginRedraw: (id: string) =>
+      set((state) => {
+        if (!(id in state.selectedDetection)) return;
+        state.redrawTargetID = id;
+        // The overlay highlights the focused box, so focusing it is what makes
+        // "which one am I about to move?" answerable on the video itself.
+        state.focusedDetectionID = id;
+      }),
+
+    cancelRedraw: () =>
+      set((state) => {
+        state.redrawTargetID = null;
+      }),
+
+    setDetectionBBox: (id: string, bbox: number[]) =>
+      set((state) => {
+        const detection = state.selectedDetection[id];
+        if (!detection) return;
+        detection.bbox = bbox;
+        if (state.redrawTargetID === id) state.redrawTargetID = null;
+      }),
 
     /**
      * Merge the backend's box registry in, so this UI lists every box the node
@@ -130,7 +182,7 @@ const useLiveAnalysisStore = create(
             label: -1,
             score: 1,
             id: box.id,
-            name: `Box ${box.id}`,
+            name: box.id,
             isRegistered: true,
             isRunningOscillation: box.isIntegrating,
             isRunningSTFT: box.isRunningSTFT,

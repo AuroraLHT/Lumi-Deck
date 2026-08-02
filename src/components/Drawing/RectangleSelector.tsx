@@ -1,9 +1,10 @@
-import { useCallback, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Box } from '@chakra-ui/react';
 
 import useLiveAnalysisStore from "../../stores/liveAnalysis";
 import { DetectionBBox } from "../../entities/detector";
 import useRheedNodeStore from '../../stores/nodes/rheed';
+import useAnalyzerControl from '../../hooks/useAnalyzerControl';
 
 const cvtRectangleToDetection = (rect: Rectangle, frameHeight: number, frameWidth: number): DetectionBBox => {
   const x1 = rect.scaledStartX * frameWidth;
@@ -18,6 +19,16 @@ const cvtRectangleToDetection = (rect: Rectangle, frameHeight: number, frameWidt
   }
 }
 
+/**
+ * Screen pixels a drag must cover before it counts as a rectangle.
+ *
+ * A click that moves a pixel or two is a click, not a box. It used to register
+ * as a degenerate region anyway (widened to 1px by `toBBox`), which was merely
+ * untidy when it created a new box -- but redraw *replaces* geometry, so a
+ * mis-click on the video would otherwise shrink a working box to a dot and drop
+ * the node's series for it.
+ */
+const MIN_DRAG_PX = 4;
 
 export interface Rectangle {
   startX: number;
@@ -37,9 +48,16 @@ interface Position {
     scaledY: number;
 }
 
+/**
+ * The drag-to-draw overlay on the RHEED video.
+ *
+ * Serves two modes. Normally a finished drag creates a new box. When the
+ * analyzer has armed `redrawTargetID`, the same drag instead *moves* that box:
+ * same id, same name, same analysis toggles, new coordinates -- and the new
+ * geometry is pushed straight to whichever capabilities are running over it.
+ */
 const RectangleSelector: React.FC = () => {
   const [isDrawing, setIsDrawing] = useState(false);
-//   const [isDrawingEnded, setIsDrawingEnded] = useState(false);
   const [rectangle, setRectangle] = useState<Rectangle | null>(null);
   const containerRef = useRef<SVGSVGElement>(null);
   const startPos = useRef< Position | null>(null);
@@ -48,8 +66,21 @@ const RectangleSelector: React.FC = () => {
   const addSelectedDetection = useLiveAnalysisStore(
     (state) => state.addSelectedDetection
   );
-  
+  const redrawTargetID = useLiveAnalysisStore((s) => s.redrawTargetID);
+  const cancelRedraw = useLiveAnalysisStore((s) => s.cancelRedraw);
+  const { applyGeometryChange } = useAnalyzerControl();
 
+  // Escape backs out of a redraw. Without it the only way to disarm is to draw
+  // something, which is the one thing a user who armed it by mistake does not
+  // want to do.
+  useEffect(() => {
+    if (!redrawTargetID) return;
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") cancelRedraw();
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [redrawTargetID, cancelRedraw]);
 
   const getRelativeCoordinates = (event: MouseEvent | React.MouseEvent) : Position => {
     const container = containerRef.current;
@@ -67,12 +98,9 @@ const RectangleSelector: React.FC = () => {
   };
 
   const handleMouseDown = (event: React.MouseEvent) => {
-    console.log("handleMouseDown");
     setIsDrawing(true);
-    // setIsDrawingEnded(false);
     const pos = getRelativeCoordinates(event);
     startPos.current = pos;
-    console.log("startPos.current", startPos.current);
     setRectangle({
       startX: pos.x,
       startY: pos.y,
@@ -86,13 +114,9 @@ const RectangleSelector: React.FC = () => {
   };
 
   const handleMouseMove = (event: React.MouseEvent) => {
-    // console.log("isDrawing", isDrawing);
     if (!isDrawing || !startPos.current) return;
 
-    console.log("event", event);    
-    console.log("startPos.current", startPos.current);
     const currentPos = getRelativeCoordinates(event);
-    console.log("currentPos", currentPos);
     setRectangle({
       startX: startPos.current.x,
       startY: startPos.current.y,
@@ -106,31 +130,44 @@ const RectangleSelector: React.FC = () => {
   };
 
   const onSelectionComplete = useCallback((rect: Rectangle): void => {
-    console.log("addManualBox", rect);
-    const detection = cvtRectangleToDetection(rect, rheedNodeState.frame_dims[0], rheedNodeState.frame_dims[1]);
-    console.log("detection", detection);
-    addSelectedDetection(detection);
-  }, [addSelectedDetection]);  
+    if (Math.abs(rect.width) < MIN_DRAG_PX || Math.abs(rect.height) < MIN_DRAG_PX) {
+      return;
+    }
+
+    const detection = cvtRectangleToDetection(
+      rect,
+      rheedNodeState.frame_dims[0],
+      rheedNodeState.frame_dims[1]
+    );
+
+    // Read the target through getState rather than the subscribed value: the
+    // drag started before this callback was built, and arming can change under
+    // it (another client removing the box, Escape) without a re-render landing
+    // first.
+    const store = useLiveAnalysisStore.getState();
+    const targetID = store.redrawTargetID;
+
+    if (!targetID) {
+      addSelectedDetection(detection);
+      return;
+    }
+
+    store.setDetectionBBox(targetID, detection.bbox);
+    const updated = useLiveAnalysisStore.getState().selectedDetection[targetID];
+    if (updated) applyGeometryChange(updated);
+  }, [addSelectedDetection, applyGeometryChange, rheedNodeState]);
 
   const handleMouseUp = () => {
-    console.log("handleMouseUp");
-
-    // const pos = getRelativeCoordinates(event);
-    // console.log("end pos", pos);
-    // if (!startPos.current) return;
-    // setRectangle({
-    //   startX: startPos.current.x,
-    //   startY: startPos.current.y,
-    //   width: pos.x - startPos.current.x,
-    //   height: pos.y - startPos.current.y
-    // });
-
     setIsDrawing(false);
-    // setIsDrawingEnded(true);
     if (rectangle) {
       onSelectionComplete(rectangle);
     }
+    setRectangle(null);
   };
+
+  // Redrawing an existing box draws in the accent colour, so it reads as "this
+  // replaces something" rather than "this adds one more".
+  const stroke = redrawTargetID ? "#3b82f6" : "red";
 
   return (
     <Box
@@ -144,7 +181,7 @@ const RectangleSelector: React.FC = () => {
       onMouseDown={handleMouseDown}
       onMouseMove={handleMouseMove}
       onMouseUp={handleMouseUp}
-      cursor={isDrawing ? 'crosshair' : 'default'}
+      cursor="crosshair"
       pointerEvents="all"
     >
       {rectangle && (
@@ -154,8 +191,8 @@ const RectangleSelector: React.FC = () => {
             y={Math.min(rectangle.startY, rectangle.startY + rectangle.height)}
             width={Math.abs(rectangle.width)}
             height={Math.abs(rectangle.height)}
-            fill="rgba(255, 0, 0, 0.1)"
-            stroke="red"
+            fill={redrawTargetID ? "rgba(59, 130, 246, 0.12)" : "rgba(255, 0, 0, 0.1)"}
+            stroke={stroke}
             strokeWidth="2"
             vectorEffect="non-scaling-stroke"
           />

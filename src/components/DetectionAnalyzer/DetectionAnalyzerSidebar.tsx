@@ -1,4 +1,3 @@
-// import React from 'react';
 import {
   Badge,
   Box,
@@ -12,13 +11,31 @@ import {
 } from "@chakra-ui/react";
 import { CloseIcon, RepeatIcon } from "@chakra-ui/icons";
 // Assuming you have a hook to connect to your store
-import useLiveAnalysisStore from "../../stores/liveAnalysis";
+import useLiveAnalysisStore, { SelectedDetection } from "../../stores/liveAnalysis";
 import styles from "./DetectionAnalyzer.module.css";
 import useAnalyzerControl from "../../hooks/useAnalyzerControl";
 import useTransportStore from "../../clients/transport";
 import useRegisteredBoxes, {
   refreshRegisteredBoxes,
 } from "../../hooks/useRegisteredBoxes";
+
+/** Everything the row cannot show, for the tooltip that replaced the long name. */
+const describeBox = (detection: SelectedDetection) => {
+  const [x1, y1, x2, y2] = detection.bbox;
+  const geometry = `x ${Math.round(x1)}, y ${Math.round(y1)} · ${Math.round(
+    x2 - x1
+  )}×${Math.round(y2 - y1)}`;
+  const running = [
+    detection.isRunningOscillation ? "oscillation" : null,
+    detection.isRunningSTFT ? "STFT" : null,
+  ].filter(Boolean);
+  const state = detection.isRegistered
+    ? running.length
+      ? `running ${running.join(" + ")}`
+      : "registered, idle"
+    : "local only — not registered on the node";
+  return `Box ${detection.name} — ${geometry} — ${state}`;
+};
 
 /**
  * The box list.
@@ -30,6 +47,11 @@ import useRegisteredBoxes, {
  * reloaded, is listed here without the user doing anything. The badges say which
  * of the two a row is, because the difference matters: a local box is invisible
  * to everyone else and will not survive a reload.
+ *
+ * Rows are labelled with the bare box number. This rail is a fraction of a panel
+ * that is itself 4 of 12 grid columns, and "Box 12" had no room to render -- the
+ * text was simply clipped away. The number is also the backend's `bbox_id`, so
+ * it is the identifier worth showing; everything else is in the tooltip.
  */
 const DetectionAnalyzerSidebar = () => {
   const selectedDetections = useLiveAnalysisStore((s) => s.selectedDetection); // Hook to fetch detections and remove action
@@ -47,14 +69,8 @@ const DetectionAnalyzerSidebar = () => {
   const detections = Object.values(selectedDetections);
 
   return (
-    <Box
-      className={styles.sidebar}
-      h={"20rem"}
-      // display="block"
-      paddingRight={1}
-      paddingLeft={2}
-    >
-      <Flex alignItems="center" justifyContent="space-between" mb={1} pr={1}>
+    <Box className={styles.sidebar} h="100%" px={1} py={1}>
+      <Flex alignItems="center" justifyContent="space-between" mb={1.5} gap={1}>
         <Tooltip
           label={
             error
@@ -62,11 +78,18 @@ const DetectionAnalyzerSidebar = () => {
               : "Boxes registered on the RHEED node, shared by every client"
           }
         >
-          <Text fontSize="xs" color={error ? "red.400" : "text.secondary"}>
-            {error ? "sync failed" : `${boxes.length} registered`}
+          <Text
+            fontSize="10px"
+            fontWeight="700"
+            letterSpacing="0.04em"
+            textTransform="uppercase"
+            color={error ? "red.400" : "text.secondary"}
+            noOfLines={1}
+          >
+            {error ? "sync failed" : `${boxes.length} reg.`}
           </Text>
         </Tooltip>
-        <Flex alignItems="center" gap={1}>
+        <Flex alignItems="center" gap={0.5} flexShrink={0}>
           {(isLoading || isSyncing) && <Spinner size="xs" />}
           <Tooltip label="Re-read the registered boxes now">
             <IconButton
@@ -84,81 +107,105 @@ const DetectionAnalyzerSidebar = () => {
       </Flex>
 
       {detections.length === 0 && (
-        <Text fontSize="xs" color="text.secondary" px={1}>
-          {isLoading
-            ? "Reading the node's boxes..."
-            : "No boxes. Draw one on the video to start."}
+        <Text fontSize="10px" color="text.secondary" px={1}>
+          {isLoading ? "Reading boxes…" : "No boxes. Draw one on the video."}
         </Text>
       )}
 
       <List spacing={1}>
-        {detections.map((detection) => (
-          <ListItem
-            key={detection.id}
-            className={styles.listItem}
-            // Semantic tokens, not the gray.800/gray.600 that used to be here:
-            // those are dark text, and the panel behind them is dark in dark
-            // mode. Same fix the module's CSS comment describes.
-            color="text.primary"
-            bg={detection.id === focusedDetectionID ? "panel.border" : undefined}
-            borderLeft="2px solid"
-            borderLeftColor={
-              detection.id === focusedDetectionID
-                ? "panel.borderActive"
-                : "transparent"
-            }
-            onClick={() => setFocusedDetectionID(detection.id)}
-          >
-            <Flex alignItems="center" justifyContent="space-between">
-              <Box minW={0}>
-                <Text
-                  color="text.primary"
-                  size="sm"
-                  className={styles.detectionName}
-                  noOfLines={1}
-                >
-                  {detection.name}
-                </Text>
-                <Flex gap={1} mt={0.5}>
+        {detections.map((detection) => {
+          const isFocused = detection.id === focusedDetectionID;
+          return (
+            <Tooltip
+              key={detection.id}
+              label={describeBox(detection)}
+              placement="right"
+              openDelay={300}
+            >
+              <ListItem
+                className={styles.listItem}
+                // Semantic tokens, not the gray.800/gray.600 that used to be here:
+                // those are dark text, and the panel behind them is dark in dark
+                // mode. Same fix the module's CSS comment describes.
+                color="text.primary"
+                bg={isFocused ? "panel.border" : undefined}
+                borderLeft="2px solid"
+                borderLeftColor={
+                  isFocused ? "panel.borderActive" : "transparent"
+                }
+                onClick={() => setFocusedDetectionID(detection.id)}
+              >
+                <Flex alignItems="center" gap={1} minW={0}>
+                  <Text
+                    className={styles.detectionName}
+                    fontSize="sm"
+                    fontWeight="700"
+                    // Tabular figures so the numbers keep a common width and
+                    // the dots beside them do not jitter between rows.
+                    sx={{ fontVariantNumeric: "tabular-nums" }}
+                    lineHeight="1.2"
+                    flexShrink={0}
+                  >
+                    {detection.name}
+                  </Text>
+
                   {/* These read the node's state, not the switch positions: a
                       register that the node rejected shows up here as a missing
-                      badge rather than an "on" toggle over a box nobody is
-                      integrating. */}
-                  {detection.isRunningOscillation && (
-                    <Badge colorScheme="green" fontSize="0.6rem">
-                      OSC
-                    </Badge>
-                  )}
-                  {detection.isRunningSTFT && (
-                    <Badge colorScheme="blue" fontSize="0.6rem">
-                      FFT
-                    </Badge>
-                  )}
-                  {!detection.isRegistered && (
-                    <Tooltip label="Only in this browser -- not registered on the node, and lost on reload">
-                      <Badge colorScheme="gray" fontSize="0.6rem">
+                      dot rather than an "on" toggle over a box nobody is
+                      integrating. Dots rather than OSC/FFT text because the rail
+                      is too narrow for two words plus a number plus a button. */}
+                  <Flex gap={0.5} flex="1" minW={0}>
+                    {detection.isRunningOscillation && (
+                      <Box
+                        w="6px"
+                        h="6px"
+                        borderRadius="full"
+                        bg="green.400"
+                        aria-label="Running oscillation"
+                      />
+                    )}
+                    {detection.isRunningSTFT && (
+                      <Box
+                        w="6px"
+                        h="6px"
+                        borderRadius="full"
+                        bg="blue.400"
+                        aria-label="Running STFT"
+                      />
+                    )}
+                    {!detection.isRegistered && (
+                      <Badge
+                        colorScheme="gray"
+                        fontSize="8px"
+                        px={1}
+                        textTransform="none"
+                      >
                         local
                       </Badge>
-                    </Tooltip>
-                  )}
+                    )}
+                  </Flex>
+
+                  <IconButton
+                    size="xs"
+                    color="red.400"
+                    aria-label={`Remove box ${detection.name}`}
+                    icon={<CloseIcon boxSize={2} />}
+                    minW="18px"
+                    h="18px"
+                    flexShrink={0}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      removeSelectedDetection(detection.id);
+                      sendIntegratorRequest("remove", detection);
+                      sendSTFTRequest("remove", detection);
+                    }}
+                    variant="ghost"
+                  />
                 </Flex>
-              </Box>
-              <IconButton
-                size="sm"
-                color={"red.500"}
-                aria-label="Remove detection"
-                icon={<CloseIcon />}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  removeSelectedDetection(detection.id);
-                  sendIntegratorRequest("remove", detection);
-                  sendSTFTRequest("remove", detection);
-                }}
-                variant="ghost"
-              />
-            </Flex>
-          </ListItem>
-        ))}
+              </ListItem>
+            </Tooltip>
+          );
+        })}
       </List>
     </Box>
   );

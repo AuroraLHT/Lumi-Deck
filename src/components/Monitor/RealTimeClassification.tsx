@@ -15,7 +15,6 @@ const RealTimeClassification = () => {
   const [rangeMin, setRangeMin] = useState<RangeValue>("auto");
   const [rangeMax, setRangeMax] = useState<RangeValue>("auto");
   const [windowSize, setWindowSize] = useState(20000);
-  const [isVisible, setIsVisible] = useState(true);
 
   // console.log("RealTimeClassification re-rendered", new Date().toISOString(), uuidv4());
   let data = ([
@@ -85,19 +84,17 @@ const RealTimeClassification = () => {
 
   return (
     <MediumContainer>
-      <PlottingToolbar isMinimized={!isVisible} onMinimize={() => {setIsVisible(!isVisible)}} settingsMenu={settingsMenu} />
-      {isVisible && (
-        <RealTimeLineChart
-          chartData={data}
-          xaxisName="Time"
-          yaxisName="Probability"
-          xaxisMin="auto"
-          xaxisMax="auto"
+      <PlottingToolbar title="Classification" settingsMenu={settingsMenu} />
+      <RealTimeLineChart
+        chartData={data}
+        xaxisName="Time"
+        yaxisName="Probability"
+        xaxisMin="auto"
+        xaxisMax="auto"
         yaxisMin={0}
         yaxisMax={1}
-          windowSize={windowSize}
-        />
-      )}
+        windowSize={windowSize}
+      />
     </MediumContainer>
   );
 };
