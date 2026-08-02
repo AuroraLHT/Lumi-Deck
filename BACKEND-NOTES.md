@@ -142,6 +142,142 @@ it.
 
 ---
 
+# UPDATE 2026-08-02 — storage state is now mirrored across clients; one ghost field to delete
+
+**Contract `5a6b14ce52d03047`.** One request (§7) and one report (§8).
+
+The Storage panel used to be blind to everyone else: it read
+`storage.storage.state` once on mount and then flipped a local boolean on its own
+click. Two browsers open, one starts a recording, the other showed a red "record"
+button indefinitely.
+
+**No backend change was needed for that** — the data was already on the wire.
+`heartbeat.py:70-83` calls `refresh_state()` on every capability and dumps the
+full state blob into the 2s heartbeat, and `registry.py:77-78` diffs that blob and
+emits `state_changed`. The frontend was already subscribed via
+`system.registry:registry_event`; it just never projected the `storage` node.
+It does now, so `is_storing`, `project_name`, `path` and `deps_available` drive the
+panel for every connected client. Recording start/stop is decided against node
+state rather than a local flag, so one operator's session is correctly stopped
+rather than double-started by another.
+
+Two things came out of doing that.
+
+## 7. `n_frames` is a ghost field — please delete it
+
+`StorageReadout.n_frames` (`src/lumi/contracts/payloads/storage.py:39`) is declared
+as `int | None = None` and **nothing ever assigns it**. `StorageHandler.readout()`
+(`src/lumi/storage/handlers.py:127-133`) constructs the readout with four fields
+and omits it, so every heartbeat and every `getState()` reports `null`. §4 below
+already captured this on the wire without anyone noticing:
+
+```json
+{"is_storing": false, "project_name": null, "path": null,
+ "deps_available": {...}, "n_frames": null}
+```
+
+A published contract that advertises a number nobody provides is worse than no
+field at all: every client has to write code for a value that is always absent.
+
+**Request:** remove the one line from `StorageReadout` and regenerate. We
+considered wiring it to the recorder's frame count instead and decided against
+reviving a placeholder — see "the counter we are *not* adding yet" below.
+
+Safe on our side: nothing in the frontend reads it. A grep across `src/` returns
+only the generated declaration in `src/generated/lumi.ts`.
+
+Three consequences, none of them obvious from the size of the diff:
+
+1. **The contract hash moves.** `_capability_json` includes
+   `"state": _schema(cap.state)` (`src/lumi/contracts/registry.py:66`), so the
+   state schema feeds `canonical_json()` → `contract_hash()` (`registry.py:105`).
+   Deleting one field changes `5a6b14ce52d03047` to something new.
+2. **Every node has to be redeployed together.** `registry.py:60` sets
+   `contract_matches = hb.contract_hash == self.own_hash`, so any node still on the
+   old contract will be flagged mismatched and log a warning each time it joins.
+3. **CI fails without regeneration.** `uv run lumi-codegen --check` is a drift gate.
+   Please run `uv run lumi-codegen` and commit `web/src/generated/lumi.ts`,
+   `src/lumi/generated/clients/`, and `schemas/contract.json` in the same change.
+
+We will copy the regenerated `lumi.ts` across once it lands — we will not hand-edit
+ours ahead of you, since it would then disagree with the `contract_hash` recorded
+in its own header.
+
+## 8. Report: the recorder's index counters race (pre-existing, not from this work)
+
+Found while checking whether `n_frames` *could* be wired. Reporting rather than
+requesting, since it is yours to weigh — but it is frame loss, not just a bad
+counter.
+
+`RecorderServer.save_frame` (`src/lumi/storage/record.py:791`) submits into a
+`ThreadPoolExecutor` sized by `max_workers = 8` (`cfg/settings.toml:384`), so
+`Recorder.save_frame` runs on **eight threads concurrently**. Each takes its index
+from `next_frame_idx` (`record.py:452-455`):
+
+```python
+@property
+def next_frame_idx(self):
+    idx = self._idx_frame      # LOAD_ATTR
+    self._idx_frame += 1       # BINARY_OP + STORE_ATTR  -- no lock, not atomic
+    return idx
+```
+
+The GIL can switch between those bytecodes, so two threads can be handed the same
+`idx`. `ds_frame[_idx] = frame` at `record.py:510` then silently overwrites a frame
+that was already written, and `_idx_frame` ends up below the true count.
+
+The same shape applies to `next_log_idx`, `next_detection_idx`,
+`next_integration_idx` and `next_integration_bbox_idx` (`record.py:445-473`), and
+to the `ds_*.attrs['size'] += 1` increments beside them. A `threading.Lock` around
+the five properties would close it.
+
+Two notes for whoever picks this up:
+
+- **`next_frame_idx` is a property with a side effect.** Anything that reads it to
+  *display* a count consumes an index and desynchronises the write sequence. A
+  future counter must read `_idx_frame` directly, or get a new side-effect-free
+  `frames_written` property — the current name gives no hint that touching it
+  mutates.
+- **The throttle is correct and worth preserving.** `record.py:501-503` returns
+  before incrementing when the speed limiter rejects a frame, so `_idx_frame`
+  counts frames *written*, not frames *received*. That is the right semantic for a
+  progress display.
+
+## The counter we are *not* adding yet, and why
+
+Recording this so it does not get rediscovered from scratch, and so §7 does not
+read as "the frontend did not want the number".
+
+We do want a progress counter eventually. What we do not want is it living on
+presence-carried state. `registry.py:77` emits `state_changed` whenever the
+capability blob differs from the previous heartbeat, and every current storage
+field is stable for the duration of a recording — so events fire on real
+transitions only, which is exactly what makes the cross-client sync above cheap. A
+value that ticks every 2s turns the registry into a 0.5 Hz event pump, waking every
+connected client for the length of a growth.
+
+When we build it, the shape we would propose is a `VOLATILE_FIELDS` ClassVar on
+`ServerStateBase` (`src/lumi/contracts/payloads/common.py:44`) that
+`heartbeat.py:81` passes to `model_dump(exclude=...)`. The value then rides the
+`getState()` control call (`base/mq/server.py:464`, which already calls
+`refresh_state()` first), and the Storage panel polls it only while `is_storing` is
+true and the panel is open. Presence keeps announcing transitions; progress gets
+pulled by whoever is actually looking.
+
+**§8 is a prerequisite** — a count derived from `_idx_frame` is wrong until the
+increments are locked.
+
+## Still blocked on §4
+
+The cross-client storage work above is **unverified against a real recording**.
+Under `scripts/start_simulation.sh`, `storage.storage.start_recording` still times
+out and `deps_available` still reports `chamber`, `rheed` and `detection` all
+false while `chamber` and `rheed` are up and streaming on the same bus (§4). The
+panel's state mirroring is correct by construction and builds clean, but it cannot
+be exercised end to end until a recording can actually start.
+
+---
+
 ## 0. `rheed.video` publishes no fragments despite `is_streaming: true` — video feed is dead
 
 **This is the most user-visible one: the RHEED video panel shows nothing.**
