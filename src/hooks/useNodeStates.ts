@@ -5,6 +5,7 @@ import {
   IntegratorState,
   NodeRecord,
   STFTState,
+  StorageState,
 } from "../generated/lumi";
 import useSystemRegistry from "./useSystemRegistry";
 import useRHEEDNodeStore from "../stores/nodes/rheed";
@@ -13,6 +14,7 @@ import useChamberLogNodeStore from "../stores/nodes/chamberLog";
 import useDetectorNodeStore from "../stores/nodes/detector";
 import useSTFTNodeStore from "../stores/nodes/stft";
 import useIntegratorNodeStore from "../stores/nodes/integrator";
+import useStorageNodeStore from "../stores/nodes/storage";
 
 /**
  * Feeds the per-node state stores from the SystemRegistry, replacing the old SSE
@@ -43,6 +45,7 @@ const useNodeStates = () => {
   const setDetectorNodeState = useDetectorNodeStore((s) => s.setState);
   const setSTFTNodeState = useSTFTNodeStore((s) => s.setState);
   const setIntegratorNodeState = useIntegratorNodeStore((s) => s.setState);
+  const setStorageNodeState = useStorageNodeStore((s) => s.setState);
 
   useEffect(() => {
     const byEquipment = new Map<string, NodeRecord>();
@@ -58,6 +61,7 @@ const useNodeStates = () => {
     const rheed = byEquipment.get("rheed");
     const chamber = byEquipment.get("chamber");
     const detection = byEquipment.get("detection");
+    const storage = byEquipment.get("storage");
 
     const common = (node: NodeRecord | undefined, capability: string) => {
       const state = capabilityState(node, capability);
@@ -97,6 +101,21 @@ const useNodeStates = () => {
 
     setChamberLogNodeState(common(chamber, "log"));
     setDetectorNodeState(common(detection, "detection"));
+
+    // Recording is shared state: one operator's session is every operator's
+    // session, and the file it writes is the experiment. Projecting it here is
+    // what lets the Storage panel show the node's truth instead of a local flag
+    // that only ever reflects clicks made in *this* tab.
+    const storageState = capabilityState(storage, "storage") as StorageState | undefined;
+    setStorageNodeState({
+      ...common(storage, "storage"),
+      is_storing: Boolean(storageState?.is_storing),
+      // Null rather than the last known name when the node is gone: a stale
+      // project name over a stopped recorder reads as "still recording".
+      project_name: storageState?.project_name ?? null,
+      path: storageState?.path ?? null,
+      deps_available: storageState?.deps_available ?? {},
+    });
   }, [
     nodes,
     setRHEEDNodeState,
@@ -105,6 +124,7 @@ const useNodeStates = () => {
     setDetectorNodeState,
     setSTFTNodeState,
     setIntegratorNodeState,
+    setStorageNodeState,
   ]);
 };
 
