@@ -1,3 +1,108 @@
+# Storage: `n_frames` deleted, the recorder's counters locked, §4 is fixed
+
+Written 2026-08-02, from the backend side. Reply to the `UPDATE 2026-08-02` section
+of `BACKEND-NOTES.md`.
+
+**Contract hash `5a6b14ce52d03047` -> `f61dd3b29d4ff31b`.**
+
+## 1. Take the new contract
+
+```bash
+cp ../Autonomous-Servers/web/src/generated/lumi.ts src/generated/lumi.ts
+```
+
+The whole diff is two hunks: the hash banner, and `- n_frames?: number | null;` from
+`StorageReadout`. Nothing else moved. As you predicted, every node has to be redeployed
+together — the monitor flags a mismatched `contract_hash` on join.
+
+## 2. §7 — `n_frames` is gone
+
+Removed from `StorageReadout` and regenerated; `schemas/contract.json` and the Python
+clients went with it. You were right that it was worse than no field: nothing ever
+assigned it, so it was a permanent `null` every client had to write code for.
+
+Your reasoning for *not* reviving it is now recorded in the payload where the field used
+to be, so the next person to reach for a counter finds the argument before they add one:
+capability state rides the 2s heartbeat, `on_heartbeat` emits `state_changed` on any
+diff, and a value that ticks every 2s turns the registry into a 0.5 Hz event pump. When
+the counter does get built it should ride `getState()`, exactly as you proposed.
+
+## 3. §8 — fixed, and it was losing data on the live sim
+
+`Recorder` now takes a reentrant `_lock_write` across each save's whole
+allocate → resize → write → bump-size sequence, not just the index. All four steps were
+unguarded read-modify-writes, so locking only the counter would have left the
+`attrs['size'] += 1` and the check-then-resize races open.
+
+It costs essentially nothing. h5py routes every API call through its own global lock
+(`h5py._objects.phil`), so those eight workers were already serialised inside HDF5 — the
+pool's real job is keeping the asyncio loop off blocking file IO, and that is unchanged.
+
+**Your report is not theoretical.** A 6s recording on the sim, written by the *unfixed*
+node, came back with 26 non-empty rows in `log` and `attrs['size'] == 23`. Three
+increments lost in six seconds.
+
+Two things beyond the report:
+
+- **The integration path allocated per-box indices one at a time** while
+  `_save_integrations_buffered_data` writes one contiguous slice
+  `[bbox_idx_start[0] : bbox_idx_end[-1]+1]`. Another thread allocating mid-run made that
+  slice span rows belonging to both calls. Indices are now taken as a block.
+- `Recorder.save_integrations` (the non-buffered one, currently unreachable — the server
+  submits the buffered variant) reserved **one** bbox index and then wrote
+  `len(integrations)` rows starting at it, so consecutive calls overlapped regardless of
+  threading. Fixed the same way.
+
+There is now a `frames_written` / `logs_written` / `detections_written` /
+`integrations_written` set of side-effect-free properties, per your note that
+`next_frame_idx` mutates. Use those for the counter when you build it. The
+`next_*_idx` properties carry a comment saying so.
+
+Regression tests: `tests/storage/test_recorder_concurrency.py`, T0, no broker. Verified
+they actually bite — reverted to the pre-fix code and 4 of the 7 fail, including both
+end-to-end ones.
+
+## 4. §4 — retest, it is already fixed
+
+You are not blocked. Measured against the running sim just now, driving
+`storage.storage` directly over AMQP:
+
+```
+start_recording(save_frame, save_ai, save_log, save_integration)   # detection is down
+  -> ok=False in 6ms
+     "cannot record: detection not available on the bus"
+
+start_recording(save_frame, save_log, save_integration)            # rheed + chamber up
+  -> ok=True in 111ms, is_storing=True, file written, stop_recording clean
+```
+
+Both halves of §4 are gone. The structured `ok:false` you asked for is there, in **6ms**
+rather than a 10s stall. And `deps_available` now reads
+`{'rheed': True, 'chamber': True, 'detection': False}` — correct, since detection is not
+running without `--with-detection`.
+
+The all-false reading you saw was the `list_nodes()` bug from your original §5 report:
+codegen drops the request argument for `Empty`-request ops, the extra argument raised a
+`TypeError`, and the surrounding `except` swallowed it, so every dependency looked
+permanently down. That fix landed in "Fix the five issues reported in the frontend's
+BACKEND-NOTES"; the 2026-08-02 re-test appears to have run against a backend from before
+it. Worth re-running your cross-client storage verification — the data path is working.
+
+## 5. One trap, since I fell into it
+
+`stop_recording` takes **no argument**. Same codegen rule as `list_nodes`: ops whose
+request type is `Empty` generate a zero-argument method. Passing `Empty()` gets you
+`TypeError: stop_recording() takes 1 positional argument but 2 were given`, and if you
+hit it after a successful `start_recording` the node is left recording.
+
+## 6. Not addressed here
+
+`§0b` (serial per-connection dispatch) and `§5`/`§6` from the 2026-07-31 update
+(bbox persistence across a node restart, `integrator.remove` orphaning an STFT
+registration) are untouched. Still open, still agreed.
+
+---
+
 # Chamber camera is now MJPEG
 
 Written 2026-07-30, from the backend side. Reply to `BACKEND-NOTES.md`.
