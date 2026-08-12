@@ -6,6 +6,7 @@ import useTransportStore from "../clients/transport";
 import useChamberLogStream from "../hooks/useChamberLogStream";
 import useAnalysisStreams from "../hooks/useAnalysisStreams";
 import useDetectionStream from "../hooks/useDetectionStream";
+import useMiModeStream from "../hooks/useMiModeStream";
 import useNodeStates from "../hooks/useNodeStates";
 import useSystemRegistryStream from "../hooks/useSystemRegistryStream";
 import {
@@ -33,6 +34,10 @@ const LumiTransportProvider = ({ children }: { children: ReactNode }) => {
   useAnalysisStreams();
   useDetectionStream();
   useNodeStates();
+  // Must be mounted here rather than in the MI panel: the node deletes an
+  // execution the moment it finishes, so a COMPLETED that nobody was listening
+  // for is gone for good.
+  useMiModeStream();
   // Order matters: useNodeStates fills the registered id lists from the
   // heartbeat, the sync hook fetches the matching geometry, and reconciliation
   // reads both. Within a render they all see the previous commit's stores, so

@@ -7,6 +7,7 @@ import MainController from "../MainController";
 import RealTimeMonitor from "../Monitor/RealTimeMonitor";
 import RealTimeDetectionAnalyzer from "../DetectionAnalyzer/RealTimeDetectionAnalyzer";
 import ChamberCameraMain from "../ChamberCamera/ChamberCameraMain";
+import MiModeMonitor from "../MiMode/MiModeMonitor";
 
 /**
  * The dashboard is assembled from these panels at runtime. Adding a new panel
@@ -19,6 +20,7 @@ export type PanelType =
   | "chamberCamera"
   | "analyzer"
   | "monitor"
+  | "miMode"
   | "controller"
   | "storage";
 
@@ -72,6 +74,14 @@ export const PANEL_REGISTRY: Record<PanelType, PanelDefinition> = {
     defaultSize: { w: 4, h: 9 },
     minSize: { w: 3, h: 6 },
     description: "Pressure, temperature, laser and classification",
+  },
+  miMode: {
+    type: "miMode",
+    title: "MI Mode",
+    render: () => <MiModeMonitor />,
+    defaultSize: { w: 4, h: 9 },
+    minSize: { w: 3, h: 5 },
+    description: "Scripts the chamber is running, live",
   },
   controller: {
     type: "controller",

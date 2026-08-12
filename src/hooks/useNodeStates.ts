@@ -3,6 +3,7 @@ import { useEffect } from "react";
 import {
   CameraState,
   IntegratorState,
+  MIModeState,
   NodeRecord,
   STFTState,
   StorageState,
@@ -15,6 +16,7 @@ import useDetectorNodeStore from "../stores/nodes/detector";
 import useSTFTNodeStore from "../stores/nodes/stft";
 import useIntegratorNodeStore from "../stores/nodes/integrator";
 import useStorageNodeStore from "../stores/nodes/storage";
+import useMIModeNodeStore from "../stores/nodes/miMode";
 
 /**
  * Feeds the per-node state stores from the SystemRegistry, replacing the old SSE
@@ -46,6 +48,7 @@ const useNodeStates = () => {
   const setSTFTNodeState = useSTFTNodeStore((s) => s.setState);
   const setIntegratorNodeState = useIntegratorNodeStore((s) => s.setState);
   const setStorageNodeState = useStorageNodeStore((s) => s.setState);
+  const setMIModeNodeState = useMIModeNodeStore((s) => s.setState);
 
   useEffect(() => {
     const byEquipment = new Map<string, NodeRecord>();
@@ -102,6 +105,19 @@ const useNodeStates = () => {
     setChamberLogNodeState(common(chamber, "log"));
     setDetectorNodeState(common(detection, "detection"));
 
+    // MI mode is what the chamber is *doing*: which script it is executing and
+    // how many are still queued behind it. Written out field by field rather
+    // than spread from `common` because mi_mode is PUBSUB -- its update loop is
+    // never gated by start/stop, so `is_streaming` is permanently false and has
+    // no place on this store.
+    const miMode = capabilityState(chamber, "mi_mode") as MIModeState | undefined;
+    setMIModeNodeState({
+      is_available: chamber?.status === "up",
+      is_running: Boolean(miMode?.is_running),
+      num_executions: miMode?.num_executions ?? 0,
+      current_execution: miMode?.current_execution ?? null,
+    });
+
     // Recording is shared state: one operator's session is every operator's
     // session, and the file it writes is the experiment. Projecting it here is
     // what lets the Storage panel show the node's truth instead of a local flag
@@ -125,6 +141,7 @@ const useNodeStates = () => {
     setSTFTNodeState,
     setIntegratorNodeState,
     setStorageNodeState,
+    setMIModeNodeState,
   ]);
 };
 
