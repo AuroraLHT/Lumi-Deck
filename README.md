@@ -1,4 +1,4 @@
-# Autonomous Frontend
+# Lumi-Deck
 
 Operator console for the autonomous PLD / RHEED system. React + TypeScript + Vite,
 Chakra UI for components, Zustand for state, talking to the FastAPI backend in
