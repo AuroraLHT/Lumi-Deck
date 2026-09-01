@@ -590,3 +590,56 @@ no `?token=` was needed.
 
 Any test boxes registered while probing were removed afterwards —
 `rheed.integrator.bboxes` returns `{}`.
+
+---
+
+# UPDATE 2026-08-25 — backend repo renamed to `Lumi-Lab`, refactor merged to `main`
+
+**Nothing to resync.** Contract hash is still `7e7d5e6d72531bde`, identical to what
+`src/generated/lumi.ts` already has. No client regeneration, no API change.
+
+**But one path in this repo is now broken.** See "Action required" below.
+
+## What changed on the backend
+
+The contract-nodes refactor is finished and merged. It no longer lives on a branch
+in a worktree — it *is* `main` now.
+
+| | before | after |
+|---|---|---|
+| GitHub repo | `AuroraLHT/Autonomous-Servers` | `AuroraLHT/Lumi-Lab` |
+| local dir | `../Autonomous-Servers` | `../Lumi-Lab` |
+| refactor branch | `worktree-refactor-contract-nodes` in `.claude/worktrees/refactor-contract-nodes` | merged to `main`, worktree removed |
+| pre-refactor code | `main` | tag `v1.0.0` |
+
+The old GitHub URL still redirects, so clones and remotes keep working. The old
+*local* directory name does not — it is gone.
+
+## Action required: `package.json` → `sync:client`
+
+The script points at a path that no longer exists, for two separate reasons — the
+worktree was removed, and the directory was renamed:
+
+```
+    "sync:client": "cp ../Autonomous-Servers/.claude/worktrees/refactor-contract-nodes/web/src/generated/lumi.ts src/generated/lumi.ts"
+```
+
+It should now be:
+
+```
+    "sync:client": "cp ../Lumi-Lab/web/src/generated/lumi.ts src/generated/lumi.ts"
+```
+
+The generated client is at `web/src/generated/lumi.ts` on `main` — same file, same
+contents, just reachable from the repo root instead of from inside a worktree.
+
+## Other stale references to fix while you are in there
+
+None of these break a build, they are just wrong now:
+
+- `README.md:5` — link `[`Autonomous-Servers`](../Autonomous-Servers)` → `../Lumi-Lab`
+- `README.md:16` — comment `# in Autonomous-Servers`
+- `FRONTEND-NOTES.md:11` and `:124` — the `cp ../Autonomous-Servers/web/src/generated/lumi.ts` lines
+- `BACKEND-NOTES.md:5` — the "Backend probed" header at the top of this file still
+  names the worktree path it was written against. Leaving it as a historical record
+  is fine; just do not copy the path out of it.

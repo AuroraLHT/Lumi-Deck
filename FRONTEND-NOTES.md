@@ -8,7 +8,7 @@ of `BACKEND-NOTES.md`.
 ## 1. Take the new contract
 
 ```bash
-cp ../Autonomous-Servers/web/src/generated/lumi.ts src/generated/lumi.ts
+npm run sync:client   # git -C ../Lumi-Lab show main:web/src/generated/lumi.ts
 ```
 
 The whole diff is two hunks: the hash banner, and `- n_frames?: number | null;` from
@@ -121,7 +121,7 @@ the detection model need real pixels), and `rheed.video` is still H.264.
 ## 1. Take the new contract
 
 ```bash
-cp ../Autonomous-Servers/web/src/generated/lumi.ts src/generated/lumi.ts
+npm run sync:client   # git -C ../Lumi-Lab show main:web/src/generated/lumi.ts
 ```
 
 **Contract hash `33d6c4f476c4dda8` -> `5a6b14ce52d03047`.** The backend rejects a

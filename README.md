@@ -2,24 +2,30 @@
 
 Operator console for the autonomous PLD / RHEED system. React + TypeScript + Vite,
 Chakra UI for components, Zustand for state, talking to the FastAPI backend in
-[`Autonomous-Servers`](../Autonomous-Servers).
+[`Lumi-Lab`](../Lumi-Lab).
 
 ```bash
 npm install
-npm run dev      # http://localhost:5173
-npm run build    # typecheck + production bundle
+npm run dev         # http://localhost:5173
+npm run build       # typecheck + production bundle
+npm run sync:client # re-copy src/generated/lumi.ts from Lumi-Lab's main
 ```
 
 You need the backend running, and an account on it:
 
 ```bash
-# in Autonomous-Servers
-python -m lumi.api.manage create-user <you> --admin
-uvicorn lumi.api.main:app --host 0.0.0.0 --port 8000
+# in Lumi-Lab
+python -m lumi.api.manage create-user <you> --role admin
+scripts/start_simulation.sh          # simulated stack, no hardware
+scripts/start_server_host.sh         # or the real one, on the server machine
 ```
 
 Pick that server's address on the login screen. The backend must list this app's
-origin in `api.cors_origins`, or the browser will block every request.
+origin in `api.allow_origins`, or the browser will block every request.
+
+`src/generated/lumi.ts` is generated from the backend's contract and carries a
+`contract_hash`. It must match the backend's — the nodes reject a mismatched hash on
+join — so a contract change means redeploying both halves together.
 
 ---
 

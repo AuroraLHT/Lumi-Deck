@@ -32,7 +32,11 @@ createRoot(document.getElementById("root")!).render(
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </BrowserRouter>
-      <ReactQueryDevtools />
+      {/* Dev only: the operator console runs on the instrument, and a floating
+          query-inspector panel over the chamber controls is not something to ship
+          there. `import.meta.env.DEV` is statically false in a build, so Rollup
+          drops both this and the import from the production bundle. */}
+      {import.meta.env.DEV && <ReactQueryDevtools />}
     </QueryClientProvider>
   </ChakraProvider>
 );
