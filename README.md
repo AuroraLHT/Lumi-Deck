@@ -1,14 +1,14 @@
 # Lumi-Deck
 
 Operator console for the autonomous PLD / RHEED system. React + TypeScript + Vite,
-Chakra UI for components, Zustand for state, talking to the FastAPI backend in
-[`Lumi-Lab`](../Lumi-Lab).
+Chakra UI for components, Zustand for state, talking to the FastAPI backend
+`Lumi-Lab` (link TBD — repo published separately).
 
 ```bash
 npm install
 npm run dev         # http://localhost:5173
 npm run build       # typecheck + production bundle
-npm run sync:client # re-copy src/generated/lumi.ts from Lumi-Lab's main
+npm run sync:client # re-copy src/generated/lumi.ts from a sibling Lumi-Lab checkout
 ```
 
 You need the backend running, and an account on it:
@@ -42,8 +42,7 @@ the token is delivered two different ways:
 | Transport | How the token travels | Where |
 |---|---|---|
 | REST | `Authorization: Bearer …` | `clients/http.ts` |
-| SSE (`EventSource`) | `?token=…` | `hooks/useSSE.ts` |
-| WebSocket | `?token=…` | `components/MainWebSockets.tsx` |
+| WebSocket | `?token=…` | `components/LumiTransportProvider.tsx` |
 | MJPEG (`<img src>`) | `?token=…` | `components/ChamberCamera/` |
 
 `withAuthToken()` in `stores/auth.ts` is the single place that appends the query
@@ -103,3 +102,9 @@ palette in `components/Plotting/nivoTheme.ts`. Keep the two in step.
   silently refuse to drag. Vite only replaces `process.env.NODE_ENV` on its own.
 - **`StrictMode` is off** (`main.tsx`). It double-invokes effects, which opens and
   immediately tears down every WebSocket and MJPEG stream on mount.
+
+---
+
+## License
+
+MIT — see [`LICENSE`](./LICENSE).
