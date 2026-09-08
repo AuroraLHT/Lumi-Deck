@@ -40,7 +40,5 @@ warnings). Clear those, then add a `- run: npm run lint` step to the workflow.
 
 ## Loose ends
 
-- **README `Lumi-Lab` link** is "TBD" — fill in the GitHub URL once that repo is
-  public.
 - **`npm run sync:client`** assumes a sibling `../Lumi-Lab` checkout. Fine for local
   dev; revisit if contributors need another way to regenerate `src/generated/lumi.ts`.
