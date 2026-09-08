@@ -15,9 +15,20 @@ interface AppState {
 export const DEFAULT_HOSTS = [
   "127.0.0.1:8000",
   "localhost:8000",
-  "10.229.54.118:8000",
-  "10.229.54.16:8000",
 ];
+
+/**
+ * The rest of the app interpolates the host straight into `http://${host}` and
+ * `ws://${host}/ws`, so it must be a bare `host[:port]` -- no scheme, no path,
+ * no trailing slash. Accept the forms a user is likely to paste and reduce them
+ * to that.
+ */
+export const normalizeHost = (raw: string): string =>
+  raw
+    .trim()
+    .replace(/^[a-z]+:\/\//i, "") // strip http:// https:// ws:// wss://
+    .replace(/\/+$/, "") // strip trailing slashes
+    .replace(/\s+/g, "");
 
 /**
  * Persisted to localStorage rather than to the backend settings API: the user
@@ -32,10 +43,10 @@ const useAppStore = create<AppState>()(
 
       customHosts: [],
       addCustomHost: (host) => {
-        const trimmed = host.trim();
-        if (!trimmed || get().customHosts.includes(trimmed)) return;
-        if (DEFAULT_HOSTS.includes(trimmed)) return;
-        set((state) => ({ customHosts: [...state.customHosts, trimmed] }));
+        const clean = normalizeHost(host);
+        if (!clean || get().customHosts.includes(clean)) return;
+        if (DEFAULT_HOSTS.includes(clean)) return;
+        set((state) => ({ customHosts: [...state.customHosts, clean] }));
       },
       removeCustomHost: (host) =>
         set((state) => ({
