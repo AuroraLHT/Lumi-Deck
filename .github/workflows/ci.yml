@@ -1,0 +1,28 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - run: npm ci
+
+      # `npm run build` is `tsc -b && vite build`, so this typechecks and
+      # bundles. It builds against the committed src/generated/lumi.ts;
+      # `npm run sync:client` needs a sibling Lumi-Lab checkout and is not
+      # run here.
+      - run: npm run build
+
+      # `npm run lint` is not wired in yet: the tree currently has ~28
+      # pre-existing eslint errors. Clear those, then add a lint step here.
