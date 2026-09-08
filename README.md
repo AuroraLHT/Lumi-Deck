@@ -2,7 +2,7 @@
 
 Operator console for the autonomous PLD / RHEED system. React + TypeScript + Vite,
 Chakra UI for components, Zustand for state, talking to the FastAPI backend
-`Lumi-Lab` (link TBD — repo published separately).
+[`Lumi-Lab`](https://github.com/AuroraLHT/Lumi-Lab).
 
 ```bash
 npm install
