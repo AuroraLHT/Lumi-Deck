@@ -2,6 +2,7 @@ import { useEffect } from "react";
 
 import {
   CameraState,
+  FiducialState,
   IntegratorState,
   MIModeState,
   NodeRecord,
@@ -17,6 +18,7 @@ import useSTFTNodeStore from "../stores/nodes/stft";
 import useIntegratorNodeStore from "../stores/nodes/integrator";
 import useStorageNodeStore from "../stores/nodes/storage";
 import useMIModeNodeStore from "../stores/nodes/miMode";
+import useFiducialNodeStore from "../stores/nodes/fiducial";
 
 /**
  * Feeds the per-node state stores from the SystemRegistry, replacing the old SSE
@@ -49,6 +51,7 @@ const useNodeStates = () => {
   const setIntegratorNodeState = useIntegratorNodeStore((s) => s.setState);
   const setStorageNodeState = useStorageNodeStore((s) => s.setState);
   const setMIModeNodeState = useMIModeNodeStore((s) => s.setState);
+  const setFiducialNodeState = useFiducialNodeStore((s) => s.setState);
 
   useEffect(() => {
     const byEquipment = new Map<string, NodeRecord>();
@@ -105,6 +108,17 @@ const useNodeStates = () => {
     setChamberLogNodeState(common(chamber, "log"));
     setDetectorNodeState(common(detection, "detection"));
 
+    // Marker ids ride the heartbeat the same way registered_bboxes does -- see
+    // `useFiducialMarkers` for the fetch this id list triggers.
+    const fiducial = capabilityState(chamber, "fiducial") as FiducialState | undefined;
+    setFiducialNodeState({
+      ...common(chamber, "fiducial"),
+      marker_ids: fiducial?.marker_ids ?? [],
+      frame_width: fiducial?.frame_width ?? null,
+      frame_height: fiducial?.frame_height ?? null,
+      n_processed: fiducial?.n_processed ?? null,
+    });
+
     // MI mode is what the chamber is *doing*: which script it is executing and
     // how many are still queued behind it. Written out field by field rather
     // than spread from `common` because mi_mode is PUBSUB -- its update loop is
@@ -142,6 +156,7 @@ const useNodeStates = () => {
     setIntegratorNodeState,
     setStorageNodeState,
     setMIModeNodeState,
+    setFiducialNodeState,
   ]);
 };
 

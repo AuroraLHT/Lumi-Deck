@@ -13,6 +13,8 @@ import {
   useBackendBoxReconciliation,
   useRegisteredBoxesSync,
 } from "../hooks/useRegisteredBoxes";
+import { useFiducialMarkersSync } from "../hooks/useFiducialMarkers";
+import useFiducialStats from "../hooks/useFiducialStats";
 
 /**
  * Connects the shared LumiTransport to the refactored backend bridge for the
@@ -44,6 +46,10 @@ const LumiTransportProvider = ({ children }: { children: ReactNode }) => {
   // this only costs a tick -- but reading them in the other order would.
   useRegisteredBoxesSync();
   useBackendBoxReconciliation();
+  // Same ordering note as the boxes above: useNodeStates fills marker_ids from
+  // the heartbeat first, then this fetches the matching shapes.
+  useFiducialMarkersSync();
+  useFiducialStats();
 
   useEffect(() => {
     // No host or session yet: nothing to connect to. withAuthToken reads the

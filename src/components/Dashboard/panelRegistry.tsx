@@ -8,6 +8,7 @@ import RealTimeMonitor from "../Monitor/RealTimeMonitor";
 import RealTimeDetectionAnalyzer from "../DetectionAnalyzer/RealTimeDetectionAnalyzer";
 import ChamberCameraMain from "../ChamberCamera/ChamberCameraMain";
 import MiModeMonitor from "../MiMode/MiModeMonitor";
+import FiducialTraceMain from "../FiducialTrace/FiducialTraceMain";
 
 /**
  * The dashboard is assembled from these panels at runtime. Adding a new panel
@@ -22,7 +23,8 @@ export type PanelType =
   | "monitor"
   | "miMode"
   | "controller"
-  | "storage";
+  | "storage"
+  | "fiducialTrace";
 
 export interface PanelDefinition {
   type: PanelType;
@@ -98,6 +100,14 @@ export const PANEL_REGISTRY: Record<PanelType, PanelDefinition> = {
     defaultSize: { w: 4, h: 8 },
     minSize: { w: 3, h: 5 },
     description: "Start and stop recording a project",
+  },
+  fiducialTrace: {
+    type: "fiducialTrace",
+    title: "Fiducial Trace",
+    render: () => <FiducialTraceMain />,
+    defaultSize: { w: 4, h: 6 },
+    minSize: { w: 3, h: 4 },
+    description: "Intensity trace of the selected fiducial marker",
   },
 };
 

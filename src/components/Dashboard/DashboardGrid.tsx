@@ -147,7 +147,11 @@ const DashboardGrid = () => {
             const definition = PANEL_REGISTRY[panel.type];
 
             return (
-              <div key={panel.id}>
+              // `id` is not for react-grid-layout -- it is how
+              // `useDashboardStore.focusPanel` finds and scrolls to a panel
+              // from outside the grid (e.g. "View calibration trace" on the
+              // Chamber Camera panel).
+              <div key={panel.id} id={`panel-${panel.id}`}>
                 <Panel
                   title={getPanelTitle(panel)}
                   collapsed={panel.collapsed}
