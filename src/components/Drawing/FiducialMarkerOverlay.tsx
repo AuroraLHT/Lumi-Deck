@@ -274,16 +274,6 @@ const FiducialMarkerOverlay = ({ markers, frameWidth, frameHeight }: Props) => {
       left="0"
       width="100%"
       height="100%"
-      // `<polygon>`/`<polyline>` `points` take bare numbers in the current
-      // user-coordinate system -- unlike x/y/width/height/cx/cy, they cannot
-      // be given a "%" unit. Without a viewBox, that coordinate system is
-      // just CSS pixels, so the poly's 0-100 (percent-of-frame) coordinates
-      // used to land inside the SVG's top-left 100x100px corner instead of
-      // spanning the video. A 0-100 viewBox makes that space match what
-      // every shape already computes, and percentages on the other shapes
-      // resolve against the same viewBox, so nothing else has to change.
-      viewBox="0 0 100 100"
-      preserveAspectRatio="none"
       onMouseDown={handleMouseDown}
       onMouseMove={handleMouseMove}
       onMouseUp={handleMouseUp}
@@ -361,14 +351,20 @@ const FiducialMarkerOverlay = ({ markers, frameWidth, frameHeight }: Props) => {
       )}
 
       {activeTool === "poly" && polyPoints.length > 0 && (
-        <>
+        // `points` on polyline/polygon takes bare numbers in the current
+        // user-coordinate system -- unlike x/y/width/height/cx/cy elsewhere
+        // in this file, it has no percentage form. Scoping a 0-100 viewBox
+        // to a nested <svg> around just these two elements gives them that
+        // coordinate space without touching the rest of the overlay (an
+        // outer-SVG viewBox previously tried here also anisotropically
+        // scaled every marker's text and circle geometry).
+        <svg width="100%" height="100%" viewBox="0 0 100 100" preserveAspectRatio="none" pointerEvents="none">
           <polyline
             points={polyPoints.map((p) => `${(p.x / frameWidth) * 100},${(p.y / frameHeight) * 100}`).join(" ")}
             fill="none"
             stroke={HALO_COLOR}
             strokeWidth={2 + HALO_EXTRA_WIDTH}
             vectorEffect="non-scaling-stroke"
-            pointerEvents="none"
           />
           <polyline
             points={polyPoints.map((p) => `${(p.x / frameWidth) * 100},${(p.y / frameHeight) * 100}`).join(" ")}
@@ -376,9 +372,8 @@ const FiducialMarkerOverlay = ({ markers, frameWidth, frameHeight }: Props) => {
             stroke={drawingStroke}
             strokeWidth="2"
             vectorEffect="non-scaling-stroke"
-            pointerEvents="none"
           />
-        </>
+        </svg>
       )}
     </Box>
   );
@@ -490,11 +485,15 @@ const MarkerShape = ({
     labelY = ys.reduce((a, b) => a + b, 0) / ys.length;
     labelAnchor = "middle";
     const points = shape.points.map((p) => `${(p.x / frameWidth) * 100},${(p.y / frameHeight) * 100}`).join(" ");
+    // See the drag-preview polyline above: `points` needs a scoped 0-100
+    // viewBox of its own, not the outer overlay's coordinate system. The
+    // text label below stays outside this nested <svg>, in the untouched
+    // outer space, so it isn't stretched along with it.
     geometry = (
-      <>
+      <svg width="100%" height="100%" viewBox="0 0 100 100" preserveAspectRatio="none">
         <polygon points={points} fill="none" stroke={HALO_COLOR} strokeWidth={strokeWidth + HALO_EXTRA_WIDTH} vectorEffect="non-scaling-stroke" />
         <polygon points={points} fill="none" stroke={stroke} strokeWidth={strokeWidth} vectorEffect="non-scaling-stroke" />
-      </>
+      </svg>
     );
   }
 
