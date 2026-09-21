@@ -324,30 +324,41 @@ const FiducialMarkerOverlay = ({ markers, frameWidth, frameHeight }: Props) => {
       )}
 
       {activeTool === "circle" && dragStart && dragEnd && (
-        <>
-          <ellipse
-            cx={pct(dragStart.x, frameWidth)}
-            cy={pct(dragStart.y, frameHeight)}
-            rx={pct(Math.hypot(dragEnd.x - dragStart.x, dragEnd.y - dragStart.y), frameWidth)}
-            ry={pct(Math.hypot(dragEnd.x - dragStart.x, dragEnd.y - dragStart.y), frameHeight)}
+        // A circle needs *uniform* scaling to stay round -- percentages of
+        // this container's own width/height (as every other shape uses)
+        // only give that when the displayed video happens to have the same
+        // aspect ratio as the container box, which it usually doesn't (the
+        // canvas letterboxes/pillarboxes via objectFit: contain once the
+        // dashboard grid has given the panel a fixed size unrelated to the
+        // camera's real resolution). A viewBox in actual frame-pixel
+        // dimensions with the default "meet" fit scales uniformly and
+        // letterboxes exactly the way the canvas already does, so a true
+        // <circle> here lands aligned with the video underneath it.
+        <svg
+          width="100%"
+          height="100%"
+          viewBox={`0 0 ${frameWidth} ${frameHeight}`}
+          pointerEvents="none"
+        >
+          <circle
+            cx={dragStart.x}
+            cy={dragStart.y}
+            r={Math.hypot(dragEnd.x - dragStart.x, dragEnd.y - dragStart.y)}
             fill="none"
             stroke={HALO_COLOR}
             strokeWidth={2 + HALO_EXTRA_WIDTH}
             vectorEffect="non-scaling-stroke"
-            pointerEvents="none"
           />
-          <ellipse
-            cx={pct(dragStart.x, frameWidth)}
-            cy={pct(dragStart.y, frameHeight)}
-            rx={pct(Math.hypot(dragEnd.x - dragStart.x, dragEnd.y - dragStart.y), frameWidth)}
-            ry={pct(Math.hypot(dragEnd.x - dragStart.x, dragEnd.y - dragStart.y), frameHeight)}
+          <circle
+            cx={dragStart.x}
+            cy={dragStart.y}
+            r={Math.hypot(dragEnd.x - dragStart.x, dragEnd.y - dragStart.y)}
             fill="rgba(96, 165, 250, 0.15)"
             stroke={drawingStroke}
             strokeWidth="2"
             vectorEffect="non-scaling-stroke"
-            pointerEvents="none"
           />
-        </>
+        </svg>
       )}
 
       {activeTool === "poly" && polyPoints.length > 0 && (
@@ -459,19 +470,23 @@ const MarkerShape = ({
   } else if (shape.kind === "circle") {
     labelX = shape.x;
     labelY = shape.y - shape.radius;
-    const ellipseProps = {
-      cx: pctX(shape.x),
-      cy: pctY(shape.y),
-      rx: `${(shape.radius / frameWidth) * 100}%`,
-      ry: `${(shape.radius / frameHeight) * 100}%`,
+    const circleProps = {
+      cx: shape.x,
+      cy: shape.y,
+      r: shape.radius,
       fill: "none",
       vectorEffect: "non-scaling-stroke" as const,
     };
+    // See the drag-preview circle above: a frame-pixel viewBox (default
+    // "meet" fit) scales uniformly and letterboxes the same way the video
+    // canvas does, which percentage-of-container coordinates cannot -- that
+    // is what keeps this round instead of an ellipse. The label stays
+    // outside, in the untouched outer space.
     geometry = (
-      <>
-        <ellipse {...ellipseProps} stroke={HALO_COLOR} strokeWidth={strokeWidth + HALO_EXTRA_WIDTH} />
-        <ellipse {...ellipseProps} stroke={stroke} strokeWidth={strokeWidth} />
-      </>
+      <svg width="100%" height="100%" viewBox={`0 0 ${frameWidth} ${frameHeight}`}>
+        <circle {...circleProps} stroke={HALO_COLOR} strokeWidth={strokeWidth + HALO_EXTRA_WIDTH} />
+        <circle {...circleProps} stroke={stroke} strokeWidth={strokeWidth} />
+      </svg>
     );
   } else {
     // The bounding-box corner (min x, min y) is not necessarily anywhere near

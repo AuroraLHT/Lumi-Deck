@@ -122,6 +122,11 @@ const ChamberCameraMain = () => {
         bg="black"
         // A webcam frame is 4:3; without this the panel body collapses to zero
         // height before the first frame arrives and the image never shows.
+        // (This has no effect once the dashboard grid has given the panel a
+        // concrete height -- aspect-ratio only fills in a missing dimension,
+        // and by then both are already fixed by the grid layout. The circle
+        // marker in FiducialMarkerOverlay does not depend on this box's
+        // aspect matching the real frame's; see the comment there.)
         sx={{ aspectRatio: "4 / 3" }}
       >
         <canvas
