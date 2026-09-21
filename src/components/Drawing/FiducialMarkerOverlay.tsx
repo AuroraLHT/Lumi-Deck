@@ -274,6 +274,16 @@ const FiducialMarkerOverlay = ({ markers, frameWidth, frameHeight }: Props) => {
       left="0"
       width="100%"
       height="100%"
+      // `<polygon>`/`<polyline>` `points` take bare numbers in the current
+      // user-coordinate system -- unlike x/y/width/height/cx/cy, they cannot
+      // be given a "%" unit. Without a viewBox, that coordinate system is
+      // just CSS pixels, so the poly's 0-100 (percent-of-frame) coordinates
+      // used to land inside the SVG's top-left 100x100px corner instead of
+      // spanning the video. A 0-100 viewBox makes that space match what
+      // every shape already computes, and percentages on the other shapes
+      // resolve against the same viewBox, so nothing else has to change.
+      viewBox="0 0 100 100"
+      preserveAspectRatio="none"
       onMouseDown={handleMouseDown}
       onMouseMove={handleMouseMove}
       onMouseUp={handleMouseUp}
