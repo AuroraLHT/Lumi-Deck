@@ -51,10 +51,19 @@ const formatStat = (value: number | null | undefined): string =>
  * Drag-to-draw overlay for `chamber.fiducial` markers on the Chamber Camera
  * feed, plus read-only rendering of the markers already registered on the node.
  *
- * Modeled on `RectangleSelector`/`RegisteredBoxRect`: percent-of-container SVG
- * coordinates scaled against the frame size, same reason -- the displayed video
- * is whatever CSS size the panel gives it, but marker geometry is always in
- * camera-frame pixels, the space the backend measures pixels in.
+ * Marker geometry is in camera-frame pixels -- the space the backend measures
+ * in -- so the overlay simply adopts that as its own coordinate system:
+ * `viewBox="0 0 frameWidth frameHeight"` with the default "meet" fit, which is
+ * the same uniform-scale-and-centre rule the canvas underneath applies via
+ * `objectFit: contain`. The SVG's user space therefore lands exactly on the
+ * displayed image at any panel size, and every shape below can be written in
+ * plain frame coordinates: circles stay round, nothing skews when the panel is
+ * reshaped, and there is no per-shape aspect correction to get wrong.
+ *
+ * Two things do *not* want to scale with the video and so are handled
+ * explicitly: strokes (`vector-effect="non-scaling-stroke"`) and labels (a
+ * `scale(labelScale)` group, `labelScale` being the inverse of the measured
+ * fit scale, which keeps them at a constant size in device pixels).
  *
  * Four shapes, one tool active at a time (`stores/fiducialUI.ts`): a rect or a
  * circle is a drag (centre-to-edge for the circle), a cross is a single click
@@ -107,19 +116,48 @@ const FiducialMarkerOverlay = ({ markers, frameWidth, frameHeight }: Props) => {
 
   const hasFrame = frameWidth > 0 && frameHeight > 0;
 
+  // Displayed pixels per frame pixel: how far the viewBox's "meet" fit had to
+  // shrink (or grow) the frame to fit the panel. Only labels and the
+  // minimum-drag threshold care -- everything else is happier in frame units.
+  const [displayScale, setDisplayScale] = useState(1);
+  useEffect(() => {
+    const svg = containerRef.current;
+    if (!svg || !hasFrame) return;
+    const measure = () => {
+      const rect = svg.getBoundingClientRect();
+      if (rect.width === 0 || rect.height === 0) return;
+      setDisplayScale(Math.min(rect.width / frameWidth, rect.height / frameHeight));
+    };
+    measure();
+    const observer = new ResizeObserver(measure);
+    observer.observe(svg);
+    return () => observer.disconnect();
+  }, [frameWidth, frameHeight, hasFrame]);
+
+  // Screen -> frame via the SVG's own screen CTM rather than hand-rolled
+  // arithmetic on the bounding rect: the CTM already encodes the viewBox fit,
+  // letterbox offset included, so this stays correct whatever shape the panel
+  // is dragged into.
   const toFrame = useCallback(
-    (event: MouseEvent | React.MouseEvent): FramePoint => {
-      const container = containerRef.current;
-      if (!container || !hasFrame) return { x: 0, y: 0 };
-      const rect = container.getBoundingClientRect();
-      const fracX = (event.clientX - rect.left) / rect.width;
-      const fracY = (event.clientY - rect.top) / rect.height;
-      return { x: fracX * frameWidth, y: fracY * frameHeight };
+    (event: MouseEvent | React.MouseEvent): FramePoint | null => {
+      const svg = containerRef.current;
+      if (!svg || !hasFrame) return null;
+      const ctm = svg.getScreenCTM();
+      if (!ctm) return null;
+      const point = new DOMPoint(event.clientX, event.clientY).matrixTransform(ctm.inverse());
+      return { x: point.x, y: point.y };
     },
-    [frameWidth, frameHeight, hasFrame]
+    [hasFrame]
   );
 
-  const pct = (value: number, extent: number) => `${(value / extent) * 100}%`;
+  /** Whether a point landed on the video itself and not in a letterbox bar. */
+  const inFrame = (point: FramePoint) =>
+    point.x >= 0 && point.x <= frameWidth && point.y >= 0 && point.y <= frameHeight;
+
+  const clampToFrame = (point: FramePoint): FramePoint => ({
+    x: Math.min(Math.max(point.x, 0), frameWidth),
+    y: Math.min(Math.max(point.y, 0), frameHeight),
+  });
 
   const resetDrawing = useCallback(() => {
     setDragStart(null);
@@ -166,6 +204,10 @@ const FiducialMarkerOverlay = ({ markers, frameWidth, frameHeight }: Props) => {
   const handleMouseDown = (event: React.MouseEvent) => {
     if (!activeTool || !hasFrame) return;
     const point = toFrame(event);
+    // The overlay spans the whole panel, but the video only spans part of it
+    // when the two aspects differ; a click on a letterbox bar is not a click
+    // on the camera, so it starts nothing.
+    if (!point || !inFrame(point)) return;
 
     if (activeTool === "cross") {
       commit({
@@ -215,14 +257,16 @@ const FiducialMarkerOverlay = ({ markers, frameWidth, frameHeight }: Props) => {
 
   const handleMouseMove = (event: React.MouseEvent) => {
     if (!isDragTool || !dragStart) return;
-    setDragEnd(toFrame(event));
+    const point = toFrame(event);
+    // Dragging past the edge of the video pins the shape to the edge rather
+    // than committing geometry the camera has no pixels for.
+    if (point) setDragEnd(clampToFrame(point));
   };
 
   const handleMouseUp = () => {
     if (!isDragTool || !dragStart || !dragEnd) return;
-    const containerRect = containerRef.current?.getBoundingClientRect();
-    const screenDx = ((dragEnd.x - dragStart.x) / frameWidth) * (containerRect?.width ?? frameWidth);
-    const screenDy = ((dragEnd.y - dragStart.y) / frameHeight) * (containerRect?.height ?? frameHeight);
+    const screenDx = (dragEnd.x - dragStart.x) * displayScale;
+    const screenDy = (dragEnd.y - dragStart.y) * displayScale;
 
     if (activeTool === "circle") {
       // A circle has one degree of freedom (radius), so total travel is the
@@ -264,6 +308,7 @@ const FiducialMarkerOverlay = ({ markers, frameWidth, frameHeight }: Props) => {
   if (!hasFrame) return null;
 
   const drawingStroke = "#60a5fa";
+  const labelScale = displayScale > 0 ? 1 / displayScale : 1;
 
   return (
     <Box
@@ -274,6 +319,7 @@ const FiducialMarkerOverlay = ({ markers, frameWidth, frameHeight }: Props) => {
       left="0"
       width="100%"
       height="100%"
+      viewBox={`0 0 ${frameWidth} ${frameHeight}`}
       onMouseDown={handleMouseDown}
       onMouseMove={handleMouseMove}
       onMouseUp={handleMouseUp}
@@ -286,8 +332,7 @@ const FiducialMarkerOverlay = ({ markers, frameWidth, frameHeight }: Props) => {
           <MarkerShape
             key={marker.marker_id}
             marker={marker}
-            frameWidth={frameWidth}
-            frameHeight={frameHeight}
+            labelScale={labelScale}
             isSelected={marker.marker_id === selectedMarkerId}
             stats={latestStats[marker.marker_id]}
             onSelect={() =>
@@ -297,94 +342,57 @@ const FiducialMarkerOverlay = ({ markers, frameWidth, frameHeight }: Props) => {
         ))}
 
       {activeTool === "rect" && dragStart && dragEnd && (
-        <>
-          <rect
-            x={pct(Math.min(dragStart.x, dragEnd.x), frameWidth)}
-            y={pct(Math.min(dragStart.y, dragEnd.y), frameHeight)}
-            width={pct(Math.abs(dragEnd.x - dragStart.x), frameWidth)}
-            height={pct(Math.abs(dragEnd.y - dragStart.y), frameHeight)}
-            fill="none"
-            stroke={HALO_COLOR}
-            strokeWidth={2 + HALO_EXTRA_WIDTH}
-            vectorEffect="non-scaling-stroke"
-            pointerEvents="none"
-          />
-          <rect
-            x={pct(Math.min(dragStart.x, dragEnd.x), frameWidth)}
-            y={pct(Math.min(dragStart.y, dragEnd.y), frameHeight)}
-            width={pct(Math.abs(dragEnd.x - dragStart.x), frameWidth)}
-            height={pct(Math.abs(dragEnd.y - dragStart.y), frameHeight)}
-            fill="rgba(96, 165, 250, 0.15)"
-            stroke={drawingStroke}
-            strokeWidth="2"
-            vectorEffect="non-scaling-stroke"
-            pointerEvents="none"
-          />
-        </>
+        <g pointerEvents="none">
+          {[
+            { stroke: HALO_COLOR, strokeWidth: 2 + HALO_EXTRA_WIDTH, fill: "none" },
+            { stroke: drawingStroke, strokeWidth: 2, fill: "rgba(96, 165, 250, 0.15)" },
+          ].map((paint, index) => (
+            <rect
+              key={index}
+              x={Math.min(dragStart.x, dragEnd.x)}
+              y={Math.min(dragStart.y, dragEnd.y)}
+              width={Math.abs(dragEnd.x - dragStart.x)}
+              height={Math.abs(dragEnd.y - dragStart.y)}
+              vectorEffect="non-scaling-stroke"
+              {...paint}
+            />
+          ))}
+        </g>
       )}
 
       {activeTool === "circle" && dragStart && dragEnd && (
-        // A circle needs *uniform* scaling to stay round -- percentages of
-        // this container's own width/height (as every other shape uses)
-        // only give that when the displayed video happens to have the same
-        // aspect ratio as the container box, which it usually doesn't (the
-        // canvas letterboxes/pillarboxes via objectFit: contain once the
-        // dashboard grid has given the panel a fixed size unrelated to the
-        // camera's real resolution). A viewBox in actual frame-pixel
-        // dimensions with the default "meet" fit scales uniformly and
-        // letterboxes exactly the way the canvas already does, so a true
-        // <circle> here lands aligned with the video underneath it.
-        <svg
-          width="100%"
-          height="100%"
-          viewBox={`0 0 ${frameWidth} ${frameHeight}`}
-          pointerEvents="none"
-        >
-          <circle
-            cx={dragStart.x}
-            cy={dragStart.y}
-            r={Math.hypot(dragEnd.x - dragStart.x, dragEnd.y - dragStart.y)}
-            fill="none"
-            stroke={HALO_COLOR}
-            strokeWidth={2 + HALO_EXTRA_WIDTH}
-            vectorEffect="non-scaling-stroke"
-          />
-          <circle
-            cx={dragStart.x}
-            cy={dragStart.y}
-            r={Math.hypot(dragEnd.x - dragStart.x, dragEnd.y - dragStart.y)}
-            fill="rgba(96, 165, 250, 0.15)"
-            stroke={drawingStroke}
-            strokeWidth="2"
-            vectorEffect="non-scaling-stroke"
-          />
-        </svg>
+        <g pointerEvents="none">
+          {[
+            { stroke: HALO_COLOR, strokeWidth: 2 + HALO_EXTRA_WIDTH, fill: "none" },
+            { stroke: drawingStroke, strokeWidth: 2, fill: "rgba(96, 165, 250, 0.15)" },
+          ].map((paint, index) => (
+            <circle
+              key={index}
+              cx={dragStart.x}
+              cy={dragStart.y}
+              r={Math.hypot(dragEnd.x - dragStart.x, dragEnd.y - dragStart.y)}
+              vectorEffect="non-scaling-stroke"
+              {...paint}
+            />
+          ))}
+        </g>
       )}
 
       {activeTool === "poly" && polyPoints.length > 0 && (
-        // `points` on polyline/polygon takes bare numbers in the current
-        // user-coordinate system -- unlike x/y/width/height/cx/cy elsewhere
-        // in this file, it has no percentage form. Scoping a 0-100 viewBox
-        // to a nested <svg> around just these two elements gives them that
-        // coordinate space without touching the rest of the overlay (an
-        // outer-SVG viewBox previously tried here also anisotropically
-        // scaled every marker's text and circle geometry).
-        <svg width="100%" height="100%" viewBox="0 0 100 100" preserveAspectRatio="none" pointerEvents="none">
-          <polyline
-            points={polyPoints.map((p) => `${(p.x / frameWidth) * 100},${(p.y / frameHeight) * 100}`).join(" ")}
-            fill="none"
-            stroke={HALO_COLOR}
-            strokeWidth={2 + HALO_EXTRA_WIDTH}
-            vectorEffect="non-scaling-stroke"
-          />
-          <polyline
-            points={polyPoints.map((p) => `${(p.x / frameWidth) * 100},${(p.y / frameHeight) * 100}`).join(" ")}
-            fill="none"
-            stroke={drawingStroke}
-            strokeWidth="2"
-            vectorEffect="non-scaling-stroke"
-          />
-        </svg>
+        <g pointerEvents="none">
+          {[
+            { stroke: HALO_COLOR, strokeWidth: 2 + HALO_EXTRA_WIDTH },
+            { stroke: drawingStroke, strokeWidth: 2 },
+          ].map((paint, index) => (
+            <polyline
+              key={index}
+              points={polyPoints.map((p) => `${p.x},${p.y}`).join(" ")}
+              fill="none"
+              vectorEffect="non-scaling-stroke"
+              {...paint}
+            />
+          ))}
+        </g>
       )}
     </Box>
   );
@@ -392,8 +400,8 @@ const FiducialMarkerOverlay = ({ markers, frameWidth, frameHeight }: Props) => {
 
 interface MarkerShapeProps {
   marker: FiducialMarker;
-  frameWidth: number;
-  frameHeight: number;
+  /** Frame pixels per displayed pixel -- the label group's counter-scale. */
+  labelScale: number;
   isSelected: boolean;
   stats: MarkerStats | undefined;
   onSelect: () => void;
@@ -401,6 +409,8 @@ interface MarkerShapeProps {
 
 /**
  * One registered marker, read-only geometry plus its live intensity readout.
+ * Drawn in frame coordinates -- the overlay's viewBox is the frame, so the
+ * numbers the backend stores go straight onto the video with no conversion.
  *
  * Every stroke is drawn twice -- a wider dark halo, then the colour on top --
  * so the marker stays legible over both blown-out highlights and dark metal.
@@ -410,16 +420,13 @@ interface MarkerShapeProps {
  */
 const MarkerShape = ({
   marker,
-  frameWidth,
-  frameHeight,
+  labelScale,
   isSelected,
   stats,
   onSelect,
 }: MarkerShapeProps) => {
   const stroke = isSelected ? "#fb923c" : "#22d3ee";
   const strokeWidth = isSelected ? 2 : 1.5;
-  const pctX = (v: number) => `${(v / frameWidth) * 100}%`;
-  const pctY = (v: number) => `${(v / frameHeight) * 100}%`;
 
   let labelX = 0;
   let labelY = 0;
@@ -434,10 +441,10 @@ const MarkerShape = ({
     labelX = shape.x;
     labelY = shape.y;
     const rectProps = {
-      x: pctX(shape.x),
-      y: pctY(shape.y),
-      width: `${(shape.width / frameWidth) * 100}%`,
-      height: `${(shape.height / frameHeight) * 100}%`,
+      x: shape.x,
+      y: shape.y,
+      width: shape.width,
+      height: shape.height,
       fill: "none",
       vectorEffect: "non-scaling-stroke" as const,
     };
@@ -453,8 +460,8 @@ const MarkerShape = ({
     labelY = shape.y - arm;
     const lines = (
       <>
-        <line x1={pctX(shape.x - arm)} y1={pctY(shape.y)} x2={pctX(shape.x + arm)} y2={pctY(shape.y)} />
-        <line x1={pctX(shape.x)} y1={pctY(shape.y - arm)} x2={pctX(shape.x)} y2={pctY(shape.y + arm)} />
+        <line x1={shape.x - arm} y1={shape.y} x2={shape.x + arm} y2={shape.y} />
+        <line x1={shape.x} y1={shape.y - arm} x2={shape.x} y2={shape.y + arm} />
       </>
     );
     geometry = (
@@ -477,16 +484,11 @@ const MarkerShape = ({
       fill: "none",
       vectorEffect: "non-scaling-stroke" as const,
     };
-    // See the drag-preview circle above: a frame-pixel viewBox (default
-    // "meet" fit) scales uniformly and letterboxes the same way the video
-    // canvas does, which percentage-of-container coordinates cannot -- that
-    // is what keeps this round instead of an ellipse. The label stays
-    // outside, in the untouched outer space.
     geometry = (
-      <svg width="100%" height="100%" viewBox={`0 0 ${frameWidth} ${frameHeight}`}>
+      <>
         <circle {...circleProps} stroke={HALO_COLOR} strokeWidth={strokeWidth + HALO_EXTRA_WIDTH} />
         <circle {...circleProps} stroke={stroke} strokeWidth={strokeWidth} />
-      </svg>
+      </>
     );
   } else {
     // The bounding-box corner (min x, min y) is not necessarily anywhere near
@@ -499,16 +501,12 @@ const MarkerShape = ({
     labelX = xs.reduce((a, b) => a + b, 0) / xs.length;
     labelY = ys.reduce((a, b) => a + b, 0) / ys.length;
     labelAnchor = "middle";
-    const points = shape.points.map((p) => `${(p.x / frameWidth) * 100},${(p.y / frameHeight) * 100}`).join(" ");
-    // See the drag-preview polyline above: `points` needs a scoped 0-100
-    // viewBox of its own, not the outer overlay's coordinate system. The
-    // text label below stays outside this nested <svg>, in the untouched
-    // outer space, so it isn't stretched along with it.
+    const points = shape.points.map((p) => `${p.x},${p.y}`).join(" ");
     geometry = (
-      <svg width="100%" height="100%" viewBox="0 0 100 100" preserveAspectRatio="none">
+      <>
         <polygon points={points} fill="none" stroke={HALO_COLOR} strokeWidth={strokeWidth + HALO_EXTRA_WIDTH} vectorEffect="non-scaling-stroke" />
         <polygon points={points} fill="none" stroke={stroke} strokeWidth={strokeWidth} vectorEffect="non-scaling-stroke" />
-      </svg>
+      </>
     );
   }
 
@@ -521,23 +519,29 @@ const MarkerShape = ({
       style={{ cursor: "pointer" }}
     >
       {geometry}
-      <text
-        x={pctX(labelX)}
-        y={pctY(labelY)}
-        dy="-4"
-        textAnchor={labelAnchor}
-        fill={stroke}
-        stroke={HALO_COLOR}
-        strokeWidth="3"
-        paintOrder="stroke"
-        fontSize="11px"
-        fontWeight="600"
+      {/* Anchored in frame coordinates but counter-scaled back to device
+        * pixels, so the readout is the same size whether the panel is a thumb
+        * or half the dashboard -- text scaled with the video would be
+        * unreadable at one end and overbearing at the other. */}
+      <g
+        transform={`translate(${labelX} ${labelY}) scale(${labelScale})`}
         pointerEvents="none"
-        style={{ userSelect: "none" }}
       >
-        {marker.marker_id}
-        {stats && stats.mean != null ? ` · ${formatStat(stats.mean)}` : ""}
-      </text>
+        <text
+          dy="-4"
+          textAnchor={labelAnchor}
+          fill={stroke}
+          stroke={HALO_COLOR}
+          strokeWidth="3"
+          paintOrder="stroke"
+          fontSize="11"
+          fontWeight="600"
+          style={{ userSelect: "none" }}
+        >
+          {marker.marker_id}
+          {stats && stats.mean != null ? ` · ${formatStat(stats.mean)}` : ""}
+        </text>
+      </g>
     </g>
   );
 };
