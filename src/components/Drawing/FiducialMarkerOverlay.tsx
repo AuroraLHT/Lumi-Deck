@@ -15,6 +15,12 @@ const MIN_DRAG_PX = 4;
 const DEFAULT_CROSS_SIZE = 10;
 const DEFAULT_CROSS_THICKNESS = 1;
 
+/** A dark outline under the colour, so a marker reads against video of any
+ * brightness -- a thin cyan or orange line alone washes out over bright metal
+ * and blown-out highlights. */
+const HALO_COLOR = "rgba(0, 0, 0, 0.85)";
+const HALO_EXTRA_WIDTH = 2;
+
 interface Props {
   markers: FiducialMarker[];
   frameWidth: number;
@@ -26,14 +32,14 @@ interface FramePoint {
   y: number;
 }
 
-/** The next unused `marker-N` id, so drawing does not require naming up front. */
-const nextMarkerId = (markers: FiducialMarker[]): string => {
+/** The highest `marker-N` suffix among these ids, or 0 if none match. */
+const maxMarkerSuffix = (ids: Iterable<string>): number => {
   let max = 0;
-  for (const marker of markers) {
-    const match = /^marker-(\d+)$/.exec(marker.marker_id);
+  for (const id of ids) {
+    const match = /^marker-(\d+)$/.exec(id);
     if (match) max = Math.max(max, Number(match[1]));
   }
-  return `marker-${max + 1}`;
+  return max;
 };
 
 const formatStat = (value: number | null | undefined): string =>
@@ -51,8 +57,9 @@ const formatStat = (value: number | null | undefined): string =>
  * Three shapes, one tool active at a time (`stores/fiducialUI.ts`): a rect is a
  * drag like a detection box, a cross is a single click (its arm length and
  * thickness keep their defaults -- there is no drag gesture that means "half as
- * thick"), a poly is a sequence of clicks closed with a double-click or Enter.
- * Escape backs out of whichever is in progress, same as the RHEED redraw flow.
+ * thick"), a poly is a sequence of clicks closed by clicking the first vertex,
+ * double-clicking, or Enter. Escape backs out of whichever is in progress, same
+ * as the RHEED redraw flow.
  */
 const FiducialMarkerOverlay = ({ markers, frameWidth, frameHeight }: Props) => {
   const containerRef = useRef<SVGSVGElement>(null);
@@ -60,12 +67,27 @@ const FiducialMarkerOverlay = ({ markers, frameWidth, frameHeight }: Props) => {
   const setActiveTool = useFiducialUIStore((s) => s.setActiveTool);
   const selectedMarkerId = useFiducialUIStore((s) => s.selectedMarkerId);
   const selectMarker = useFiducialUIStore((s) => s.selectMarker);
-  const { setMarker, removeMarker } = useFiducialMarkerControl();
+  const markersHidden = useFiducialUIStore((s) => s.markersHidden);
+  const { setMarker } = useFiducialMarkerControl();
   const latestStats = useFiducialStatsStore((s) => s.latest);
 
   const [dragStart, setDragStart] = useState<FramePoint | null>(null);
   const [dragEnd, setDragEnd] = useState<FramePoint | null>(null);
   const [polyPoints, setPolyPoints] = useState<FramePoint[]>([]);
+
+  // The next `marker-N` suffix to hand out, tracked locally rather than
+  // derived from `markers` at commit time. `markers` reflects the *backend's*
+  // registry, which only catches up after a round trip (`set_marker`) and
+  // then the heartbeat -- drawing a second marker before either has landed
+  // used to compute the same "next" id as the first and silently overwrite
+  // it. A local counter that only ever advances is immune to that: it starts
+  // at whatever the backend already has and gets bumped on every commit this
+  // browser makes, with no need to wait on a response to know the next one.
+  const nextIdRef = useRef(0);
+  useEffect(() => {
+    const known = maxMarkerSuffix(markers.map((m) => m.marker_id));
+    if (known > nextIdRef.current) nextIdRef.current = known;
+  }, [markers]);
 
   const hasFrame = frameWidth > 0 && frameHeight > 0;
 
@@ -110,12 +132,13 @@ const FiducialMarkerOverlay = ({ markers, frameWidth, frameHeight }: Props) => {
 
   const commit = useCallback(
     (shape: Shape) => {
-      const id = nextMarkerId(markers);
+      nextIdRef.current += 1;
+      const id = `marker-${nextIdRef.current}`;
       setMarker(id, shape).catch((err) => console.error("set_marker failed:", err));
       setActiveTool(null);
       resetDrawing();
     },
-    [markers, setMarker, setActiveTool, resetDrawing]
+    [setMarker, setActiveTool, resetDrawing]
   );
 
   const finishPoly = useCallback(() => {
@@ -144,17 +167,28 @@ const FiducialMarkerOverlay = ({ markers, frameWidth, frameHeight }: Props) => {
       return;
     }
 
-    // poly: each click appends a vertex; a click on the first vertex closes it.
+    // poly: each click appends a vertex. Closes on a click near the first
+    // vertex, or -- since double-click is also a supported way to finish --
+    // on a click landing right on top of the *last* one: that is the second
+    // mousedown of the double-click, and appending it too would leave a
+    // spurious near-duplicate vertex sitting on the closing point. This is a
+    // proximity check, not `event.detail`: Chromium's synthetic click count
+    // for scripted/automated input was seen to misfire even for clicks well
+    // apart in both time and position, silently dropping ordinary vertices.
     setPolyPoints((points) => {
-      if (points.length >= 3) {
-        const first = points[0];
-        const dx = ((point.x - first.x) / frameWidth) * 100;
-        const dy = ((point.y - first.y) / frameHeight) * 100;
-        if (Math.hypot(dx, dy) < 1.5) {
-          // Closed on the next tick, after state has the full point list.
-          setTimeout(finishPoly, 0);
-          return points;
-        }
+      const near = (target: FramePoint) => {
+        const dx = ((point.x - target.x) / frameWidth) * 100;
+        const dy = ((point.y - target.y) / frameHeight) * 100;
+        return Math.hypot(dx, dy) < 1.5;
+      };
+      if (points.length >= 1 && near(points[points.length - 1])) {
+        if (points.length >= 3) setTimeout(finishPoly, 0);
+        return points;
+      }
+      if (points.length >= 3 && near(points[0])) {
+        // Closed on the next tick, after state has the full point list.
+        setTimeout(finishPoly, 0);
+        return points;
       }
       return [...points, point];
     });
@@ -191,7 +225,7 @@ const FiducialMarkerOverlay = ({ markers, frameWidth, frameHeight }: Props) => {
 
   if (!hasFrame) return null;
 
-  const drawingStroke = "#3b82f6";
+  const drawingStroke = "#60a5fa";
 
   return (
     <Box
@@ -209,48 +243,67 @@ const FiducialMarkerOverlay = ({ markers, frameWidth, frameHeight }: Props) => {
       cursor={activeTool ? "crosshair" : "default"}
       pointerEvents="all"
     >
-      {markers.map((marker) => (
-        <MarkerShape
-          key={marker.marker_id}
-          marker={marker}
-          frameWidth={frameWidth}
-          frameHeight={frameHeight}
-          isSelected={marker.marker_id === selectedMarkerId}
-          stats={latestStats[marker.marker_id]}
-          onSelect={() =>
-            selectMarker(marker.marker_id === selectedMarkerId ? null : marker.marker_id)
-          }
-          onDelete={() =>
-            removeMarker(marker.marker_id).catch((err) =>
-              console.error("remove_marker failed:", err)
-            )
-          }
-        />
-      ))}
+      {!markersHidden &&
+        markers.map((marker) => (
+          <MarkerShape
+            key={marker.marker_id}
+            marker={marker}
+            frameWidth={frameWidth}
+            frameHeight={frameHeight}
+            isSelected={marker.marker_id === selectedMarkerId}
+            stats={latestStats[marker.marker_id]}
+            onSelect={() =>
+              selectMarker(marker.marker_id === selectedMarkerId ? null : marker.marker_id)
+            }
+          />
+        ))}
 
       {activeTool === "rect" && dragStart && dragEnd && (
-        <rect
-          x={pct(Math.min(dragStart.x, dragEnd.x), frameWidth)}
-          y={pct(Math.min(dragStart.y, dragEnd.y), frameHeight)}
-          width={pct(Math.abs(dragEnd.x - dragStart.x), frameWidth)}
-          height={pct(Math.abs(dragEnd.y - dragStart.y), frameHeight)}
-          fill="rgba(59, 130, 246, 0.12)"
-          stroke={drawingStroke}
-          strokeWidth="2"
-          vectorEffect="non-scaling-stroke"
-          pointerEvents="none"
-        />
+        <>
+          <rect
+            x={pct(Math.min(dragStart.x, dragEnd.x), frameWidth)}
+            y={pct(Math.min(dragStart.y, dragEnd.y), frameHeight)}
+            width={pct(Math.abs(dragEnd.x - dragStart.x), frameWidth)}
+            height={pct(Math.abs(dragEnd.y - dragStart.y), frameHeight)}
+            fill="none"
+            stroke={HALO_COLOR}
+            strokeWidth={2 + HALO_EXTRA_WIDTH}
+            vectorEffect="non-scaling-stroke"
+            pointerEvents="none"
+          />
+          <rect
+            x={pct(Math.min(dragStart.x, dragEnd.x), frameWidth)}
+            y={pct(Math.min(dragStart.y, dragEnd.y), frameHeight)}
+            width={pct(Math.abs(dragEnd.x - dragStart.x), frameWidth)}
+            height={pct(Math.abs(dragEnd.y - dragStart.y), frameHeight)}
+            fill="rgba(96, 165, 250, 0.15)"
+            stroke={drawingStroke}
+            strokeWidth="2"
+            vectorEffect="non-scaling-stroke"
+            pointerEvents="none"
+          />
+        </>
       )}
 
       {activeTool === "poly" && polyPoints.length > 0 && (
-        <polyline
-          points={polyPoints.map((p) => `${(p.x / frameWidth) * 100},${(p.y / frameHeight) * 100}`).join(" ")}
-          fill="none"
-          stroke={drawingStroke}
-          strokeWidth="2"
-          vectorEffect="non-scaling-stroke"
-          pointerEvents="none"
-        />
+        <>
+          <polyline
+            points={polyPoints.map((p) => `${(p.x / frameWidth) * 100},${(p.y / frameHeight) * 100}`).join(" ")}
+            fill="none"
+            stroke={HALO_COLOR}
+            strokeWidth={2 + HALO_EXTRA_WIDTH}
+            vectorEffect="non-scaling-stroke"
+            pointerEvents="none"
+          />
+          <polyline
+            points={polyPoints.map((p) => `${(p.x / frameWidth) * 100},${(p.y / frameHeight) * 100}`).join(" ")}
+            fill="none"
+            stroke={drawingStroke}
+            strokeWidth="2"
+            vectorEffect="non-scaling-stroke"
+            pointerEvents="none"
+          />
+        </>
       )}
     </Box>
   );
@@ -263,12 +316,16 @@ interface MarkerShapeProps {
   isSelected: boolean;
   stats: MarkerStats | undefined;
   onSelect: () => void;
-  onDelete: () => void;
 }
 
 /**
  * One registered marker, read-only geometry plus its live intensity readout.
- * Selecting it is what the Fiducial Trace panel charts (`stores/fiducialUI.ts`).
+ *
+ * Every stroke is drawn twice -- a wider dark halo, then the colour on top --
+ * so the marker stays legible over both blown-out highlights and dark metal.
+ * Removing a marker is the toolbar chip's job (`FiducialToolbar`), not this
+ * overlay: an inline "[delete]" label here duplicated that control and sat on
+ * top of the video where it was easy to hit by accident.
  */
 const MarkerShape = ({
   marker,
@@ -277,55 +334,75 @@ const MarkerShape = ({
   isSelected,
   stats,
   onSelect,
-  onDelete,
 }: MarkerShapeProps) => {
-  const stroke = isSelected ? "#f6ad55" : "#48bb78";
+  const stroke = isSelected ? "#fb923c" : "#22d3ee";
+  const strokeWidth = isSelected ? 2 : 1.5;
   const pctX = (v: number) => `${(v / frameWidth) * 100}%`;
   const pctY = (v: number) => `${(v / frameHeight) * 100}%`;
 
   let labelX = 0;
   let labelY = 0;
+  // Rect/cross anchor at a corner or tip, so the label reads naturally
+  // starting there; a poly's label sits at the centroid, so centering it
+  // keeps it from drifting off to one side of the shape.
+  let labelAnchor: "start" | "middle" = "start";
   let geometry: React.ReactNode;
 
   const { shape } = marker;
   if (shape.kind === "rect") {
     labelX = shape.x;
     labelY = shape.y;
+    const rectProps = {
+      x: pctX(shape.x),
+      y: pctY(shape.y),
+      width: `${(shape.width / frameWidth) * 100}%`,
+      height: `${(shape.height / frameHeight) * 100}%`,
+      fill: "none",
+      vectorEffect: "non-scaling-stroke" as const,
+    };
     geometry = (
-      <rect
-        x={pctX(shape.x)}
-        y={pctY(shape.y)}
-        width={`${(shape.width / frameWidth) * 100}%`}
-        height={`${(shape.height / frameHeight) * 100}%`}
-        fill="none"
-        stroke={stroke}
-        strokeWidth={isSelected ? 2 : 1}
-        vectorEffect="non-scaling-stroke"
-      />
+      <>
+        <rect {...rectProps} stroke={HALO_COLOR} strokeWidth={strokeWidth + HALO_EXTRA_WIDTH} />
+        <rect {...rectProps} stroke={stroke} strokeWidth={strokeWidth} />
+      </>
     );
   } else if (shape.kind === "cross") {
     const arm = shape.size ?? DEFAULT_CROSS_SIZE;
     labelX = shape.x;
     labelY = shape.y - arm;
-    geometry = (
-      <g stroke={stroke} strokeWidth={isSelected ? 2 : 1} vectorEffect="non-scaling-stroke">
+    const lines = (
+      <>
         <line x1={pctX(shape.x - arm)} y1={pctY(shape.y)} x2={pctX(shape.x + arm)} y2={pctY(shape.y)} />
         <line x1={pctX(shape.x)} y1={pctY(shape.y - arm)} x2={pctX(shape.x)} y2={pctY(shape.y + arm)} />
-      </g>
+      </>
+    );
+    geometry = (
+      <>
+        <g stroke={HALO_COLOR} strokeWidth={strokeWidth + HALO_EXTRA_WIDTH} vectorEffect="non-scaling-stroke">
+          {lines}
+        </g>
+        <g stroke={stroke} strokeWidth={strokeWidth} vectorEffect="non-scaling-stroke">
+          {lines}
+        </g>
+      </>
     );
   } else {
+    // The bounding-box corner (min x, min y) is not necessarily anywhere near
+    // the polygon itself -- for an elongated or rotated shape it can sit well
+    // outside it. The centroid always lands inside (for a convex marker) or at
+    // least close to the body, which is what "the label is near the marker"
+    // needs.
     const xs = shape.points.map((p) => p.x);
     const ys = shape.points.map((p) => p.y);
-    labelX = Math.min(...xs);
-    labelY = Math.min(...ys);
+    labelX = xs.reduce((a, b) => a + b, 0) / xs.length;
+    labelY = ys.reduce((a, b) => a + b, 0) / ys.length;
+    labelAnchor = "middle";
+    const points = shape.points.map((p) => `${(p.x / frameWidth) * 100},${(p.y / frameHeight) * 100}`).join(" ");
     geometry = (
-      <polygon
-        points={shape.points.map((p) => `${(p.x / frameWidth) * 100},${(p.y / frameHeight) * 100}`).join(" ")}
-        fill="none"
-        stroke={stroke}
-        strokeWidth={isSelected ? 2 : 1}
-        vectorEffect="non-scaling-stroke"
-      />
+      <>
+        <polygon points={points} fill="none" stroke={HALO_COLOR} strokeWidth={strokeWidth + HALO_EXTRA_WIDTH} vectorEffect="non-scaling-stroke" />
+        <polygon points={points} fill="none" stroke={stroke} strokeWidth={strokeWidth} vectorEffect="non-scaling-stroke" />
+      </>
     );
   }
 
@@ -342,33 +419,19 @@ const MarkerShape = ({
         x={pctX(labelX)}
         y={pctY(labelY)}
         dy="-4"
+        textAnchor={labelAnchor}
         fill={stroke}
+        stroke={HALO_COLOR}
+        strokeWidth="3"
+        paintOrder="stroke"
         fontSize="11px"
+        fontWeight="600"
         pointerEvents="none"
         style={{ userSelect: "none" }}
       >
         {marker.marker_id}
         {stats && stats.mean != null ? ` · ${formatStat(stats.mean)}` : ""}
       </text>
-      {isSelected && (
-        <text
-          x={pctX(labelX)}
-          y={pctY(labelY)}
-          dy="14"
-          fill="white"
-          stroke="black"
-          strokeWidth="0.4"
-          fontSize="10px"
-          textAnchor="start"
-          onClick={(event) => {
-            event.stopPropagation();
-            onDelete();
-          }}
-          style={{ cursor: "pointer", userSelect: "none" }}
-        >
-          [delete]
-        </text>
-      )}
     </g>
   );
 };

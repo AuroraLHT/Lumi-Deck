@@ -38,8 +38,7 @@ interface DashboardState {
    * setter let a rearrangement on a laptop overwrite the phone layout.
    */
   setLayoutForBreakpoint: (breakpoint: string, layout: LayoutItem[]) => void;
-  /** Returns the new panel's id, e.g. for scrolling straight to it. */
-  addPanel: (type: PanelType) => string;
+  addPanel: (type: PanelType) => void;
   removePanel: (id: string) => void;
   toggleCollapsed: (id: string) => void;
   setLocked: (locked: boolean) => void;
@@ -142,7 +141,6 @@ const useDashboardStore = create<DashboardState>((set, get) => ({
       panels: [...state.panels, { id, type }],
       layouts: appendToLayouts(state.layouts, id, type),
     }));
-    return id;
   },
 
   removePanel: (id) =>
