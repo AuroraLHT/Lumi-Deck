@@ -1,5 +1,5 @@
 import { HStack, IconButton, Tag, TagCloseButton, TagLabel, Text, Tooltip, Wrap } from "@chakra-ui/react";
-import { LuCrosshair, LuSquare, LuHexagon, LuEye, LuEyeOff } from "react-icons/lu";
+import { LuCrosshair, LuCircle, LuSquare, LuHexagon, LuEye, LuEyeOff } from "react-icons/lu";
 
 import { FiducialMarker } from "../../generated/lumi";
 import useFiducialUIStore, { FiducialShapeTool } from "../../stores/fiducialUI";
@@ -7,6 +7,7 @@ import useFiducialMarkerControl from "../../hooks/useFiducialMarkerControl";
 
 const TOOLS: { tool: FiducialShapeTool; icon: typeof LuCrosshair; label: string }[] = [
   { tool: "cross", icon: LuCrosshair, label: "Place a cross marker" },
+  { tool: "circle", icon: LuCircle, label: "Drag a circle marker" },
   { tool: "rect", icon: LuSquare, label: "Drag a rectangle marker" },
   { tool: "poly", icon: LuHexagon, label: "Click a polygon marker, double-click to close" },
 ];

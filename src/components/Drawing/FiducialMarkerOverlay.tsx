@@ -9,11 +9,13 @@ import useFiducialUIStore from "../../stores/fiducialUI";
 import useFiducialMarkerControl from "../../hooks/useFiducialMarkerControl";
 import useFiducialStatsStore from "../../stores/fiducialStats";
 
-/** Screen pixels a rectangle drag must cover before it counts; see RectangleSelector. */
+/** Screen pixels a rect/circle drag must cover before it counts; see RectangleSelector. */
 const MIN_DRAG_PX = 4;
 
 const DEFAULT_CROSS_SIZE = 10;
-const DEFAULT_CROSS_THICKNESS = 1;
+//: Half-width of the square patch `chamber.fiducial` measures around a cross,
+//: in pixels -- 1 is its own backend default (a 3x3 patch).
+const DEFAULT_CROSS_SAMPLE_RADIUS = 1;
 
 /** A dark outline under the colour, so a marker reads against video of any
  * brightness -- a thin cyan or orange line alone washes out over bright metal
@@ -54,12 +56,12 @@ const formatStat = (value: number | null | undefined): string =>
  * is whatever CSS size the panel gives it, but marker geometry is always in
  * camera-frame pixels, the space the backend measures pixels in.
  *
- * Three shapes, one tool active at a time (`stores/fiducialUI.ts`): a rect is a
- * drag like a detection box, a cross is a single click (its arm length and
- * thickness keep their defaults -- there is no drag gesture that means "half as
- * thick"), a poly is a sequence of clicks closed by clicking the first vertex,
- * double-clicking, or Enter. Escape backs out of whichever is in progress, same
- * as the RHEED redraw flow.
+ * Four shapes, one tool active at a time (`stores/fiducialUI.ts`): a rect or a
+ * circle is a drag (centre-to-edge for the circle), a cross is a single click
+ * (its display size and sampling patch keep their defaults -- there is no drag
+ * gesture that means "measure a bigger patch"), a poly is a sequence of clicks
+ * closed by clicking the first vertex, double-clicking, or Enter. Escape backs
+ * out of whichever is in progress, same as the RHEED redraw flow.
  */
 const FiducialMarkerOverlay = ({ markers, frameWidth, frameHeight }: Props) => {
   const containerRef = useRef<SVGSVGElement>(null);
@@ -74,6 +76,20 @@ const FiducialMarkerOverlay = ({ markers, frameWidth, frameHeight }: Props) => {
   const [dragStart, setDragStart] = useState<FramePoint | null>(null);
   const [dragEnd, setDragEnd] = useState<FramePoint | null>(null);
   const [polyPoints, setPolyPoints] = useState<FramePoint[]>([]);
+
+  // A double-click to close a polygon dispatches two mousedowns; both land
+  // inside the same event batch, before either's `setPolyPoints` update (or
+  // the `setTimeout` it schedules) has been observed by the other, so both
+  // detect "click landed on the closing point" and each schedules its own
+  // `finishPoly`. Without a synchronous guard, that commits the same
+  // geometry twice (three times counting the native `dblclick` handler,
+  // which is reached the same way). A ref is read/written immediately,
+  // unlike state, so it closes the window regardless of how many of the
+  // redundant triggers fire before any of them actually runs.
+  const finishingRef = useRef(false);
+  useEffect(() => {
+    if (activeTool === "poly") finishingRef.current = false;
+  }, [activeTool]);
 
   // The next `marker-N` suffix to hand out, tracked locally rather than
   // derived from `markers` at commit time. `markers` reflects the *backend's*
@@ -142,7 +158,8 @@ const FiducialMarkerOverlay = ({ markers, frameWidth, frameHeight }: Props) => {
   );
 
   const finishPoly = useCallback(() => {
-    if (polyPoints.length < 3) return;
+    if (finishingRef.current || polyPoints.length < 3) return;
+    finishingRef.current = true;
     commit({ kind: "poly", points: polyPoints.map((p) => ({ x: p.x, y: p.y })) });
   }, [polyPoints, commit]);
 
@@ -156,12 +173,12 @@ const FiducialMarkerOverlay = ({ markers, frameWidth, frameHeight }: Props) => {
         x: point.x,
         y: point.y,
         size: DEFAULT_CROSS_SIZE,
-        thickness: DEFAULT_CROSS_THICKNESS,
+        sample_radius: DEFAULT_CROSS_SAMPLE_RADIUS,
       });
       return;
     }
 
-    if (activeTool === "rect") {
+    if (activeTool === "rect" || activeTool === "circle") {
       setDragStart(point);
       setDragEnd(point);
       return;
@@ -194,15 +211,36 @@ const FiducialMarkerOverlay = ({ markers, frameWidth, frameHeight }: Props) => {
     });
   };
 
+  const isDragTool = activeTool === "rect" || activeTool === "circle";
+
   const handleMouseMove = (event: React.MouseEvent) => {
-    if (activeTool !== "rect" || !dragStart) return;
+    if (!isDragTool || !dragStart) return;
     setDragEnd(toFrame(event));
   };
 
   const handleMouseUp = () => {
-    if (activeTool !== "rect" || !dragStart || !dragEnd) return;
-    const screenDx = ((dragEnd.x - dragStart.x) / frameWidth) * (containerRef.current?.getBoundingClientRect().width ?? frameWidth);
-    const screenDy = ((dragEnd.y - dragStart.y) / frameHeight) * (containerRef.current?.getBoundingClientRect().height ?? frameHeight);
+    if (!isDragTool || !dragStart || !dragEnd) return;
+    const containerRect = containerRef.current?.getBoundingClientRect();
+    const screenDx = ((dragEnd.x - dragStart.x) / frameWidth) * (containerRect?.width ?? frameWidth);
+    const screenDy = ((dragEnd.y - dragStart.y) / frameHeight) * (containerRect?.height ?? frameHeight);
+
+    if (activeTool === "circle") {
+      // A circle has one degree of freedom (radius), so total travel is the
+      // right measure -- unlike the rect's two independent axes below.
+      if (Math.hypot(screenDx, screenDy) < MIN_DRAG_PX) {
+        setDragStart(null);
+        setDragEnd(null);
+        return;
+      }
+      commit({
+        kind: "circle",
+        x: dragStart.x,
+        y: dragStart.y,
+        radius: Math.hypot(dragEnd.x - dragStart.x, dragEnd.y - dragStart.y),
+      });
+      return;
+    }
+
     if (Math.abs(screenDx) < MIN_DRAG_PX || Math.abs(screenDy) < MIN_DRAG_PX) {
       setDragStart(null);
       setDragEnd(null);
@@ -276,6 +314,33 @@ const FiducialMarkerOverlay = ({ markers, frameWidth, frameHeight }: Props) => {
             y={pct(Math.min(dragStart.y, dragEnd.y), frameHeight)}
             width={pct(Math.abs(dragEnd.x - dragStart.x), frameWidth)}
             height={pct(Math.abs(dragEnd.y - dragStart.y), frameHeight)}
+            fill="rgba(96, 165, 250, 0.15)"
+            stroke={drawingStroke}
+            strokeWidth="2"
+            vectorEffect="non-scaling-stroke"
+            pointerEvents="none"
+          />
+        </>
+      )}
+
+      {activeTool === "circle" && dragStart && dragEnd && (
+        <>
+          <ellipse
+            cx={pct(dragStart.x, frameWidth)}
+            cy={pct(dragStart.y, frameHeight)}
+            rx={pct(Math.hypot(dragEnd.x - dragStart.x, dragEnd.y - dragStart.y), frameWidth)}
+            ry={pct(Math.hypot(dragEnd.x - dragStart.x, dragEnd.y - dragStart.y), frameHeight)}
+            fill="none"
+            stroke={HALO_COLOR}
+            strokeWidth={2 + HALO_EXTRA_WIDTH}
+            vectorEffect="non-scaling-stroke"
+            pointerEvents="none"
+          />
+          <ellipse
+            cx={pct(dragStart.x, frameWidth)}
+            cy={pct(dragStart.y, frameHeight)}
+            rx={pct(Math.hypot(dragEnd.x - dragStart.x, dragEnd.y - dragStart.y), frameWidth)}
+            ry={pct(Math.hypot(dragEnd.x - dragStart.x, dragEnd.y - dragStart.y), frameHeight)}
             fill="rgba(96, 165, 250, 0.15)"
             stroke={drawingStroke}
             strokeWidth="2"
@@ -384,6 +449,23 @@ const MarkerShape = ({
         <g stroke={stroke} strokeWidth={strokeWidth} vectorEffect="non-scaling-stroke">
           {lines}
         </g>
+      </>
+    );
+  } else if (shape.kind === "circle") {
+    labelX = shape.x;
+    labelY = shape.y - shape.radius;
+    const ellipseProps = {
+      cx: pctX(shape.x),
+      cy: pctY(shape.y),
+      rx: `${(shape.radius / frameWidth) * 100}%`,
+      ry: `${(shape.radius / frameHeight) * 100}%`,
+      fill: "none",
+      vectorEffect: "non-scaling-stroke" as const,
+    };
+    geometry = (
+      <>
+        <ellipse {...ellipseProps} stroke={HALO_COLOR} strokeWidth={strokeWidth + HALO_EXTRA_WIDTH} />
+        <ellipse {...ellipseProps} stroke={stroke} strokeWidth={strokeWidth} />
       </>
     );
   } else {

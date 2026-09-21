@@ -1,6 +1,6 @@
 import { create } from "zustand";
 
-export type FiducialShapeTool = "cross" | "rect" | "poly";
+export type FiducialShapeTool = "cross" | "circle" | "rect" | "poly";
 
 /**
  * UI-only state shared between the Chamber Camera panel (where markers are
