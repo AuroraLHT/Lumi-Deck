@@ -4,6 +4,8 @@ import { LuCrosshair, LuCircle, LuSquare, LuHexagon, LuEye, LuEyeOff } from "rea
 import { FiducialMarker } from "../../generated/lumi";
 import useFiducialUIStore, { FiducialShapeTool } from "../../stores/fiducialUI";
 import useFiducialMarkerControl from "../../hooks/useFiducialMarkerControl";
+import useFiducialRoles from "../../hooks/useFiducialRoles";
+import FiducialRoleMenu from "./FiducialRoleMenu";
 
 const TOOLS: { tool: FiducialShapeTool; icon: typeof LuCrosshair; label: string }[] = [
   { tool: "cross", icon: LuCrosshair, label: "Place a cross marker" },
@@ -24,6 +26,10 @@ interface Props {
  * A second click on the active tool disarms it -- the same toggle-off a user
  * expects from any drawing tool, and without it the only way to stop drawing
  * was Escape, which is not discoverable.
+ *
+ * Any role names pinned to a marker (`FiducialRoleMenu`) ride along on its tag:
+ * the id is what the backend calls it, the role is what it is *for*, and the
+ * second is the one an operator recognises a week later.
  */
 const FiducialToolbar = ({ markers }: Props) => {
   const activeTool = useFiducialUIStore((s) => s.activeTool);
@@ -33,6 +39,7 @@ const FiducialToolbar = ({ markers }: Props) => {
   const markersHidden = useFiducialUIStore((s) => s.markersHidden);
   const setMarkersHidden = useFiducialUIStore((s) => s.setMarkersHidden);
   const { removeMarker } = useFiducialMarkerControl();
+  const { byMarker } = useFiducialRoles();
 
   return (
     <HStack justify="space-between" flexWrap="wrap" rowGap={1} className="no-drag">
@@ -58,6 +65,7 @@ const FiducialToolbar = ({ markers }: Props) => {
             onClick={() => setMarkersHidden(!markersHidden)}
           />
         </Tooltip>
+        <FiducialRoleMenu markers={markers} />
       </HStack>
 
       <Wrap spacing={1} flex="1" minW="120px">
@@ -73,6 +81,11 @@ const FiducialToolbar = ({ markers }: Props) => {
             }
           >
             <TagLabel>{marker.marker_id}</TagLabel>
+            {(byMarker[marker.marker_id] ?? []).length > 0 && (
+              <TagLabel ml={1} opacity={0.75} fontStyle="italic">
+                {byMarker[marker.marker_id].join(" · ")}
+              </TagLabel>
+            )}
             <TagCloseButton
               onClick={(event) => {
                 event.stopPropagation();
