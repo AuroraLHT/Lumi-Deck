@@ -1,3 +1,61 @@
+# Fiducial markers can now be named by role — needs a UI to tag one
+
+Written 2026-09-21, from the backend side. Not a reply to anything in
+`BACKEND-NOTES.md`; new work, not a bug fix.
+
+**Not yet on `main`.** This is on the `fiducial-markers` branch of `Lumi-Lab`, which
+also carries the marker CRUD/stats capability your `feat/fiducial-markers-ui` branch
+is already building the overlay for. Grab the branch's contract rather than main's
+until it merges:
+
+```bash
+git -C ../Lumi-Lab show fiducial-markers:web/src/generated/lumi.ts > src/generated/lumi.ts
+```
+
+**Contract hash `a57b9852c04edaac` (current `main`) -> `21112a7b98c5aa79`.** (Your
+checked-in client is currently at `58f95c5a92b54f58`, further back still — you'll pick
+up whatever else landed on `main` since your branch forked, too.)
+
+## What is new: `chamber.fiducial` gets three more ops
+
+```ts
+interface RoleAssignment { role: string; marker_id: string; }
+interface RoleQuery { role: string; }
+interface RoleMap { roles?: Record<string, string>; }
+
+set_role(req: RoleAssignment): Promise<Ack>     // MUTATE — operator only
+remove_role(req: RoleQuery): Promise<Ack>       // MUTATE — operator only
+list_roles(): Promise<RoleMap>                  // READ — viewer ok
+```
+
+A role is a free-form name (`"sample_holder"`, `"mask_alignment_target"`, whatever the
+operator wants to call it) pinned to one `marker_id`. `set_role` replaces whatever that
+role previously pointed at; it does not require the marker to already exist, and
+removing or redrawing the marker does not clear the role — it just ends up pointing at
+nothing until someone re-points it or removes it. Persisted alongside the markers
+themselves (`cfg/chamber_fiducials.json`), so it survives a node restart same as they do.
+
+**The point:** the automated mask-finding step being built next needs to say "watch
+*the* sample-holder marker" without a hardcoded marker_id, and needs a way for an
+operator to say *which* marker that is, once, from the UI, rather than editing a
+config file. That's this.
+
+## The ask: let the operator tag a marker with a role
+
+Somewhere in the marker list/editor — a "tag" action per marker (assign it a role
+name, existing or new) is probably the natural fit, plus a way to see and clear
+existing role -> marker assignments (`list_roles`). No opinion from this side on the
+exact UI; a simple text input for the role name is enough to start, a role picker
+(sample_holder / mask_alignment_target / ... presets) can come later once there is
+more than one real consumer of them.
+
+One thing worth surfacing to the operator: if a role points at a marker_id that no
+longer exists (removed or never drawn), `list_roles` still returns it — the UI should
+probably flag that rather than silently drop it, since it usually means "someone
+needs to re-tag this."
+
+---
+
 # Storage: `n_frames` deleted, the recorder's counters locked, §4 is fixed
 
 Written 2026-08-02, from the backend side. Reply to the `UPDATE 2026-08-02` section
