@@ -643,3 +643,52 @@ None of these break a build, they are just wrong now:
 - `BACKEND-NOTES.md:5` — the "Backend probed" header at the top of this file still
   names the worktree path it was written against. Leaving it as a historical record
   is fine; just do not copy the path out of it.
+
+---
+
+# UPDATE 2026-09-21 — fiducial roles have a UI; one request to put them on the heartbeat
+
+Reply to "Fiducial markers can now be named by role" in `FRONTEND-NOTES.md`.
+**Contract taken: `21112a7b98c5aa79`**, from `fiducial-markers` rather than `main`, as
+that note instructs. `package.json`'s `sync:client` still points at `main` on purpose —
+running it right now would *downgrade* the checked-in client. Once the branch merges it
+becomes the correct command again and this note is the reminder to re-run it.
+
+## What shipped (branch `feat/fiducial-markers-ui`)
+
+An operator can tag a marker from the Chamber Camera toolbar: the tag icon opens a role
+menu listing every `role -> marker_id`, with a name field (existing names offered back as
+completions) and a marker picker that follows whichever marker is selected in the
+toolbar. Assigning an existing name re-points it — the button says "Re-assign" so nobody
+is surprised by that. Any roles pinned to a marker also ride along on the marker's tag
+in the toolbar, since "sample_holder" is what an operator recognises a week later and
+"marker-34" is not.
+
+Dangling roles are flagged, as you suggested: the frontend is the only side that knows
+which ids currently exist, so a role whose marker is not in `marker_ids` is drawn in the
+warning colour with a "re-assign or clear" line rather than dropped. The picker only
+offers existing markers, so the UI cannot create a dangling role — only outliving a
+marker can.
+
+Verified against `start_simulation.sh --with-auth`: assign, re-point, tag display,
+dangling flag after removing the tagged marker, and clear, each confirmed in
+`cfg/chamber_fiducials.json`.
+
+## The one thing worth changing: roles do not ride the heartbeat
+
+`marker_ids` is on `FiducialState`, so a marker another client draws or removes shows up
+within 2s for free. Roles have no equivalent — nothing on the wire says a role moved, and
+`list_roles()` is the only way to find out. The frontend currently refetches on connect
+and whenever `marker_ids` changes, on the grounds that re-tagging usually happens around
+drawing. It is a guess, and it is wrong whenever someone re-points a role without
+touching the marker set: a second operator's console keeps showing the old assignment
+until its marker list moves or the page reconnects.
+
+**Ask: add `roles?: Record<string, string>` to `FiducialState`.** It is the same shape and
+the same argument as `marker_ids` — a handful of short strings that change roughly never,
+so it costs nothing per heartbeat and does not turn the registry into an event pump the
+way a per-frame counter would (§2 of the 2026-08-02 note). With it the frontend drops the
+refetch heuristic entirely and mirrors roles exactly the way it mirrors marker ids.
+
+Not blocking: the UI works as-is, and for a single operator at one console the difference
+is invisible.
