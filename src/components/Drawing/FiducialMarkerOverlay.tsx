@@ -34,11 +34,16 @@ interface FramePoint {
   y: number;
 }
 
-/** The highest `marker-N` suffix among these ids, or 0 if none match. */
+/**
+ * The highest numbered suffix among these ids, or 0 if none match. Reads the
+ * short `m12` ids drawn here as well as the older `marker-12` ones still
+ * registered on nodes, so a rename never hands out a number that is already on
+ * screen under the old spelling.
+ */
 const maxMarkerSuffix = (ids: Iterable<string>): number => {
   let max = 0;
   for (const id of ids) {
-    const match = /^marker-(\d+)$/.exec(id);
+    const match = /^(?:m|marker-)(\d+)$/.exec(id);
     if (match) max = Math.max(max, Number(match[1]));
   }
   return max;
@@ -100,7 +105,7 @@ const FiducialMarkerOverlay = ({ markers, frameWidth, frameHeight }: Props) => {
     if (activeTool === "poly") finishingRef.current = false;
   }, [activeTool]);
 
-  // The next `marker-N` suffix to hand out, tracked locally rather than
+  // The next `mN` suffix to hand out, tracked locally rather than
   // derived from `markers` at commit time. `markers` reflects the *backend's*
   // registry, which only catches up after a round trip (`set_marker`) and
   // then the heartbeat -- drawing a second marker before either has landed
@@ -187,7 +192,10 @@ const FiducialMarkerOverlay = ({ markers, frameWidth, frameHeight }: Props) => {
   const commit = useCallback(
     (shape: Shape) => {
       nextIdRef.current += 1;
-      const id = `marker-${nextIdRef.current}`;
+      // Short on purpose: the id is drawn on the video next to the live
+      // readout, and repeated in every toolbar chip, where "marker-" was six
+      // characters of nothing per marker.
+      const id = `m${nextIdRef.current}`;
       setMarker(id, shape).catch((err) => console.error("set_marker failed:", err));
       setActiveTool(null);
       resetDrawing();

@@ -82,7 +82,11 @@ export const useFiducialMarkers = () => {
       const marker = geometry[id];
       if (marker) markers.push(marker);
     }
-    markers.sort((a, b) => a.marker_id.localeCompare(b.marker_id));
+    // Numeric-aware: the ids end in a counter (`m2`, `m10`), and a plain
+    // string sort puts m10 before m2, which reads as a bug in the toolbar.
+    markers.sort((a, b) =>
+      a.marker_id.localeCompare(b.marker_id, undefined, { numeric: true })
+    );
 
     return {
       markers,
