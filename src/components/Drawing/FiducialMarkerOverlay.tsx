@@ -90,6 +90,8 @@ const FiducialMarkerOverlay = ({ markers, frameWidth, frameHeight }: Props) => {
   const [dragStart, setDragStart] = useState<FramePoint | null>(null);
   const [dragEnd, setDragEnd] = useState<FramePoint | null>(null);
   const [polyPoints, setPolyPoints] = useState<FramePoint[]>([]);
+  /** Cursor position in frame pixels, rounded, while it is over the video. */
+  const [hover, setHover] = useState<FramePoint | null>(null);
 
   // A double-click to close a polygon dispatches two mousedowns; both land
   // inside the same event batch, before either's `setPolyPoints` update (or
@@ -264,8 +266,18 @@ const FiducialMarkerOverlay = ({ markers, frameWidth, frameHeight }: Props) => {
   const isDragTool = activeTool === "rect" || activeTool === "circle";
 
   const handleMouseMove = (event: React.MouseEvent) => {
-    if (!isDragTool || !dragStart) return;
     const point = toFrame(event);
+
+    // The readout is in whole frame pixels, so only a move that crosses a
+    // pixel boundary is worth a render -- at 60Hz over a scaled-down frame,
+    // most moves do not, and each one would otherwise redraw every marker.
+    const next =
+      point && inFrame(point) ? { x: Math.round(point.x), y: Math.round(point.y) } : null;
+    setHover((prev) =>
+      prev === next || (prev && next && prev.x === next.x && prev.y === next.y) ? prev : next
+    );
+
+    if (!isDragTool || !dragStart) return;
     // Dragging past the edge of the video pins the shape to the edge rather
     // than committing geometry the camera has no pixels for.
     if (point) setDragEnd(clampToFrame(point));
@@ -331,6 +343,7 @@ const FiducialMarkerOverlay = ({ markers, frameWidth, frameHeight }: Props) => {
       onMouseDown={handleMouseDown}
       onMouseMove={handleMouseMove}
       onMouseUp={handleMouseUp}
+      onMouseLeave={() => setHover(null)}
       onDoubleClick={handleDoubleClick}
       cursor={activeTool ? "crosshair" : "default"}
       pointerEvents="all"
@@ -400,6 +413,33 @@ const FiducialMarkerOverlay = ({ markers, frameWidth, frameHeight }: Props) => {
               {...paint}
             />
           ))}
+        </g>
+      )}
+
+      {/* Where the cursor is in the camera's own pixels -- the coordinates the
+        * backend stores markers in and reports them back in, so a number read
+        * off a marker's geometry can be found on the video by eye. Counter-
+        * scaled like the marker labels, and flipped away from the right and
+        * top edges so the readout never runs off the image it describes. */}
+      {hover && (
+        <g
+          transform={`translate(${hover.x} ${hover.y}) scale(${labelScale})`}
+          pointerEvents="none"
+        >
+          <text
+            x={hover.x > frameWidth * 0.8 ? -8 : 8}
+            y={hover.y < frameHeight * 0.12 ? 16 : -8}
+            textAnchor={hover.x > frameWidth * 0.8 ? "end" : "start"}
+            fill="#e2e8f0"
+            stroke={HALO_COLOR}
+            strokeWidth="3"
+            paintOrder="stroke"
+            fontSize="11"
+            fontWeight="600"
+            style={{ userSelect: "none" }}
+          >
+            {hover.x}, {hover.y}
+          </text>
         </g>
       )}
     </Box>
