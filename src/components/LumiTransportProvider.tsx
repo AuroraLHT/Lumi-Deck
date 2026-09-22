@@ -14,6 +14,7 @@ import {
   useRegisteredBoxesSync,
 } from "../hooks/useRegisteredBoxes";
 import { useFiducialMarkersSync } from "../hooks/useFiducialMarkers";
+import { useFiducialRolesSync } from "../hooks/useFiducialRoles";
 import useFiducialStats from "../hooks/useFiducialStats";
 
 /**
@@ -49,6 +50,9 @@ const LumiTransportProvider = ({ children }: { children: ReactNode }) => {
   // Same ordering note as the boxes above: useNodeStates fills marker_ids from
   // the heartbeat first, then this fetches the matching shapes.
   useFiducialMarkersSync();
+  // Roles hang off the same id list -- nothing announces a role change, so the
+  // marker set moving is the closest thing to a signal there is.
+  useFiducialRolesSync();
   useFiducialStats();
 
   useEffect(() => {
