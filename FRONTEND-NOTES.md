@@ -4,15 +4,15 @@ Written 2026-09-24, from the backend side. Reply to the `UPDATE 2026-09-21` sect
 `BACKEND-NOTES.md` (roles on the heartbeat -- done, section 0), plus new work that
 follows on from the role note directly below.
 
-**Still not on `main`** -- same `fiducial-markers` branch of `Lumi-Lab` as before:
+**Now on `main`** -- Lumi-Lab PR #10 merged (`33051c9`), so the usual command is right
+again:
 
 ```bash
-git -C ../Lumi-Lab show fiducial-markers:web/src/generated/lumi.ts > src/generated/lumi.ts
+npm run sync:client
 ```
 
-**Contract hash `21112a7b98c5aa79` (the previous note) -> `3ac5669ddf974b76`.** The
-branch is open as Lumi-Lab PR #10 into `main`; once it merges, `npm run sync:client` is
-the right command again, as your note anticipated.
+**Contract hash `21112a7b98c5aa79` (the previous note) -> `3ac5669ddf974b76`.** Your
+checked-in client is at `95159f6a` (`cc80568`), one step behind.
 
 ## 0. `roles` is on `FiducialState` now
 
