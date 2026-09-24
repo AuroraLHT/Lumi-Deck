@@ -37,7 +37,7 @@ export const useFiducialRolesSync = () => {
       .list_roles()
       .then((map) => {
         if (cancelled) return;
-        useFiducialRolesStore.getState().setRoles(map.roles ?? {});
+        useFiducialRolesStore.getState().setRoles(map.roles ?? {}, map.known ?? []);
       })
       .catch((err) => {
         if (cancelled) return;
@@ -64,20 +64,29 @@ export const useFiducialRolesSync = () => {
  */
 export const useFiducialRoles = () => {
   const roles = useFiducialRolesStore((s) => s.roles);
+  const known = useFiducialRolesStore((s) => s.known);
   const isLoading = useFiducialRolesStore((s) => s.isLoading);
   const error = useFiducialRolesStore((s) => s.error);
   const markerKey = useFiducialNodeStore((s) => s.state.marker_ids.join(","));
 
   return useMemo(() => {
-    const known = new Set(markerKey === "" ? [] : markerKey.split(","));
+    const existing = new Set(markerKey === "" ? [] : markerKey.split(","));
     const entries = Object.entries(roles).sort(([a], [b]) => a.localeCompare(b));
 
     const byMarker: Record<string, string[]> = {};
     const dangling: string[] = [];
     for (const [role, markerId] of entries) {
-      if (known.has(markerId)) (byMarker[markerId] ??= []).push(role);
+      if (existing.has(markerId)) (byMarker[markerId] ??= []).push(role);
       else dangling.push(role);
     }
+
+    // A predefined role with no working marker behind it -- never assigned, or
+    // pointing at one that is gone -- is a piece of automation that cannot
+    // run (mask auto-alignment stalls waiting for `mask-center`), so it is
+    // counted separately from a broken custom role, which only costs a label.
+    const unmet = known
+      .map((spec) => spec.role)
+      .filter((role) => !(role in roles) || !existing.has(roles[role]));
 
     return {
       /** `[role, marker_id]` pairs, role-name order. */
@@ -86,10 +95,14 @@ export const useFiducialRoles = () => {
       byMarker,
       /** Roles whose marker is not in the node's current id list. */
       dangling,
+      /** The node's predefined roles, in the order it lists them. */
+      known,
+      /** Predefined role names that are unassigned or dangling. */
+      unmet,
       isLoading,
       error,
     };
-  }, [roles, markerKey, isLoading, error]);
+  }, [roles, known, markerKey, isLoading, error]);
 };
 
 export default useFiducialRoles;

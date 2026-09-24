@@ -30,6 +30,9 @@ interface Props {
 
 const errorText = (err: unknown) => (err instanceof Error ? err.message : String(err));
 
+/** The role picker's "type your own" entry; not a valid role name on the node. */
+const CUSTOM = "\u0000custom";
+
 /**
  * Assigns role names to fiducial markers: "this one is the sample holder".
  *
@@ -41,16 +44,26 @@ const errorText = (err: unknown) => (err instanceof Error ? err.message : String
  * frontend knows which ids currently exist, so those are listed under a
  * warning rather than quietly hidden.
  *
+ * The node also publishes the roles something in the backend actually reads
+ * (`RoleMap.known`, e.g. `mask-center`). Those are offered as a pick list, with
+ * the node's own description as the hint, because a typo in one is a role
+ * nothing ever reads; free text stays behind "Other..." for custom labels. A
+ * predefined role with no working marker is flagged here and on the toolbar
+ * button, since it means some automation cannot run.
+ *
  * Kept in a popover instead of inline in the toolbar because tagging is a
  * once-per-setup act, while the toolbar it hangs off is used every time
  * anybody draws anything.
  */
 const FiducialRoleMenu = ({ markers }: Props) => {
-  const { entries, dangling } = useFiducialRoles();
+  const { entries, dangling, known, unmet } = useFiducialRoles();
   const { setRole, removeRole } = useFiducialRoleControl();
   const selectedMarkerId = useFiducialUIStore((s) => s.selectedMarkerId);
 
   const [role, setRoleName] = useState("");
+  // Null means "the default pick": the first predefined role still needing a
+  // marker, so opening the menu to fix a flagged role needs no extra click.
+  const [choice, setChoice] = useState<string | null>(null);
   // Empty means "follow the selection" -- picking a marker in the toolbar is
   // the natural way to say which one you are about to tag, so the select
   // tracks it until the operator overrides it here.
@@ -64,6 +77,10 @@ const FiducialRoleMenu = ({ markers }: Props) => {
   // very result the operator clicked for. So focus is parked on the input
   // first, and the submit is never disabled; it just no-ops on empty input.
   const inputRef = useRef<HTMLInputElement>(null);
+  const pickRef = useRef<HTMLSelectElement>(null);
+  // The picker is always mounted when there are predefined roles; the input
+  // only in "Other..." mode -- so prefer the picker as the parking spot.
+  const parkFocus = () => (pickRef.current ?? inputRef.current)?.focus();
 
   const markerIds = markers.map((m) => m.marker_id);
   const targetId =
@@ -72,13 +89,21 @@ const FiducialRoleMenu = ({ markers }: Props) => {
     markerIds[0] ||
     "";
 
-  const trimmed = role.trim();
+  const knownNames = known.map((spec) => spec.role);
+  const assigned: Record<string, string> = Object.fromEntries(entries);
+  const pick =
+    known.length === 0
+      ? CUSTOM
+      : choice ?? (unmet[0] ?? knownNames[0]);
+  const isCustom = pick === CUSTOM;
+  const trimmed = isCustom ? role.trim() : pick;
+  const hint = known.find((spec) => spec.role === pick)?.doc;
 
   const assign = async (event: FormEvent) => {
     event.preventDefault();
     if (busy) return;
     if (!trimmed) {
-      inputRef.current?.focus();
+      (inputRef.current ?? pickRef.current)?.focus();
       return;
     }
     if (!targetId) {
@@ -87,10 +112,12 @@ const FiducialRoleMenu = ({ markers }: Props) => {
     }
     setBusy(true);
     setError(null);
-    inputRef.current?.focus();
+    parkFocus();
     try {
       await setRole(trimmed, targetId);
       setRoleName("");
+      // Back to the default, which now moves on to the next unmet role.
+      if (!isCustom) setChoice(null);
     } catch (err) {
       setError(errorText(err));
     } finally {
@@ -100,22 +127,41 @@ const FiducialRoleMenu = ({ markers }: Props) => {
 
   const clear = (name: string) => {
     setError(null);
-    inputRef.current?.focus();
+    parkFocus();
     removeRole(name).catch((err) => setError(errorText(err)));
   };
 
   return (
     <Popover placement="bottom-start" isLazy>
-      <Tooltip label="Assign marker roles" openDelay={400}>
-        <Box display="inline-flex">
+      <Tooltip
+        label={
+          unmet.length > 0
+            ? `Needs a marker: ${unmet.join(", ")}`
+            : "Assign marker roles"
+        }
+        openDelay={unmet.length > 0 ? 0 : 400}
+      >
+        <Box display="inline-flex" position="relative">
           <PopoverTrigger>
             <IconButton
               aria-label="Assign marker roles"
               icon={<LuTags />}
               size="xs"
               variant="panelGhost"
+              color={unmet.length > 0 ? "status.warn" : undefined}
             />
           </PopoverTrigger>
+          {unmet.length > 0 && (
+            <Box
+              position="absolute"
+              top="1px"
+              right="1px"
+              boxSize="6px"
+              borderRadius="full"
+              bg="status.warn"
+              pointerEvents="none"
+            />
+          )}
         </Box>
       </Tooltip>
 
@@ -127,7 +173,7 @@ const FiducialRoleMenu = ({ markers }: Props) => {
               Marker roles
             </Text>
 
-            {entries.length === 0 && (
+            {entries.length === 0 && known.length === 0 && (
               <Text fontSize="xs" color="text.muted">
                 No roles yet -- name a marker below so automation can find it by
                 purpose instead of by id.
@@ -146,6 +192,7 @@ const FiducialRoleMenu = ({ markers }: Props) => {
                     colorScheme={broken ? "orange" : "purple"}
                     variant="subtle"
                     textTransform="none"
+                    title={known.find((spec) => spec.role === name)?.doc}
                   >
                     {name}
                   </Badge>
@@ -176,6 +223,20 @@ const FiducialRoleMenu = ({ markers }: Props) => {
               );
             })}
 
+            {knownNames
+              .filter((name) => !(name in assigned))
+              .map((name) => (
+                <HStack key={name} spacing={2} fontSize="xs">
+                  <Badge colorScheme="orange" variant="subtle" textTransform="none">
+                    {name}
+                  </Badge>
+                  <Text flex="1" color="status.warn">
+                    unassigned
+                    <Icon as={LuAlertTriangle} ml={1} verticalAlign="text-bottom" />
+                  </Text>
+                </HStack>
+              ))}
+
             {dangling.length > 0 && (
               <Text fontSize="xs" color="status.warn">
                 {dangling.length === 1 ? "One role points" : `${dangling.length} roles point`}{" "}
@@ -183,23 +244,65 @@ const FiducialRoleMenu = ({ markers }: Props) => {
               </Text>
             )}
 
+            {unmet.length > 0 && (
+              <Text fontSize="xs" color="status.warn">
+                Automation that reads {unmet.join(", ")} cannot run until{" "}
+                {unmet.length === 1 ? "it points" : "they point"} at a marker.
+              </Text>
+            )}
+
             <VStack as="form" align="stretch" spacing={2} pt={1} onSubmit={assign}>
-              <Input
-                size="xs"
-                ref={inputRef}
-                placeholder="Role name, e.g. sample_holder"
-                value={role}
-                list="fiducial-role-names"
-                onChange={(e) => setRoleName(e.target.value)}
-              />
-              {/* Existing names offered back, so re-pointing a role is picking
-                * it rather than retyping it exactly -- a typo here silently
-                * creates a second role instead of moving the first. */}
-              <datalist id="fiducial-role-names">
-                {entries.map(([name]) => (
-                  <option key={name} value={name} />
-                ))}
-              </datalist>
+              {known.length > 0 && (
+                <Select
+                  size="xs"
+                  ref={pickRef}
+                  aria-label="Role"
+                  value={pick}
+                  onChange={(e) => {
+                    setChoice(e.target.value);
+                    setError(null);
+                  }}
+                >
+                  {known.map((spec) => (
+                    <option key={spec.role} value={spec.role}>
+                      {spec.role}
+                      {spec.role in assigned
+                        ? ` (-> ${assigned[spec.role]})`
+                        : " (unassigned)"}
+                    </option>
+                  ))}
+                  <option value={CUSTOM}>Other…</option>
+                </Select>
+              )}
+              {hint && (
+                <Text fontSize="xs" color="text.muted">
+                  {hint}
+                </Text>
+              )}
+
+              {isCustom && (
+                <>
+                  <Input
+                    size="xs"
+                    ref={inputRef}
+                    placeholder="Custom role name, e.g. sample_holder"
+                    value={role}
+                    list="fiducial-role-names"
+                    onChange={(e) => setRoleName(e.target.value)}
+                  />
+                  {/* Existing custom names offered back, so re-pointing a role
+                    * is picking it rather than retyping it exactly -- a typo
+                    * here silently creates a second role instead of moving the
+                    * first. Predefined ones are in the picker above. */}
+                  <datalist id="fiducial-role-names">
+                    {entries
+                      .filter(([name]) => !knownNames.includes(name))
+                      .map(([name]) => (
+                        <option key={name} value={name} />
+                      ))}
+                  </datalist>
+                </>
+              )}
 
               <HStack spacing={2}>
                 <Select

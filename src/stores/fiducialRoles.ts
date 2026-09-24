@@ -1,5 +1,7 @@
 import { create } from "zustand";
 
+import { RoleSpec } from "../generated/lumi";
+
 /**
  * Role -> marker_id assignments held by `chamber.fiducial`.
  *
@@ -18,13 +20,20 @@ import { create } from "zustand";
 interface FiducialRolesState {
   /** Keyed by role name; the value is a `marker_id`, existing or not. */
   roles: Record<string, string>;
+  /**
+   * The predefined roles -- the ones something in the backend actually reads
+   * (e.g. `mask-center` for mask auto-alignment) -- assigned or not. Comes
+   * from the node on every `list_roles()`, so the UI offers whatever the
+   * backend currently knows about instead of a hardcoded list.
+   */
+  known: RoleSpec[];
   /** True only during the first fetch, so the UI can tell "none" from "not yet". */
   isLoading: boolean;
   error: string | null;
   /** `Date.now()` of the last successful fetch; null until one lands. */
   lastSyncedAt: number | null;
 
-  setRoles: (roles: Record<string, string>) => void;
+  setRoles: (roles: Record<string, string>, known: RoleSpec[]) => void;
   setLoading: (isLoading: boolean) => void;
   setError: (error: string | null) => void;
   reset: () => void;
@@ -32,12 +41,13 @@ interface FiducialRolesState {
 
 const useFiducialRolesStore = create<FiducialRolesState>((set) => ({
   roles: {},
+  known: [],
   isLoading: false,
   error: null,
   lastSyncedAt: null,
 
-  setRoles: (roles) =>
-    set({ roles, isLoading: false, error: null, lastSyncedAt: Date.now() }),
+  setRoles: (roles, known) =>
+    set({ roles, known, isLoading: false, error: null, lastSyncedAt: Date.now() }),
 
   setLoading: (isLoading) => set({ isLoading }),
 
@@ -45,7 +55,7 @@ const useFiducialRolesStore = create<FiducialRolesState>((set) => ({
   // last good mapping rather than blanking it, since the node still holds it.
   setError: (error) => set({ error, isLoading: false }),
 
-  reset: () => set({ roles: {}, isLoading: false, error: null, lastSyncedAt: null }),
+  reset: () => set({ roles: {}, known: [], isLoading: false, error: null, lastSyncedAt: null }),
 }));
 
 export default useFiducialRolesStore;
