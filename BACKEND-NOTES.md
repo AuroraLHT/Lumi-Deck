@@ -716,3 +716,92 @@ Replying to the 2026-09-24 FRONTEND-NOTES entry and closing the ask in the
   and on the toolbar's tag button.
 - **Not built yet:** §2 of the note (`auto_align_center_mask` and the
   `fiducial_role` pending confirmation). That waits for a driver panel.
+
+---
+
+# UPDATE 2026-09-24 — experiment driver panel: three small asks for mask centering, and one wire quirk
+
+Lumi-Deck now has an **Experiment Driver** panel. It shows the driver state, answers
+every pending-confirmation kind (`fiducial_role`, `mask_center_check`,
+`mask_center_alignment`, `rheed_gain`, `pixel_check`, `laser_power`), runs
+`auto_align_center_mask` and plots its `samples`, and has start buttons for the four
+`begin_*` checks. Verified live on the sim: a report-only align converged at 97.207 mm
+against `center_mask_pos` 100.0; the `fiducial_role` prompt appeared 0.26 s after the
+start, "Cancel alignment" (`confirm`) ended the task with the cancelled error, and
+tagging from the prompt let the task continue on its own.
+
+Three asks, all around `center_mask_pos`. Each one is small and none blocks what has
+shipped.
+
+## 1. Let the operator choose where the auto-align scan is centred
+
+`auto_align_center_mask` always scans `center_mask_pos ± half_window_mm`. When the
+current calibration is well off (a new mask, a remount), the slit can fall outside the
+window, and the only way to recover is to widen the window, which makes the scan slower.
+
+**Ask:** an optional field on `AutoAlignMaskCenter`:
+
+```python
+center_mm: float | None = None   # scan centre; None = center_mask_pos, as now
+```
+
+`start = (req.center_mm if req.center_mm is not None else previous) - half_window_mm`.
+`previous_center` in the result should stay the calibration it replaces, not the scan
+centre. The panel will show this as an optional "Scan around" field, placeholder = the
+current calibration.
+
+## 2. Put `center_mask_pos` on `ExperimentState`
+
+```python
+center_mask_pos: float | None = None
+```
+
+Then the panel can show the calibration, show the scan range before Start
+("95.0 – 105.0 mm"), and prefill #1, with no extra call. It changes rarely, so it
+costs nothing on the heartbeat.
+
+## 3. A direct way to set it: `set_center_mask_pos`
+
+Today `center_mask_pos` can only change through auto-align with `apply=true`,
+`confirm_center_mask` (needs `begin_align_center_mask` first, which zeroes the RHEED gun
+X and moves the mask), or `confirm_mask_center(aligned=false, ...)` (retracts and moves
+the mask). So a report-only result (`apply=false`) cannot be applied afterwards without
+moving hardware just to store a number.
+
+**Ask:** a MUTATE op that only sets the value:
+
+```python
+async def set_center_mask_pos(self, req: MoveTo) -> Ack:   # or a new CenterMaskPos {position}
+    self.manager.pld_config.center_mask_pos = req.position
+    return Ack()
+```
+
+Journal it like the other steps, since it changes the calibration. The panel will put
+an "Apply 97.219 mm" button on every report-only result.
+
+**Related question:** as far as I can see, `center_mask_pos` is held in memory only.
+`pld_config` comes from `settings.experiment.pld_config` at startup, and I found no
+write-back. If so, a calibration set by any of these paths is lost when the node
+restarts. Intended? If not, #3 is the natural place to persist it.
+
+## Wire quirk worth knowing: `TaskEvent` pushes carry every field
+
+`_push(**fields)` builds `TaskEvent(**fields)`, and it is published with a plain
+`model_dump_json()`. So a push that only means "the task finished"
+(`current_task=None, task_result=...`) also carries `pending_confirmation: null`,
+which looks the same as "the gate was cleared". The frontend now treats each event as a
+nudge: it keeps `task_result` and re-reads `getState()` for the gate and task. Other
+clients (the MCP server, notebooks) may not. Either
+`model_dump_json(exclude_unset=True)` on this channel or a doc line on `TaskEvent`
+would make it unambiguous.
+
+**Follow-up, same day — all of the above is consumed** (contract `d886275865bf2ea5`, from
+Lumi-Lab's `driver-center-mask-ux` working tree; not on `main` yet). The panel now has a
+"Scan around" field (`center_mm`; blank = calibration) and a line showing the calibration and
+the exact scan range, taken from `center_mask_pos` on the heartbeat. A report-only result
+gets an "Apply <center> mm" button (`set_center_mask_pos`). Events are applied as snapshots,
+and results are attributed through `finished_task`; the `getState()` after every event is gone.
+The generated `MaskAlignResult` types replace the frontend's hand copy. Verified live:
+scan 95–99 mm around 97 converged at 97.214; Apply moved the calibration from 100.0 to
+97.214 without moving the mask; an auto-applied run showed "the current calibration" and
+no button. The sim's calibration was put back to 100.0 afterwards (now saved in growth.db).
