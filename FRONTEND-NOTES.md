@@ -1,3 +1,102 @@
+# Predefined fiducial roles, and mask auto-alignment asks for its marker
+
+Written 2026-09-24, from the backend side. Follows on from the role note directly
+below ("Fiducial markers can now be named by role"); new work, not a bug fix.
+
+**Still not on `main`** -- same `fiducial-markers` branch of `Lumi-Lab` as before:
+
+```bash
+git -C ../Lumi-Lab show fiducial-markers:web/src/generated/lumi.ts > src/generated/lumi.ts
+```
+
+**Contract hash `21112a7b98c5aa79` (the previous note) -> `95159f6a6d08e9de`.**
+
+## 1. `list_roles` now says which roles the system actually uses
+
+```ts
+interface RoleSpec { role: string; doc?: string; }
+interface RoleMap {
+  roles?: Record<string, string>;   // unchanged: role -> marker_id
+  known?: RoleSpec[];               // NEW: the predefined roles, assigned or not
+}
+```
+
+`known` is currently one entry:
+
+```ts
+{ role: "mask-center",
+  doc: "The sample's centre. Mask-centre auto-alignment sweeps Mask1 and centres the slit on this marker." }
+```
+
+Free-form roles still work exactly as before (`set_role` accepts any name) -- `known`
+is just the ones something in the backend reads. More will be added to the same list,
+so read it rather than hardcoding `"mask-center"`.
+
+**The ask:**
+- **Offer `known` roles as choices** in the tag action, so the operator picks
+  `mask-center` instead of typing it -- a typo there is a role nothing ever reads.
+  Show `doc` as the hint. Keep a free-text "other" for custom roles.
+- **Flag a known role that is unassigned, or assigned to a marker that no longer
+  exists** (a `roles` value with no matching `marker_id` in `list_markers`). Both mean
+  the automation that needs it can't run; see section 2 for what happens if it tries.
+
+## 2. New driver op: `auto_align_center_mask` -- and the `fiducial_role` prompt
+
+```ts
+// experiment.driver -- MUTATE, operator only. Long-running: returns a TaskAck.
+auto_align_center_mask(req: AutoAlignMaskCenter): Promise<TaskAck>
+
+interface AutoAlignMaskCenter {        // every field optional, defaults shown
+  half_window_mm?: number;   // 4.0   wide scan = center_mask_pos +- this
+  step_mm?: number;          // 0.5   wide scan step
+  max_passes?: number;       // 3     wide scan + finer re-scans of the slit
+  points_per_pass?: number;  // 15
+  tolerance_mm?: number;     // 0.02  stop once the centre moves less than this
+  frames_per_point?: number; // 2
+  min_contrast?: number;     // 5.0
+  apply?: boolean;           // true  false = report only, keep center_mask_pos
+  role_wait_timeout_s?: number; // 600  see below; 0 = fail at once
+}
+```
+
+It scans Mask1, watches the marker tagged `mask-center` on the chamber camera, finds
+the slit from the intensity-vs-position curve, refines it, sets `center_mask_pos`, and
+parks the mask there. The result arrives as the `TaskEvent.task_result` on the driver's
+`pending` update stream: `{ok: true, center, previous_center, converged, contrast,
+baseline, polarity, passes: [...], samples: [{pass_index, position, reading}, ...]}`
+(`MaskAlignResult` in `lumi.contracts.payloads.experiment`; it is not a named TS type,
+because the op itself only returns the TaskAck). `samples` is a ready-made
+intensity-vs-position plot, if you ever want one.
+
+**The part that needs UI:** if no marker is tagged `mask-center` (or it points at a
+deleted marker), the task does not fail. It opens a pending confirmation and waits:
+
+```ts
+state.pending_confirmation = {
+  id: "...", kind: "fiducial_role",
+  message: "no fiducial marker is tagged 'mask-center' -- tag the marker on the sample's centre with that role; mask auto-alignment continues once it is set",
+  requested_at: ...
+}
+```
+
+- It **resolves itself**: as soon as `chamber.fiducial.set_role({role: "mask-center",
+  marker_id})` lands (from anywhere), the confirmation clears and the scan starts.
+  There is nothing to "confirm" after tagging.
+- `confirm({confirmation_id})` on it **cancels** the alignment (task_result
+  `{ok: false, error: "...cancelled..."}`), so a "Cancel" button maps to `confirm`,
+  not a "Done" button.
+- After `role_wait_timeout_s` (default 600s) it gives up the same way and clears the
+  confirmation itself.
+
+Lumi-Deck doesn't have an experiment-driver panel yet, so no opinion on where this
+lives. The minimum useful version: when the driver's `pending_confirmation.kind ===
+"fiducial_role"`, show the message next to the camera with a shortcut into the marker
+tagging from section 1, plus a Cancel. A "Align mask" button that calls the op and
+shows `task_result.center` would be the natural next step, but that can wait for the
+driver panel.
+
+---
+
 # Fiducial markers can now be named by role — needs a UI to tag one
 
 Written 2026-09-21, from the backend side. Not a reply to anything in
