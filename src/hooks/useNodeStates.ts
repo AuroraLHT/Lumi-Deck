@@ -2,6 +2,7 @@ import { useEffect } from "react";
 
 import {
   CameraState,
+  ExperimentState,
   FiducialState,
   IntegratorState,
   MIModeState,
@@ -19,6 +20,8 @@ import useIntegratorNodeStore from "../stores/nodes/integrator";
 import useStorageNodeStore from "../stores/nodes/storage";
 import useMIModeNodeStore from "../stores/nodes/miMode";
 import useFiducialNodeStore from "../stores/nodes/fiducial";
+import useExperimentDriverNodeStore from "../stores/nodes/experimentDriver";
+import { projectDriverState } from "./useExperimentDriverStream";
 
 /**
  * Feeds the per-node state stores from the SystemRegistry, replacing the old SSE
@@ -52,6 +55,7 @@ const useNodeStates = () => {
   const setStorageNodeState = useStorageNodeStore((s) => s.setState);
   const setMIModeNodeState = useMIModeNodeStore((s) => s.setState);
   const setFiducialNodeState = useFiducialNodeStore((s) => s.setState);
+  const setExperimentDriverNodeState = useExperimentDriverNodeStore((s) => s.setState);
 
   useEffect(() => {
     const byEquipment = new Map<string, NodeRecord>();
@@ -68,6 +72,7 @@ const useNodeStates = () => {
     const chamber = byEquipment.get("chamber");
     const detection = byEquipment.get("detection");
     const storage = byEquipment.get("storage");
+    const experiment = byEquipment.get("experiment");
 
     const common = (node: NodeRecord | undefined, capability: string) => {
       const state = capabilityState(node, capability);
@@ -148,6 +153,13 @@ const useNodeStates = () => {
       path: storageState?.path ?? null,
       deps_available: storageState?.deps_available ?? {},
     });
+
+    // The whole driver state rides the heartbeat, open gates and running task
+    // included -- `useExperimentDriverStream` only makes it arrive sooner.
+    setExperimentDriverNodeState({
+      is_available: experiment?.status === "up",
+      ...projectDriverState(capabilityState(experiment, "driver") as ExperimentState | undefined),
+    });
   }, [
     nodes,
     setRHEEDNodeState,
@@ -158,6 +170,7 @@ const useNodeStates = () => {
     setIntegratorNodeState,
     setStorageNodeState,
     setMIModeNodeState,
+    setExperimentDriverNodeState,
     setFiducialNodeState,
   ]);
 };

@@ -7,6 +7,7 @@ import useChamberLogStream from "../hooks/useChamberLogStream";
 import useAnalysisStreams from "../hooks/useAnalysisStreams";
 import useDetectionStream from "../hooks/useDetectionStream";
 import useMiModeStream from "../hooks/useMiModeStream";
+import useExperimentDriverStream from "../hooks/useExperimentDriverStream";
 import useNodeStates from "../hooks/useNodeStates";
 import useSystemRegistryStream from "../hooks/useSystemRegistryStream";
 import {
@@ -41,6 +42,8 @@ const LumiTransportProvider = ({ children }: { children: ReactNode }) => {
   // execution the moment it finishes, so a COMPLETED that nobody was listening
   // for is gone for good.
   useMiModeStream();
+  // Same reason: a driver task's result is broadcast once and never queryable.
+  useExperimentDriverStream();
   // Order matters: useNodeStates fills the registered id lists from the
   // heartbeat, the sync hook fetches the matching geometry, and reconciliation
   // reads both. Within a render they all see the previous commit's stores, so
