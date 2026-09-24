@@ -15,6 +15,12 @@ export interface FiducialNodeState extends StreamNodeState {
    */
   marker_ids: string[];
   /**
+   * Role -> marker_id, the same map `list_roles()` returns, riding the same
+   * heartbeat -- so a re-tag by any client shows up within one beat. Null
+   * until a heartbeat carrying it lands. See `useFiducialRolesSync`.
+   */
+  roles: Record<string, string> | null;
+  /**
    * Size of the frames markers are measured against, as last seen from the
    * camera. Null until the fiducial worker has processed a frame -- a marker
    * drawn before that has nothing to scale against yet.
@@ -34,6 +40,7 @@ const useFiducialNodeStore = create<FiducialNode>()(
       is_running: false,
       is_streaming: false,
       marker_ids: [],
+      roles: null,
       frame_width: null,
       frame_height: null,
       n_processed: null,

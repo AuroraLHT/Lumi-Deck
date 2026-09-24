@@ -50,8 +50,8 @@ const LumiTransportProvider = ({ children }: { children: ReactNode }) => {
   // Same ordering note as the boxes above: useNodeStates fills marker_ids from
   // the heartbeat first, then this fetches the matching shapes.
   useFiducialMarkersSync();
-  // Roles hang off the same id list -- nothing announces a role change, so the
-  // marker set moving is the closest thing to a signal there is.
+  // Roles come off the same heartbeat; this adds the predefined-role list,
+  // which only `list_roles()` carries.
   useFiducialRolesSync();
   useFiducialStats();
 

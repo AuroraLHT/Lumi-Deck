@@ -11,9 +11,11 @@ import { RoleSpec } from "../generated/lumi";
  * themselves these live on the node, shared by every client and surviving a
  * restart, so this store is a mirror and never the source of truth.
  *
- * Unlike `marker_ids`, roles do not ride the heartbeat: nothing on the wire
- * announces a change, so the mirror is refreshed by `useFiducialRolesSync` and
- * written through by `useFiducialRoleControl`. A role may point at a marker
+ * The assignments ride the chamber heartbeat next to `marker_ids`, and
+ * `useFiducialRolesSync` copies them in from there; `useFiducialRoleControl`
+ * also writes through, so this client's own edit shows before the next beat.
+ * `known` is not on the heartbeat and is fetched once per connection. A role
+ * may point at a marker
  * that does not exist -- the node deliberately does not clear it when a marker
  * is removed -- so read this through `useFiducialRoles()`, which flags those.
  */

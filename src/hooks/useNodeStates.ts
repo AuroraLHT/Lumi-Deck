@@ -109,11 +109,13 @@ const useNodeStates = () => {
     setDetectorNodeState(common(detection, "detection"));
 
     // Marker ids ride the heartbeat the same way registered_bboxes does -- see
-    // `useFiducialMarkers` for the fetch this id list triggers.
+    // `useFiducialMarkers` for the fetch this id list triggers. Roles ride it
+    // too, whole, so they need no fetch (`useFiducialRolesSync`).
     const fiducial = capabilityState(chamber, "fiducial") as FiducialState | undefined;
     setFiducialNodeState({
       ...common(chamber, "fiducial"),
       marker_ids: fiducial?.marker_ids ?? [],
+      roles: fiducial?.roles ?? null,
       frame_width: fiducial?.frame_width ?? null,
       frame_height: fiducial?.frame_height ?? null,
       n_processed: fiducial?.n_processed ?? null,

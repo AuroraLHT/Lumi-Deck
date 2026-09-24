@@ -9,19 +9,23 @@ import useFiducialRolesStore from "../stores/fiducialRoles";
  * Keeps the backend's role -> marker assignments mirrored into the frontend.
  *
  * Mounted exactly once, by `LumiTransportProvider`, next to
- * `useFiducialMarkersSync`. Roles are the awkward case that hook does not have:
- * nothing about them rides the 2s heartbeat, so there is no free signal that
- * another client re-tagged something. Rather than poll a mapping that changes
- * once a week, this fetches on connect and again whenever the marker id list
- * moves -- drawing or removing a marker is what usually surrounds a re-tag --
- * and `useFiducialRoleControl` writes through for this client's own edits. A
- * role another operator set on an unchanged marker set therefore lands on the
- * next marker change or reconnect, which is the right trade for a mapping the
- * automation reads far more often than anyone writes it.
+ * `useFiducialMarkersSync`. The assignments ride the chamber node's 2s
+ * heartbeat (`FiducialState.roles`), so a re-tag by any client lands within a
+ * beat with no fetch. What the heartbeat does not carry is `known` -- the
+ * predefined roles -- which only changes when the backend is redeployed, so
+ * `list_roles()` is called once per connection for it (and for the initial
+ * mapping, so the menu is not blank until the first beat).
+ *
+ * The heartbeat is keyed as a sorted JSON string, not the object: the object
+ * is rebuilt every beat, and an object dep would rewrite the store forever.
  */
 export const useFiducialRolesSync = () => {
   const transport = useTransportStore((s) => s.transport);
-  const markerKey = useFiducialNodeStore((s) => s.state.marker_ids.join(","));
+  const beatKey = useFiducialNodeStore((s) =>
+    s.state.roles === null
+      ? null
+      : JSON.stringify(Object.entries(s.state.roles).sort(([a], [b]) => a.localeCompare(b)))
+  );
 
   useEffect(() => {
     if (!transport) {
@@ -30,8 +34,7 @@ export const useFiducialRolesSync = () => {
     }
 
     let cancelled = false;
-    const store = useFiducialRolesStore.getState();
-    if (store.lastSyncedAt === null) store.setLoading(true);
+    useFiducialRolesStore.getState().setLoading(true);
 
     new ChamberFiducialClient(transport)
       .list_roles()
@@ -49,7 +52,13 @@ export const useFiducialRolesSync = () => {
     return () => {
       cancelled = true;
     };
-  }, [transport, markerKey]);
+  }, [transport]);
+
+  useEffect(() => {
+    if (!transport || beatKey === null) return;
+    const store = useFiducialRolesStore.getState();
+    store.setRoles(Object.fromEntries(JSON.parse(beatKey)), store.known);
+  }, [transport, beatKey]);
 };
 
 /**
