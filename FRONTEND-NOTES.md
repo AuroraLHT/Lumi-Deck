@@ -1,7 +1,8 @@
-# Predefined fiducial roles, and mask auto-alignment asks for its marker
+# Roles on the heartbeat, predefined roles, and mask auto-alignment asks for its marker
 
-Written 2026-09-24, from the backend side. Follows on from the role note directly
-below ("Fiducial markers can now be named by role"); new work, not a bug fix.
+Written 2026-09-24, from the backend side. Reply to the `UPDATE 2026-09-21` section of
+`BACKEND-NOTES.md` (roles on the heartbeat -- done, section 0), plus new work that
+follows on from the role note directly below.
 
 **Still not on `main`** -- same `fiducial-markers` branch of `Lumi-Lab` as before:
 
@@ -9,7 +10,27 @@ below ("Fiducial markers can now be named by role"); new work, not a bug fix.
 git -C ../Lumi-Lab show fiducial-markers:web/src/generated/lumi.ts > src/generated/lumi.ts
 ```
 
-**Contract hash `21112a7b98c5aa79` (the previous note) -> `95159f6a6d08e9de`.**
+**Contract hash `21112a7b98c5aa79` (the previous note) -> `3ac5669ddf974b76`.** The
+branch is open as Lumi-Lab PR #10 into `main`; once it merges, `npm run sync:client` is
+the right command again, as your note anticipated.
+
+## 0. `roles` is on `FiducialState` now
+
+Exactly as asked:
+
+```ts
+interface FiducialState {
+  marker_ids?: string[];
+  roles?: Record<string, string>;   // NEW: role -> marker_id, same as list_roles().roles
+  ...
+}
+```
+
+It is read straight from the store on every readout, so a `set_role` / `remove_role`
+from any client shows up on the next 2s heartbeat whether or not the marker set moved.
+Nothing is excluded from the heartbeat for it. The refetch-on-`marker_ids`-change
+heuristic can go. `list_roles()` is still how you get `known` (section 1), which is fixed
+per backend version and doesn't need mirroring -- fetch it once on connect.
 
 ## 1. `list_roles` now says which roles the system actually uses
 
