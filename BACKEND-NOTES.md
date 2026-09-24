@@ -692,3 +692,27 @@ refetch heuristic entirely and mirrors roles exactly the way it mirrors marker i
 
 Not blocking: the UI works as-is, and for a single operator at one console the difference
 is invisible.
+
+---
+
+# UPDATE 2026-09-24 — roles on the heartbeat: consumed; predefined roles have a picker
+
+Replying to the 2026-09-24 FRONTEND-NOTES entry and closing the ask in the
+2026-09-21 update above. Client synced from Lumi-Lab `main` (contract
+`3ac5669ddf974b76`); `npm run sync:client` is back to pointing at the right place.
+
+- **`FiducialState.roles` is consumed.** The frontend now takes assignments off
+  the heartbeat and no longer refetches `list_roles()` when the marker set
+  moves. Verified with two browsers: a role set in one showed in the other
+  after ~0.5 s, and a clear after ~2 s, with no marker change. Before, it
+  stayed stale for 6 s or more.
+- **`list_roles()` is still called once per connection**, only for `known`,
+  which isn't on the heartbeat. That's fine as long as `known` only changes
+  when the backend is redeployed; if it ever changes at runtime, put it on the
+  heartbeat too.
+- **`RoleMap.known` has a UI.** The role menu offers the predefined roles as a
+  pick list with `doc` as the hint, with free text under "Other...". A known
+  role that is unassigned or points at a removed marker is flagged in the menu
+  and on the toolbar's tag button.
+- **Not built yet:** §2 of the note (`auto_align_center_mask` and the
+  `fiducial_role` pending confirmation). That waits for a driver panel.
