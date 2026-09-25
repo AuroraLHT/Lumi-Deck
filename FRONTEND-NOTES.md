@@ -1,3 +1,181 @@
+# Roles on the heartbeat, predefined roles, and mask auto-alignment asks for its marker
+
+Written 2026-09-24, from the backend side. Reply to the `UPDATE 2026-09-21` section of
+`BACKEND-NOTES.md` (roles on the heartbeat -- done, section 0), plus new work that
+follows on from the role note directly below.
+
+**Now on `main`** -- Lumi-Lab PR #10 merged (`33051c9`), so the usual command is right
+again:
+
+```bash
+npm run sync:client
+```
+
+**Contract hash `21112a7b98c5aa79` (the previous note) -> `3ac5669ddf974b76`.** Your
+checked-in client is at `95159f6a` (`cc80568`), one step behind.
+
+## 0. `roles` is on `FiducialState` now
+
+Exactly as asked:
+
+```ts
+interface FiducialState {
+  marker_ids?: string[];
+  roles?: Record<string, string>;   // NEW: role -> marker_id, same as list_roles().roles
+  ...
+}
+```
+
+It is read straight from the store on every readout, so a `set_role` / `remove_role`
+from any client shows up on the next 2s heartbeat whether or not the marker set moved.
+Nothing is excluded from the heartbeat for it. The refetch-on-`marker_ids`-change
+heuristic can go. `list_roles()` is still how you get `known` (section 1), which is fixed
+per backend version and doesn't need mirroring -- fetch it once on connect.
+
+## 1. `list_roles` now says which roles the system actually uses
+
+```ts
+interface RoleSpec { role: string; doc?: string; }
+interface RoleMap {
+  roles?: Record<string, string>;   // unchanged: role -> marker_id
+  known?: RoleSpec[];               // NEW: the predefined roles, assigned or not
+}
+```
+
+`known` is currently one entry:
+
+```ts
+{ role: "mask-center",
+  doc: "The sample's centre. Mask-centre auto-alignment sweeps Mask1 and centres the slit on this marker." }
+```
+
+Free-form roles still work exactly as before (`set_role` accepts any name) -- `known`
+is just the ones something in the backend reads. More will be added to the same list,
+so read it rather than hardcoding `"mask-center"`.
+
+**The ask:**
+- **Offer `known` roles as choices** in the tag action, so the operator picks
+  `mask-center` instead of typing it -- a typo there is a role nothing ever reads.
+  Show `doc` as the hint. Keep a free-text "other" for custom roles.
+- **Flag a known role that is unassigned, or assigned to a marker that no longer
+  exists** (a `roles` value with no matching `marker_id` in `list_markers`). Both mean
+  the automation that needs it can't run; see section 2 for what happens if it tries.
+
+## 2. New driver op: `auto_align_center_mask` -- and the `fiducial_role` prompt
+
+```ts
+// experiment.driver -- MUTATE, operator only. Long-running: returns a TaskAck.
+auto_align_center_mask(req: AutoAlignMaskCenter): Promise<TaskAck>
+
+interface AutoAlignMaskCenter {        // every field optional, defaults shown
+  half_window_mm?: number;   // 4.0   wide scan = center_mask_pos +- this
+  step_mm?: number;          // 0.5   wide scan step
+  max_passes?: number;       // 3     wide scan + finer re-scans of the slit
+  points_per_pass?: number;  // 15
+  tolerance_mm?: number;     // 0.02  stop once the centre moves less than this
+  frames_per_point?: number; // 2
+  min_contrast?: number;     // 5.0
+  apply?: boolean;           // true  false = report only, keep center_mask_pos
+  role_wait_timeout_s?: number; // 600  see below; 0 = fail at once
+}
+```
+
+It scans Mask1, watches the marker tagged `mask-center` on the chamber camera, finds
+the slit from the intensity-vs-position curve, refines it, sets `center_mask_pos`, and
+parks the mask there. The result arrives as the `TaskEvent.task_result` on the driver's
+`pending` update stream: `{ok: true, center, previous_center, converged, contrast,
+baseline, polarity, passes: [...], samples: [{pass_index, position, reading}, ...]}`
+(`MaskAlignResult` in `lumi.contracts.payloads.experiment`; it is not a named TS type,
+because the op itself only returns the TaskAck). `samples` is a ready-made
+intensity-vs-position plot, if you ever want one.
+
+**The part that needs UI:** if no marker is tagged `mask-center` (or it points at a
+deleted marker), the task does not fail. It opens a pending confirmation and waits:
+
+```ts
+state.pending_confirmation = {
+  id: "...", kind: "fiducial_role",
+  message: "no fiducial marker is tagged 'mask-center' -- tag the marker on the sample's centre with that role; mask auto-alignment continues once it is set",
+  requested_at: ...
+}
+```
+
+- It **resolves itself**: as soon as `chamber.fiducial.set_role({role: "mask-center",
+  marker_id})` lands (from anywhere), the confirmation clears and the scan starts.
+  There is nothing to "confirm" after tagging.
+- `confirm({confirmation_id})` on it **cancels** the alignment (task_result
+  `{ok: false, error: "...cancelled..."}`), so a "Cancel" button maps to `confirm`,
+  not a "Done" button.
+- After `role_wait_timeout_s` (default 600s) it gives up the same way and clears the
+  confirmation itself.
+
+Lumi-Deck doesn't have an experiment-driver panel yet, so no opinion on where this
+lives. The minimum useful version: when the driver's `pending_confirmation.kind ===
+"fiducial_role"`, show the message next to the camera with a shortcut into the marker
+tagging from section 1, plus a Cancel. A "Align mask" button that calls the op and
+shows `task_result.center` would be the natural next step, but that can wait for the
+driver panel.
+
+---
+
+# Fiducial markers can now be named by role — needs a UI to tag one
+
+Written 2026-09-21, from the backend side. Not a reply to anything in
+`BACKEND-NOTES.md`; new work, not a bug fix.
+
+**Not yet on `main`.** This is on the `fiducial-markers` branch of `Lumi-Lab`, which
+also carries the marker CRUD/stats capability your `feat/fiducial-markers-ui` branch
+is already building the overlay for. Grab the branch's contract rather than main's
+until it merges:
+
+```bash
+git -C ../Lumi-Lab show fiducial-markers:web/src/generated/lumi.ts > src/generated/lumi.ts
+```
+
+**Contract hash `a57b9852c04edaac` (current `main`) -> `21112a7b98c5aa79`.** (Your
+checked-in client is currently at `58f95c5a92b54f58`, further back still — you'll pick
+up whatever else landed on `main` since your branch forked, too.)
+
+## What is new: `chamber.fiducial` gets three more ops
+
+```ts
+interface RoleAssignment { role: string; marker_id: string; }
+interface RoleQuery { role: string; }
+interface RoleMap { roles?: Record<string, string>; }
+
+set_role(req: RoleAssignment): Promise<Ack>     // MUTATE — operator only
+remove_role(req: RoleQuery): Promise<Ack>       // MUTATE — operator only
+list_roles(): Promise<RoleMap>                  // READ — viewer ok
+```
+
+A role is a free-form name (`"sample_holder"`, `"mask_alignment_target"`, whatever the
+operator wants to call it) pinned to one `marker_id`. `set_role` replaces whatever that
+role previously pointed at; it does not require the marker to already exist, and
+removing or redrawing the marker does not clear the role — it just ends up pointing at
+nothing until someone re-points it or removes it. Persisted alongside the markers
+themselves (`cfg/chamber_fiducials.json`), so it survives a node restart same as they do.
+
+**The point:** the automated mask-finding step being built next needs to say "watch
+*the* sample-holder marker" without a hardcoded marker_id, and needs a way for an
+operator to say *which* marker that is, once, from the UI, rather than editing a
+config file. That's this.
+
+## The ask: let the operator tag a marker with a role
+
+Somewhere in the marker list/editor — a "tag" action per marker (assign it a role
+name, existing or new) is probably the natural fit, plus a way to see and clear
+existing role -> marker assignments (`list_roles`). No opinion from this side on the
+exact UI; a simple text input for the role name is enough to start, a role picker
+(sample_holder / mask_alignment_target / ... presets) can come later once there is
+more than one real consumer of them.
+
+One thing worth surfacing to the operator: if a role points at a marker_id that no
+longer exists (removed or never drawn), `list_roles` still returns it — the UI should
+probably flag that rather than silently drop it, since it usually means "someone
+needs to re-tag this."
+
+---
+
 # Storage: `n_frames` deleted, the recorder's counters locked, §4 is fixed
 
 Written 2026-08-02, from the backend side. Reply to the `UPDATE 2026-08-02` section

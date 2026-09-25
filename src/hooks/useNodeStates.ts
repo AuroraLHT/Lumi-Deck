@@ -2,6 +2,8 @@ import { useEffect } from "react";
 
 import {
   CameraState,
+  ExperimentState,
+  FiducialState,
   IntegratorState,
   MIModeState,
   NodeRecord,
@@ -17,6 +19,9 @@ import useSTFTNodeStore from "../stores/nodes/stft";
 import useIntegratorNodeStore from "../stores/nodes/integrator";
 import useStorageNodeStore from "../stores/nodes/storage";
 import useMIModeNodeStore from "../stores/nodes/miMode";
+import useFiducialNodeStore from "../stores/nodes/fiducial";
+import useExperimentDriverNodeStore from "../stores/nodes/experimentDriver";
+import { projectDriverState } from "./useExperimentDriverStream";
 
 /**
  * Feeds the per-node state stores from the SystemRegistry, replacing the old SSE
@@ -49,6 +54,8 @@ const useNodeStates = () => {
   const setIntegratorNodeState = useIntegratorNodeStore((s) => s.setState);
   const setStorageNodeState = useStorageNodeStore((s) => s.setState);
   const setMIModeNodeState = useMIModeNodeStore((s) => s.setState);
+  const setFiducialNodeState = useFiducialNodeStore((s) => s.setState);
+  const setExperimentDriverNodeState = useExperimentDriverNodeStore((s) => s.setState);
 
   useEffect(() => {
     const byEquipment = new Map<string, NodeRecord>();
@@ -65,6 +72,7 @@ const useNodeStates = () => {
     const chamber = byEquipment.get("chamber");
     const detection = byEquipment.get("detection");
     const storage = byEquipment.get("storage");
+    const experiment = byEquipment.get("experiment");
 
     const common = (node: NodeRecord | undefined, capability: string) => {
       const state = capabilityState(node, capability);
@@ -105,6 +113,19 @@ const useNodeStates = () => {
     setChamberLogNodeState(common(chamber, "log"));
     setDetectorNodeState(common(detection, "detection"));
 
+    // Marker ids ride the heartbeat the same way registered_bboxes does -- see
+    // `useFiducialMarkers` for the fetch this id list triggers. Roles ride it
+    // too, whole, so they need no fetch (`useFiducialRolesSync`).
+    const fiducial = capabilityState(chamber, "fiducial") as FiducialState | undefined;
+    setFiducialNodeState({
+      ...common(chamber, "fiducial"),
+      marker_ids: fiducial?.marker_ids ?? [],
+      roles: fiducial?.roles ?? null,
+      frame_width: fiducial?.frame_width ?? null,
+      frame_height: fiducial?.frame_height ?? null,
+      n_processed: fiducial?.n_processed ?? null,
+    });
+
     // MI mode is what the chamber is *doing*: which script it is executing and
     // how many are still queued behind it. Written out field by field rather
     // than spread from `common` because mi_mode is PUBSUB -- its update loop is
@@ -132,6 +153,13 @@ const useNodeStates = () => {
       path: storageState?.path ?? null,
       deps_available: storageState?.deps_available ?? {},
     });
+
+    // The whole driver state rides the heartbeat, open gates and running task
+    // included -- `useExperimentDriverStream` only makes it arrive sooner.
+    setExperimentDriverNodeState({
+      is_available: experiment?.status === "up",
+      ...projectDriverState(capabilityState(experiment, "driver") as ExperimentState | undefined),
+    });
   }, [
     nodes,
     setRHEEDNodeState,
@@ -142,6 +170,8 @@ const useNodeStates = () => {
     setIntegratorNodeState,
     setStorageNodeState,
     setMIModeNodeState,
+    setExperimentDriverNodeState,
+    setFiducialNodeState,
   ]);
 };
 

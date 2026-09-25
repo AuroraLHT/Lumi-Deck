@@ -643,3 +643,165 @@ None of these break a build, they are just wrong now:
 - `BACKEND-NOTES.md:5` — the "Backend probed" header at the top of this file still
   names the worktree path it was written against. Leaving it as a historical record
   is fine; just do not copy the path out of it.
+
+---
+
+# UPDATE 2026-09-21 — fiducial roles have a UI; one request to put them on the heartbeat
+
+Reply to "Fiducial markers can now be named by role" in `FRONTEND-NOTES.md`.
+**Contract taken: `21112a7b98c5aa79`**, from `fiducial-markers` rather than `main`, as
+that note instructs. `package.json`'s `sync:client` still points at `main` on purpose —
+running it right now would *downgrade* the checked-in client. Once the branch merges it
+becomes the correct command again and this note is the reminder to re-run it.
+
+## What shipped (branch `feat/fiducial-markers-ui`)
+
+An operator can tag a marker from the Chamber Camera toolbar: the tag icon opens a role
+menu listing every `role -> marker_id`, with a name field (existing names offered back as
+completions) and a marker picker that follows whichever marker is selected in the
+toolbar. Assigning an existing name re-points it — the button says "Re-assign" so nobody
+is surprised by that. Any roles pinned to a marker also ride along on the marker's tag
+in the toolbar, since "sample_holder" is what an operator recognises a week later and
+"marker-34" is not.
+
+Dangling roles are flagged, as you suggested: the frontend is the only side that knows
+which ids currently exist, so a role whose marker is not in `marker_ids` is drawn in the
+warning colour with a "re-assign or clear" line rather than dropped. The picker only
+offers existing markers, so the UI cannot create a dangling role — only outliving a
+marker can.
+
+Verified against `start_simulation.sh --with-auth`: assign, re-point, tag display,
+dangling flag after removing the tagged marker, and clear, each confirmed in
+`cfg/chamber_fiducials.json`.
+
+## The one thing worth changing: roles do not ride the heartbeat
+
+`marker_ids` is on `FiducialState`, so a marker another client draws or removes shows up
+within 2s for free. Roles have no equivalent — nothing on the wire says a role moved, and
+`list_roles()` is the only way to find out. The frontend currently refetches on connect
+and whenever `marker_ids` changes, on the grounds that re-tagging usually happens around
+drawing. It is a guess, and it is wrong whenever someone re-points a role without
+touching the marker set: a second operator's console keeps showing the old assignment
+until its marker list moves or the page reconnects.
+
+**Ask: add `roles?: Record<string, string>` to `FiducialState`.** It is the same shape and
+the same argument as `marker_ids` — a handful of short strings that change roughly never,
+so it costs nothing per heartbeat and does not turn the registry into an event pump the
+way a per-frame counter would (§2 of the 2026-08-02 note). With it the frontend drops the
+refetch heuristic entirely and mirrors roles exactly the way it mirrors marker ids.
+
+Not blocking: the UI works as-is, and for a single operator at one console the difference
+is invisible.
+
+---
+
+# UPDATE 2026-09-24 — roles on the heartbeat: consumed; predefined roles have a picker
+
+Replying to the 2026-09-24 FRONTEND-NOTES entry and closing the ask in the
+2026-09-21 update above. Client synced from Lumi-Lab `main` (contract
+`3ac5669ddf974b76`); `npm run sync:client` is back to pointing at the right place.
+
+- **`FiducialState.roles` is consumed.** The frontend now takes assignments off
+  the heartbeat and no longer refetches `list_roles()` when the marker set
+  moves. Verified with two browsers: a role set in one showed in the other
+  after ~0.5 s, and a clear after ~2 s, with no marker change. Before, it
+  stayed stale for 6 s or more.
+- **`list_roles()` is still called once per connection**, only for `known`,
+  which isn't on the heartbeat. That's fine as long as `known` only changes
+  when the backend is redeployed; if it ever changes at runtime, put it on the
+  heartbeat too.
+- **`RoleMap.known` has a UI.** The role menu offers the predefined roles as a
+  pick list with `doc` as the hint, with free text under "Other...". A known
+  role that is unassigned or points at a removed marker is flagged in the menu
+  and on the toolbar's tag button.
+- **Not built yet:** §2 of the note (`auto_align_center_mask` and the
+  `fiducial_role` pending confirmation). That waits for a driver panel.
+
+---
+
+# UPDATE 2026-09-24 — experiment driver panel: three small asks for mask centering, and one wire quirk
+
+Lumi-Deck now has an **Experiment Driver** panel. It shows the driver state, answers
+every pending-confirmation kind (`fiducial_role`, `mask_center_check`,
+`mask_center_alignment`, `rheed_gain`, `pixel_check`, `laser_power`), runs
+`auto_align_center_mask` and plots its `samples`, and has start buttons for the four
+`begin_*` checks. Verified live on the sim: a report-only align converged at 97.207 mm
+against `center_mask_pos` 100.0; the `fiducial_role` prompt appeared 0.26 s after the
+start, "Cancel alignment" (`confirm`) ended the task with the cancelled error, and
+tagging from the prompt let the task continue on its own.
+
+Three asks, all around `center_mask_pos`. Each one is small and none blocks what has
+shipped.
+
+## 1. Let the operator choose where the auto-align scan is centred
+
+`auto_align_center_mask` always scans `center_mask_pos ± half_window_mm`. When the
+current calibration is well off (a new mask, a remount), the slit can fall outside the
+window, and the only way to recover is to widen the window, which makes the scan slower.
+
+**Ask:** an optional field on `AutoAlignMaskCenter`:
+
+```python
+center_mm: float | None = None   # scan centre; None = center_mask_pos, as now
+```
+
+`start = (req.center_mm if req.center_mm is not None else previous) - half_window_mm`.
+`previous_center` in the result should stay the calibration it replaces, not the scan
+centre. The panel will show this as an optional "Scan around" field, placeholder = the
+current calibration.
+
+## 2. Put `center_mask_pos` on `ExperimentState`
+
+```python
+center_mask_pos: float | None = None
+```
+
+Then the panel can show the calibration, show the scan range before Start
+("95.0 – 105.0 mm"), and prefill #1, with no extra call. It changes rarely, so it
+costs nothing on the heartbeat.
+
+## 3. A direct way to set it: `set_center_mask_pos`
+
+Today `center_mask_pos` can only change through auto-align with `apply=true`,
+`confirm_center_mask` (needs `begin_align_center_mask` first, which zeroes the RHEED gun
+X and moves the mask), or `confirm_mask_center(aligned=false, ...)` (retracts and moves
+the mask). So a report-only result (`apply=false`) cannot be applied afterwards without
+moving hardware just to store a number.
+
+**Ask:** a MUTATE op that only sets the value:
+
+```python
+async def set_center_mask_pos(self, req: MoveTo) -> Ack:   # or a new CenterMaskPos {position}
+    self.manager.pld_config.center_mask_pos = req.position
+    return Ack()
+```
+
+Journal it like the other steps, since it changes the calibration. The panel will put
+an "Apply 97.219 mm" button on every report-only result.
+
+**Related question:** as far as I can see, `center_mask_pos` is held in memory only.
+`pld_config` comes from `settings.experiment.pld_config` at startup, and I found no
+write-back. If so, a calibration set by any of these paths is lost when the node
+restarts. Intended? If not, #3 is the natural place to persist it.
+
+## Wire quirk worth knowing: `TaskEvent` pushes carry every field
+
+`_push(**fields)` builds `TaskEvent(**fields)`, and it is published with a plain
+`model_dump_json()`. So a push that only means "the task finished"
+(`current_task=None, task_result=...`) also carries `pending_confirmation: null`,
+which looks the same as "the gate was cleared". The frontend now treats each event as a
+nudge: it keeps `task_result` and re-reads `getState()` for the gate and task. Other
+clients (the MCP server, notebooks) may not. Either
+`model_dump_json(exclude_unset=True)` on this channel or a doc line on `TaskEvent`
+would make it unambiguous.
+
+**Follow-up, same day — all of the above is consumed** (contract `d886275865bf2ea5`, from
+Lumi-Lab's `driver-center-mask-ux` working tree; not on `main` yet). The panel now has a
+"Scan around" field (`center_mm`; blank = calibration) and a line showing the calibration and
+the exact scan range, taken from `center_mask_pos` on the heartbeat. A report-only result
+gets an "Apply <center> mm" button (`set_center_mask_pos`). Events are applied as snapshots,
+and results are attributed through `finished_task`; the `getState()` after every event is gone.
+The generated `MaskAlignResult` types replace the frontend's hand copy. Verified live:
+scan 95–99 mm around 97 converged at 97.214; Apply moved the calibration from 100.0 to
+97.214 without moving the mask; an auto-applied run showed "the current calibration" and
+no button. The sim's calibration was put back to 100.0 afterwards (now saved in growth.db).

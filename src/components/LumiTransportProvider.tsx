@@ -7,12 +7,16 @@ import useChamberLogStream from "../hooks/useChamberLogStream";
 import useAnalysisStreams from "../hooks/useAnalysisStreams";
 import useDetectionStream from "../hooks/useDetectionStream";
 import useMiModeStream from "../hooks/useMiModeStream";
+import useExperimentDriverStream from "../hooks/useExperimentDriverStream";
 import useNodeStates from "../hooks/useNodeStates";
 import useSystemRegistryStream from "../hooks/useSystemRegistryStream";
 import {
   useBackendBoxReconciliation,
   useRegisteredBoxesSync,
 } from "../hooks/useRegisteredBoxes";
+import { useFiducialMarkersSync } from "../hooks/useFiducialMarkers";
+import { useFiducialRolesSync } from "../hooks/useFiducialRoles";
+import useFiducialStats from "../hooks/useFiducialStats";
 
 /**
  * Connects the shared LumiTransport to the refactored backend bridge for the
@@ -38,12 +42,21 @@ const LumiTransportProvider = ({ children }: { children: ReactNode }) => {
   // execution the moment it finishes, so a COMPLETED that nobody was listening
   // for is gone for good.
   useMiModeStream();
+  // Same reason: a driver task's result is broadcast once and never queryable.
+  useExperimentDriverStream();
   // Order matters: useNodeStates fills the registered id lists from the
   // heartbeat, the sync hook fetches the matching geometry, and reconciliation
   // reads both. Within a render they all see the previous commit's stores, so
   // this only costs a tick -- but reading them in the other order would.
   useRegisteredBoxesSync();
   useBackendBoxReconciliation();
+  // Same ordering note as the boxes above: useNodeStates fills marker_ids from
+  // the heartbeat first, then this fetches the matching shapes.
+  useFiducialMarkersSync();
+  // Roles come off the same heartbeat; this adds the predefined-role list,
+  // which only `list_roles()` carries.
+  useFiducialRolesSync();
+  useFiducialStats();
 
   useEffect(() => {
     // No host or session yet: nothing to connect to. withAuthToken reads the

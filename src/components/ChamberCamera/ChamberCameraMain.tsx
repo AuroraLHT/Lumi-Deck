@@ -14,6 +14,10 @@ import { LuCamera, LuCameraOff, LuRefreshCw } from "react-icons/lu";
 
 import useAppStore from "../../stores/app";
 import useChamberCamera from "../../hooks/useChamberCamera";
+import useFiducialNodeStore from "../../stores/nodes/fiducial";
+import useFiducialMarkers from "../../hooks/useFiducialMarkers";
+import FiducialToolbar from "./FiducialToolbar";
+import FiducialMarkerOverlay from "../Drawing/FiducialMarkerOverlay";
 
 /**
  * Live view of the chamber webcam.
@@ -22,6 +26,12 @@ import useChamberCamera from "../../hooks/useChamberCamera";
  * blitted onto a canvas by `useChamberCamera` -- see there for why this cannot
  * be an <img>. Pausing unsubscribes, which is what actually stops the bytes;
  * the capability itself keeps running for other viewers.
+ *
+ * `chamber.fiducial`'s markers are drawn over the same canvas
+ * (`FiducialMarkerOverlay`), scaled against `frame_width`/`frame_height` from
+ * `stores/nodes/fiducial.ts` -- that worker measures the same camera frames
+ * this canvas draws, in the same pixel space, independently of whether the
+ * viewer has paused this canvas or started the fiducial stats stream.
  */
 const ChamberCameraMain = () => {
   const host = useAppStore((s) => s.selectedHost);
@@ -32,6 +42,10 @@ const ChamberCameraMain = () => {
 
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const { state } = useChamberCamera(canvasRef, streaming);
+
+  const { markers } = useFiducialMarkers();
+  const frameWidth = useFiducialNodeStore((s) => s.state.frame_width);
+  const frameHeight = useFiducialNodeStore((s) => s.state.frame_height);
 
   const retry = () => {
     setStreaming(false);
@@ -97,6 +111,8 @@ const ChamberCameraMain = () => {
         </HStack>
       </HStack>
 
+      <FiducialToolbar markers={markers} />
+
       <Box
         flex="1"
         minH="0"
@@ -106,6 +122,11 @@ const ChamberCameraMain = () => {
         bg="black"
         // A webcam frame is 4:3; without this the panel body collapses to zero
         // height before the first frame arrives and the image never shows.
+        // It only fills in that missing dimension -- once the dashboard grid
+        // has sized the panel, both dimensions are fixed and this does
+        // nothing. Nothing depends on it matching the real frame: the canvas
+        // letterboxes via objectFit and FiducialMarkerOverlay's viewBox
+        // letterboxes identically, whatever box they are handed.
         sx={{ aspectRatio: "4 / 3" }}
       >
         <canvas
@@ -119,6 +140,14 @@ const ChamberCameraMain = () => {
             display: streaming ? "block" : "none",
           }}
         />
+
+        {streaming && frameWidth != null && frameHeight != null && (
+          <FiducialMarkerOverlay
+            markers={markers}
+            frameWidth={frameWidth}
+            frameHeight={frameHeight}
+          />
+        )}
 
         {state === "connecting" && (
           <Center position="absolute" inset={0} bg="blackAlpha.600">
