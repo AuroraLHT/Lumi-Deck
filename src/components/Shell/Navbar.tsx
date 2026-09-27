@@ -20,6 +20,8 @@ import {
   useDisclosure,
 } from "@chakra-ui/react";
 import {
+  LuHistory,
+  LuLayoutDashboard,
   LuLayoutGrid,
   LuLock,
   LuMoon,
@@ -29,7 +31,7 @@ import {
   LuUnlock,
   LuUserCog,
 } from "react-icons/lu";
-import { useNavigate } from "react-router-dom";
+import { NavLink, useLocation, useNavigate } from "react-router-dom";
 
 import { logout } from "../../clients/auth";
 import AccountModal from "../Account/AccountModal";
@@ -74,8 +76,37 @@ const SyncIndicator = ({ status }: { status: SyncStatus }) => {
   );
 };
 
+const PAGES = [
+  { to: "/", label: "Dashboard", icon: LuLayoutDashboard },
+  { to: "/history", label: "History", icon: LuHistory },
+];
+
+const PageLinks = () => (
+  <HStack as="nav" spacing={1} aria-label="Pages">
+    {PAGES.map((page) => (
+      <Button
+        key={page.to}
+        as={NavLink}
+        to={page.to}
+        end
+        size="sm"
+        variant="panelGhost"
+        leftIcon={<Icon as={page.icon} />}
+        px={2}
+        // NavLink sets aria-current="page" on the active one.
+        _activeLink={{ color: "accent.solid", bg: "accent.subtle" }}
+      >
+        <Text as="span" display={{ base: "none", md: "inline" }}>
+          {page.label}
+        </Text>
+      </Button>
+    ))}
+  </HStack>
+);
+
 const Navbar = ({ syncStatus }: NavbarProps) => {
   const navigate = useNavigate();
+  const onDashboard = useLocation().pathname === "/";
   const { colorMode, toggleColorMode } = useColorMode();
   const account = useDisclosure();
 
@@ -138,68 +169,74 @@ const Navbar = ({ syncStatus }: NavbarProps) => {
             </option>
           ))}
         </Select>
+
+        <PageLinks />
       </HStack>
 
-      {/* Dashboard controls */}
       <HStack spacing={1}>
-        <SyncIndicator status={syncStatus} />
+        {/* Dashboard controls -- they act on the grid, so only where it is. */}
+        {onDashboard && (
+          <>
+            <SyncIndicator status={syncStatus} />
 
-        <Menu>
-          <Tooltip label="Add panel" openDelay={400}>
-            <MenuButton
-              as={IconButton}
-              aria-label="Add panel"
-              icon={<Icon as={LuPlus} />}
-              size="sm"
-              variant="panelGhost"
-            />
-          </Tooltip>
-          <MenuList>
-            <Text px={3} py={1} fontSize="xs" color="text.muted">
-              Add a panel
-            </Text>
-            <MenuDivider />
-            {PANEL_TYPES.map((type) => {
-              const definition = PANEL_REGISTRY[type];
-              return (
-                <MenuItem key={type} onClick={() => addPanel(type)}>
-                  <Box>
-                    <Text fontSize="sm" fontWeight="600">
-                      {definition.title}
-                    </Text>
-                    <Text fontSize="xs" color="text.muted">
-                      {definition.description}
-                    </Text>
-                  </Box>
-                </MenuItem>
-              );
-            })}
-          </MenuList>
-        </Menu>
+            <Menu>
+              <Tooltip label="Add panel" openDelay={400}>
+                <MenuButton
+                  as={IconButton}
+                  aria-label="Add panel"
+                  icon={<Icon as={LuPlus} />}
+                  size="sm"
+                  variant="panelGhost"
+                />
+              </Tooltip>
+              <MenuList>
+                <Text px={3} py={1} fontSize="xs" color="text.muted">
+                  Add a panel
+                </Text>
+                <MenuDivider />
+                {PANEL_TYPES.map((type) => {
+                  const definition = PANEL_REGISTRY[type];
+                  return (
+                    <MenuItem key={type} onClick={() => addPanel(type)}>
+                      <Box>
+                        <Text fontSize="sm" fontWeight="600">
+                          {definition.title}
+                        </Text>
+                        <Text fontSize="xs" color="text.muted">
+                          {definition.description}
+                        </Text>
+                      </Box>
+                    </MenuItem>
+                  );
+                })}
+              </MenuList>
+            </Menu>
 
-        <Tooltip
-          label={locked ? "Unlock layout" : "Lock layout"}
-          openDelay={400}
-        >
-          <IconButton
-            aria-label={locked ? "Unlock layout" : "Lock layout"}
-            icon={<Icon as={locked ? LuLock : LuUnlock} />}
-            size="sm"
-            variant="panelGhost"
-            color={locked ? "accent.solid" : undefined}
-            onClick={() => setLocked(!locked)}
-          />
-        </Tooltip>
+            <Tooltip
+              label={locked ? "Unlock layout" : "Lock layout"}
+              openDelay={400}
+            >
+              <IconButton
+                aria-label={locked ? "Unlock layout" : "Lock layout"}
+                icon={<Icon as={locked ? LuLock : LuUnlock} />}
+                size="sm"
+                variant="panelGhost"
+                color={locked ? "accent.solid" : undefined}
+                onClick={() => setLocked(!locked)}
+              />
+            </Tooltip>
 
-        <Tooltip label="Reset layout" openDelay={400}>
-          <IconButton
-            aria-label="Reset layout"
-            icon={<Icon as={LuRotateCcw} />}
-            size="sm"
-            variant="panelGhost"
-            onClick={resetToDefaults}
-          />
-        </Tooltip>
+            <Tooltip label="Reset layout" openDelay={400}>
+              <IconButton
+                aria-label="Reset layout"
+                icon={<Icon as={LuRotateCcw} />}
+                size="sm"
+                variant="panelGhost"
+                onClick={resetToDefaults}
+              />
+            </Tooltip>
+          </>
+        )}
 
         <Tooltip
           label={colorMode === "dark" ? "Light mode" : "Dark mode"}

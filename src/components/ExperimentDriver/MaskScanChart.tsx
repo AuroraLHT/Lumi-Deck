@@ -3,16 +3,9 @@ import { Box, useColorMode } from "@chakra-ui/react";
 import { ResponsiveLine, Serie } from "@nivo/line";
 
 import useNivoTheme from "../Plotting/nivoTheme";
+import useSeriesPalette from "../Plotting/seriesPalette";
+import { xMarker } from "../Plotting/nivoHelpers";
 import { MaskAlignResult } from "../../generated/lumi";
-
-// Categorical, fixed order: pass 1 is always blue, pass 2 always orange, so a
-// re-run with fewer passes does not repaint the survivors. Validated against
-// the panel surfaces (light white, dark ink.850); the light-mode aqua/yellow
-// sit under 3:1, which the legend and the pass list beside the chart cover.
-const PASS_COLORS = {
-  light: ["#2a78d6", "#eb6834", "#1baf7a", "#eda100"],
-  dark: ["#3987e5", "#d95926", "#199e70", "#c98500"],
-};
 
 /**
  * Intensity at the `mask-center` marker against Mask1 position, one line per
@@ -24,7 +17,9 @@ const PASS_COLORS = {
 const MaskScanChart = ({ result }: { result: MaskAlignResult }) => {
   const theme = useNivoTheme();
   const { colorMode } = useColorMode();
-  const palette = PASS_COLORS[colorMode === "dark" ? "dark" : "light"];
+  // By pass, in fixed order: a re-run with fewer passes keeps its colours. The
+  // legend and the pass list beside the chart carry identity, not colour alone.
+  const palette = useSeriesPalette();
 
   const data: Serie[] = useMemo(() => {
     const byPass = new Map<number, { x: number; y: number }[]>();
@@ -85,11 +80,11 @@ const MaskScanChart = ({ result }: { result: MaskAlignResult }) => {
           </Box>
         )}
         markers={[
-          {
-            axis: "x",
-            value: result.center,
-            lineStyle: { stroke: theme.axis.ticks.text.fill, strokeWidth: 1, strokeDasharray: "4 3" },
-          },
+          xMarker(result.center, {
+            stroke: theme.axis.ticks.text.fill,
+            strokeWidth: 1,
+            strokeDasharray: "4 3",
+          }),
         ]}
         legends={
           data.length > 1

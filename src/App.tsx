@@ -1,17 +1,17 @@
 import { Box } from "@chakra-ui/react";
+import { Outlet } from "react-router-dom";
 
 import LumiTransportProvider from "./components/LumiTransportProvider";
-import DashboardGrid from "./components/Dashboard/DashboardGrid";
 import Navbar from "./components/Shell/Navbar";
 import useSettingsSync from "./hooks/useSettingsSync";
 
 /**
- * The dashboard shell.
+ * The app shell: navbar, transport and settings sync, around whichever page
+ * the route picks -- the dashboard grid or the history browser.
  *
- * The layout is no longer hard-coded here: panels are placed by the user and
- * persisted per-account (see stores/dashboard.ts and hooks/useSettingsSync.ts).
- * This component only wires the transport, the settings sync and the grid
- * together.
+ * Both pages share the one transport, so switching between them neither
+ * reconnects nor drops the app-wide streams (driver task results, mi_mode)
+ * that `LumiTransportProvider` keeps alive.
  */
 function App() {
   const { status: syncStatus } = useSettingsSync();
@@ -22,7 +22,7 @@ function App() {
 
       <LumiTransportProvider>
         <Box px={{ base: 2, md: 3 }} py={3}>
-          <DashboardGrid />
+          <Outlet />
         </Box>
       </LumiTransportProvider>
     </Box>
