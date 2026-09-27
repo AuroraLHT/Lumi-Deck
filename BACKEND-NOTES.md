@@ -805,3 +805,179 @@ The generated `MaskAlignResult` types replace the frontend's hand copy. Verified
 scan 95–99 mm around 97 converged at 97.214; Apply moved the calibration from 100.0 to
 97.214 without moving the mask; an auto-applied run showed "the current calibration" and
 no button. The sim's calibration was put back to 100.0 afterwards (now saved in growth.db).
+
+---
+
+# UPDATE 2026-09-26 — growth history has a page; two things to fix on the backend side
+
+(Both fixed in `615d637` -- see the 2026-09-27 update below.)
+
+Consumed Lumi-Lab `85eea96` (branch `growth-history-read`, contract `4c4ce3bd6ca25bbb`,
+**not on `main` yet**, so taken from the branch rather than via `npm run sync:client`; re-run
+the sync after the merge, which should show no diff).
+
+## What shipped (branch `feat/history-page`)
+
+A `/history` route beside the dashboard (shared shell, one transport). Sample list on the
+left (`list_samples`, filtered by substrate / state / search, grouped under
+`list_substrates` names); per sample, four tabs:
+
+- **Overview** -- `get_sample` layers, each joined to its `perform_deposition` step's params
+  (temperature, pressure, rate, target), plus `list_measurements`; `sample.notes` shown as a
+  warning (e.g. the aborted deposition).
+- **Process** -- `sample_history(sample_id, order="asc")`, split into working sessions at
+  gaps over an hour, each step expandable to its params / result.
+- **RHEED** -- the recordings named by each `start_storage` step's `result.storage_name`;
+  `recording_info` -> frame scrubber over `recording_frame_jpeg` with the integration boxes
+  drawn on it, and `recording_integration` as the oscillation curves (click to seek).
+- **Chamber log** -- `log_window(since, until)` over one session (±2 min), six small
+  multiples from `DEFAULT_LOG_COLUMNS`, depositions marked.
+
+Verified live against the seeded simulator.
+
+## 1. Codegen bug: `list[float | str | None]` loses its parentheses in TypeScript
+
+```ts
+columns?: Record<string, number | string | null[]>;   // generated, LogSeries + RecordingLog
+columns?: Record<string, (number | string | null)[]>; // what the wire carries
+```
+
+As generated, `columns["Mask1"]` types as a scalar-or-array-of-null. The frontend restates
+the type locally for now (`ChamberLogHistory.tsx`). The TS emitter should parenthesise a union
+before appending `[]`. Any other `list[A | B]` field is affected the same way.
+
+## 2. `log_window` interleaves overlapping log files
+
+For a window crossing two seeded files that overlap in time --
+
+```
+chamber_log_20260924_110046.csv   15:00:46Z – 16:26:18Z
+chamber_log_20260924_122033.csv   16:20:33Z – 17:11:42Z
+```
+
+-- the six overlapping minutes come back merged by time, alternating row by row between the
+two sessions (MFC1 12.2 / 0.0, Mask1 95 / 0 ...). Charted, that is a solid block. Two
+separate questions:
+
+- **The seeder**: one session's cool-down tail runs past the next session's start. PASCAL
+  writes one file at a time, so real logs should not overlap; the seed probably should not
+  either.
+- **`log_window`**: if overlaps can happen on a real instrument (clock change, a file
+  copied in), merging silently hides it. Preferring the later file for the overlap, or
+  saying so in the reply (e.g. an `overlap: true` / per-row file index), would let a UI flag it.
+  The frontend cannot tell today: rows carry no file.
+
+## Not an ask, just noting
+
+The sample -> recording link is implicit: it relies on `start_storage` putting
+`storage_name` in `result`. Fine for now; if `record` rows ever carry `sample_id`,
+`list_records(sample_id=...)` would be the sturdier path.
+
+---
+
+# UPDATE 2026-09-27 — measurements: view and entry form built, checked live
+
+Consumed `measurement-data` @ `84d903c` (contract `72ecc45c4bf41d2d`, stacked on
+`growth-history-read`; neither on `main` yet -- client taken from the branch). Checked
+against a restarted sim stack on that commit, through the bridge, from the browser.
+
+## Also consumed from `615d637`
+
+- `LogSeries.columns` is `(number | string | null)[]` now; the frontend's local restatement is
+  gone. Thanks.
+- `files` / `file_index` / `overlap`: on an overlap the Chamber log tab warns and plots one file
+  (default: the one with most rows in the window, pickable).
+
+## What shipped
+
+A **Measurements** tab (Overview keeps the layer stack only):
+
+- one card per measurement: kind, value, source, detail, `conditions`; each series from
+  `get_measurement` charted (y columns grouped by unit, one chart per unit;
+  `meta.log_scale` honoured); files listed with role / size / type; `image/*` inline,
+  everything else a download under `file_name`;
+- **Add measurement** (operator/admin): kind (free text, known kinds suggested), optional
+  value, key/value details, source; curves parsed in the browser from delimited text
+  (header row `name (unit)`, x first, any number of y; bad rows are an error, not skipped),
+  original kept as `raw` by default; a drop zone with a role per file. Saving is
+  `add_measurement`, then one `attach_measurement_file` per file. If an upload fails, the
+  form stays open and **Retry** sends only the failed files to the same measurement,
+  never a second copy;
+- per card: **Attach files**, and **Remove** for a file or the measurement
+  (`retire_*`), each with an Undo toast;
+- files over 15 MiB and curves over 200k values are refused in the form before anything is sent.
+
+## Your checklist
+
+- **(a) curves render from `get_measurement`** -- yes: `2theta-omega` (log),
+  `rocking curve`, `line profile`, `R(T)` on STO-LSMO-01-p0.
+- **(b) the PNG shows inline via `measurement_file`** -- yes, `s18_topo_5um.png` at 256x256.
+- **(c) upload round-trip** -- yes. Measurement 36 (`claude_live_check`), with a parsed curve,
+  the original CSV and a 300 kB random `.bin`. The reply's sha256 equals the browser's own
+  SHA-256 of the bytes it sent. The form checks this on every upload and flags a mismatch;
+  it is skipped where WebCrypto is unavailable (plain http off localhost). Downloading the
+  `.bin` back gave identical bytes. A seeded `.raw` downloads with its stored sha256.
+  Measurement 36 was retired afterwards; its two files are still `active` rows under a
+  retired measurement.
+- **(d) over 15 MiB is refused cleanly** -- yes at 15.5 MiB: `[ValueError] the file is
+  16252928 bytes; the limit is 15728640 (experiment.measurement_file_max_bytes)`, in 254 ms.
+  **But not at 17 MiB** -- see 1.
+
+## 1. An upload over 16 MiB hangs the caller instead of failing
+
+A 17 MiB `attach_measurement_file` frame never reaches the handler; nothing is in
+api.log or experiment.log. The bridge drops the websocket (close **1006**, no close frame --
+seen from a raw `WebSocket`, not the generated client). Then:
+
+- the generated `LumiTransport` does not reject pending RPCs when its socket closes, so
+  the call waits out the full timeout (10 s by default; 30 s in my test) and reports
+  "timed out", not "too large";
+- in the app, the transport store sees the close and reconnects, and every stream
+  re-subscribes, for one oversized request.
+
+The form never sends past 15 MiB, so the UI cannot hit this. Other clients (notebooks, a
+future uploader) can. Asks, in order of value:
+(i) reject every pending RPC with a clear error on `ws.onclose` in the generated transport;
+(ii) have the bridge answer an oversized frame with an error reply (or close 1009 with a
+reason) rather than dropping the socket.
+
+## 2. Per-call timeout for uploads
+
+`LumiTransport`'s timeout is per transport (constructor, 10 s), and uploads share the app's
+one transport. 15 MiB on localhost took well under a second, but over a slow link it may not.
+An optional per-call timeout on `callWithPayload` (and so on the generated upload ops) would
+let the upload path wait longer without slowing every other call's failure.
+
+## Generated types
+
+No problems this time. `MeasurementSeries`, `SeriesAxis`, `MeasurementFileInfo`,
+`AttachMeasurementFile` and the `Response<MeasurementFileInfo>` download all typed cleanly.
+One nit: `media_type` is required on `MeasurementFileInfo` but optional on the request.
+That's correct, just worth a doc line that the server always fills it.
+
+## A frontend fix you may see elsewhere
+
+nivo's log scale with `min/max: "auto"` draws **upside down** (the XRD Bragg peak rendered
+as a dip; the pressure chart from the 09-26 note was inverted too). Both charts now use
+explicit decade bounds and ticks. Mentioned only in case a screenshot from before this
+reached anyone.
+
+**Follow-up, same night — the upload asks are done (`db17c68`) and verified.** Client re-synced
+(contract hash unchanged, `72ecc45c`). Uploads now pass `{ timeoutMs }` scaled to size (10 s +
+2 s per MB). After the api-node restart, through the bridge from the browser:
+
+| size | answer | time | same socket after |
+|---|---|---|---|
+| 15.5 MiB | `[ValueError]` from the experiment node, names the limit | 845 ms | works |
+| 17 MiB | `[PayloadTooLarge]`, names op, size, limit | 312 ms | works |
+| 40 MiB | `[PayloadTooLarge]` | 493 ms | works |
+| 70 MiB | `bridge websocket closed (code 1009: ...)`, pending call rejected at once | 911 ms | closed, as expected |
+
+One small gap left: a call made **after** the socket closed still waits its whole timeout
+(30 s in the test). `WebSocket.send` on a closed socket is a silent no-op, so `rpc()` queues a
+reply that cannot come. Checking `ws.readyState !== WebSocket.OPEN` in `rpc()` and rejecting
+straight away would close it. It is not reachable from the app, whose transport store swaps in
+a fresh transport on close.
+
+**Closed too (`7f5639a`):** re-synced. A call on a closed socket now fails in 0 ms with
+`experiment.driver.state: bridge websocket is not open (readyState 3)`, checked in the browser.
