@@ -7,10 +7,14 @@ import { ReactQueryDevtools } from "@tanstack/react-query-devtools";
 
 import theme from "./theme.ts";
 import App from "./App.tsx";
+import DashboardGrid from "./components/Dashboard/DashboardGrid.tsx";
+import HistoryPage from "./components/History/HistoryPage.tsx";
 import LoginPage from "./components/Auth/LoginPage.tsx";
 import ProtectedRoute from "./components/Auth/ProtectedRoute.tsx";
+import { revokeEvictedBlobs } from "./hooks/useHistory.ts";
 
 const queryClient = new QueryClient();
+revokeEvictedBlobs(queryClient);
 
 createRoot(document.getElementById("root")!).render(
   // StrictMode stays off: it double-invokes effects, which opens and immediately
@@ -28,7 +32,10 @@ createRoot(document.getElementById("root")!).render(
                 <App />
               </ProtectedRoute>
             }
-          />
+          >
+            <Route index element={<DashboardGrid />} />
+            <Route path="history" element={<HistoryPage />} />
+          </Route>
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </BrowserRouter>

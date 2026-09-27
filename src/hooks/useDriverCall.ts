@@ -5,7 +5,13 @@ import useTransportStore from "../clients/transport";
 import useAuthStore from "../stores/auth";
 import { refreshDriverState } from "./useExperimentDriverStream";
 
-const errorText = (err: unknown) => (err instanceof Error ? err.message : String(err));
+export const errorText = (err: unknown) => (err instanceof Error ? err.message : String(err));
+
+/** MUTATE ops on the driver are accepted from an operator or admin only. */
+export const useCanOperate = () => {
+  const user = useAuthStore((s) => s.user);
+  return user?.role === "operator" || user?.role === "admin" || Boolean(user?.is_admin);
+};
 
 /**
  * Runs one experiment-driver op from a panel control.
@@ -20,9 +26,7 @@ const errorText = (err: unknown) => (err instanceof Error ? err.message : String
  */
 const useDriverCall = () => {
   const transport = useTransportStore((s) => s.transport);
-  const user = useAuthStore((s) => s.user);
-  const canOperate =
-    user?.role === "operator" || user?.role === "admin" || Boolean(user?.is_admin);
+  const canOperate = useCanOperate();
 
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
