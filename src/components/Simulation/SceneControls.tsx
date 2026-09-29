@@ -211,6 +211,8 @@ const SceneControls = ({ terminations }: { terminations: string[] }) => {
               sameIndex(scene.azimuth, lab.azimuth!) &&
               scene.beam.incidence_deg === incidence_deg &&
               scene.beam.energy_kev === null &&
+              scene.beam.shift_y_mm === 0 &&
+              scene.beam.shift_z_mm === 0 &&
               scene.azimuthOffsetDeg === 0;
             return (
               <Chip
@@ -376,13 +378,37 @@ const SceneControls = ({ terminations }: { terminations: string[] }) => {
         <NumField
           label="Divergence"
           unit="mrad"
-          help="Angular spread of the beam; blurs every feature."
+          help="Angular spread of the beam. Blurs spots into round discs of about divergence × camera length; it does not make streaks (small terraces do)."
           value={scene.beam.divergence_mrad}
           onChange={(n) => n !== null && setBeam({ divergence_mrad: n })}
           min={0}
           max={20}
           step={0.1}
           precision={2}
+        />
+        <NumField
+          label="Beam shift y"
+          unit="mm"
+          help="Where the beam meets the sample, off the camera axis: + is to the left, looking down the beam. Moves the whole pattern sideways by shift ÷ pixel size (about 0.1 mm per pixel on the lab camera)."
+          value={scene.beam.shift_y_mm}
+          onChange={(n) => n !== null && setBeam({ shift_y_mm: n })}
+          min={-500}
+          max={500}
+          step={0.1}
+          precision={1}
+          slider={[-20, 20]}
+        />
+        <NumField
+          label="Beam shift z"
+          unit="mm"
+          help="The same, up, away from the sample. On the lab camera (flipped in y) + moves the pattern down the image."
+          value={scene.beam.shift_z_mm}
+          onChange={(n) => n !== null && setBeam({ shift_z_mm: n })}
+          min={-500}
+          max={500}
+          step={0.1}
+          precision={1}
+          slider={[-20, 20]}
         />
       </Section>
 

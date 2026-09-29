@@ -51,7 +51,7 @@ export const DEFAULT_SCENE: SimScene = {
   azimuthOffsetDeg: 0,
   termination: null,
   reconstructions: [],
-  beam: { energy_kev: null, incidence_deg: 1.89, divergence_mrad: 0.3 },
+  beam: { energy_kev: null, incidence_deg: 1.89, divergence_mrad: 0.3, shift_y_mm: 0, shift_z_mm: 0 },
   morphology: { terrace_nm: 50, islands: 0, island_nm: 5, mean_free_path_nm: 10, debye_waller_b: 0.5 },
   render: { background: 0.03, blur_px: 1, direct_beam: true, noise_counts: 0 },
   scale: "sqrt",
