@@ -981,3 +981,76 @@ a fresh transport on close.
 
 **Closed too (`7f5639a`):** re-synced. A call on a closed socket now fails in 0 ms with
 `experiment.driver.state: bridge websocket is not open (readyState 3)`, checked in the browser.
+
+---
+
+# UPDATE 2026-09-28 — RHEED simulation has a page and an overlay
+
+Consumed `rheed-sim` @ `caffbbc` (contract `fc175a0ccd44bdf7`, PR #14, not on `main` yet --
+client taken from the branch). Checked live against the sim stack running that commit, with
+the simulation node up (gemmi 0.7.5), through the bridge, from the browser.
+
+## What shipped (branch `feat/rheed-sim`)
+
+- A **Simulation** page (`/simulation`): pick a structure (built in, then saved), the surface
+  (hkl), the beam azimuth [uvw] (low-index in-plane directions offered; one off the plane is
+  caught before it is sent), off-axis turn, termination, reconstructions (presets or a
+  2x2 matrix, with strength), beam energy / incidence / divergence, morphology, and the
+  rendering. `simulate_rheed_jpeg` renders the pattern; its spot list is drawn over it as
+  rings by kind (rod, fractional, streak_max, bulk), with labels, a hover tooltip, the
+  shadow edge, specular and direct beam, and a spot table. "Geometry used" shows the mesh,
+  wavelength, k and the lab screen the node used. Every request uses the lab camera's screen
+  (`screen: null`).
+- **Add from CIF** (operator/admin) -> `save_structure`; **Delete** a saved one ->
+  `delete_structure`. The node's parse error is shown as it comes.
+- **Simulated spots on the live RHEED camera**: a toggle on the video panel (and on the page)
+  draws the page's scene from `rheed_spots`. If the camera's `frame_dims` differ from the
+  simulated screen, it says so rather than draw it stretched.
+- **History -> RHEED**: the recording line shows `rheed_energy_kev`, marked "(assumed)" when
+  `rheed_energy_recorded` is false. The same spot overlay can be drawn on a recorded frame,
+  at that recording's energy.
+- **Storage panel**: an optional "RHEED beam energy (keV)" for `start_recording` (empty = null
+  = lab default).
+
+The scene is kept in the browser (localStorage), shared by the page and both overlays.
+
+## Checked
+
+- SrTiO3(001) along [100] and [110], with and without 2x1 + 1x2 domains: rods, streak maxima
+  and fractional rods land on the rendered streaks. Along [110] at 3 deg the half-order rods
+  report none, which is right, since their Laue circle falls off the screen.
+- YSZ(111) with islands 0.5: 16 bulk spots; the energy at 15 keV moves them as expected.
+- `simulate_rheed_jpeg` takes 180-460 ms here and `rheed_spots` under 100 ms, so the default
+  10 s call timeout is plenty.
+
+## 1. A termination by composition can be ambiguous
+
+YSZ (111) reports `terminations: ["O0.963", "O0.963", "Zr0.85Y0.15"]`. Naming the second O
+plane by its composition gets the first. The frontend sends the **index**, so it is fine.
+But a notebook user reading the docstring ("or that plane's composition") could be caught
+out. Worth either a doc line, or refusing a composition that matches more than one plane.
+
+## 2. The simulated camera does not look like the lab screen
+
+`rheed --src simcam` frames (and recordings made from them) are not the geometry
+`[simulation.rheed.screen]` describes. On the lab screen the specular spot sits below the
+shadow edge with `flip_y`, and in the simcam frames it does not. So on the sim stack the
+overlay never lines up. That is expected, but it means the overlay can only be judged on
+real frames. If you ever want the sim stack to exercise it, one option is a simcam source
+that renders from `lumi.rheedsim` with the lab screen.
+
+## Not an ask
+
+The UI never overrides `screen`. When the geometry fit from `docs/TODO.md` lands, the fitted
+`ScreenSpec` would slot in there, and a "fit to this frame" action could live next to the
+recorded-frame overlay.
+
+**Follow-up 2026-09-29 — both answered, and the overlay lines up.** Checked against the
+working-tree change (not yet committed on `rheed-sim`), contract still `fc175a0c`. On the sim
+stack with `--substrate sto`, then `--substrate ysz`, the live-camera overlay from `rheed_spots`
+with the requests you gave lands on the frames:
+- **SrTiO3:** shadow edge on the shadow, 0 0 on the specular, 0 ±1 on the first-order spots.
+- **YSZ:** 0 0 and ±1 0 on their streaks.
+
+The page now has one-click **Lab frames** presets with exactly those scenes, and its default
+incidence is 1.89°. Terminations were already sent by index.
