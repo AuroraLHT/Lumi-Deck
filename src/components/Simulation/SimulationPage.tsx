@@ -1,4 +1,4 @@
-import { ReactNode, useMemo, useState } from "react";
+import { ReactNode, useMemo, useRef, useState } from "react";
 import {
   Alert,
   AlertIcon,
@@ -21,6 +21,7 @@ import { RheedJpegMeta, RheedSpot } from "../../generated/lumi";
 import { useDebounced, useSimPattern } from "../../hooks/useRheedSim";
 import useRheedSimStore, { imageRequest, inPlane } from "../../stores/rheedSim";
 import useSimulationNodeStore from "../../stores/nodes/simulation";
+import { CompareControls, CompareLayer } from "./CompareLayer";
 import SceneControls from "./SceneControls";
 import SpotOverlay from "./SpotOverlay";
 import { KIND_LABEL } from "./spotKinds";
@@ -145,6 +146,8 @@ const SimulationPage = () => {
   const request = useDebounced(useMemo(() => (valid ? imageRequest(scene) : null), [scene, valid]));
   const pattern = useSimPattern(request);
   const [hovered, setHovered] = useState<RheedSpot | null>(null);
+  // The live feed laid over the pattern, kept here so a snapshot can be taken of it.
+  const liveRef = useRef<HTMLVideoElement>(null);
 
   const meta = pattern.data?.meta;
   const spots = meta?.spots ?? [];
@@ -249,6 +252,7 @@ const SimulationPage = () => {
                       transition: "opacity 120ms",
                     }}
                   />
+                  <CompareLayer videoRef={liveRef} width={w} height={h} />
                   <SpotOverlay
                     meta={pattern.data.meta}
                     shownKinds={shownKinds}
@@ -269,13 +273,14 @@ const SimulationPage = () => {
               )}
             </Box>
             {meta && (
-              <Box mt={2}>
+              <VStack mt={2} align="stretch" spacing={2}>
+                <CompareControls videoRef={liveRef} />
                 <SpotLegend spots={spots} />
-                <Text fontSize="xs" color="text.muted" mt={1.5}>
+                <Text fontSize="xs" color="text.muted">
                   Dashed: the shadow edge. Diamond: the specular spot. Cross: the direct beam. Positions are
                   what to trust; kinematic intensities are qualitative.
                 </Text>
-              </Box>
+              </VStack>
             )}
           </Box>
 

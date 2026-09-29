@@ -100,6 +100,19 @@ export const imageRequest = (scene: SimScene): RheedJpegRequest => ({
   scale: scene.scale,
 });
 
+/** What real image the Simulation page lays over its pattern, and how. */
+export type CompareSource = "off" | "live" | "snapshot";
+export type CompareMode = "blend" | "split" | "difference";
+
+/** A still to compare against: a frame taken from the live camera, or an image file. */
+export interface Snapshot {
+  url: string;
+  width: number;
+  height: number;
+  /** Where it came from, for the caption: "live 14:02:31" or a file name. */
+  label: string;
+}
+
 interface RheedSimStore {
   scene: SimScene;
   /** Draw the scene's spots over the live RHEED camera. */
@@ -107,12 +120,20 @@ interface RheedSimStore {
   /** Which spot kinds the overlays and the page draw. */
   shownKinds: SpotKind[];
   showLabels: boolean;
+  compareSource: CompareSource;
+  compareMode: CompareMode;
+  /** Blend: the real image's opacity. Split: where the wipe sits. Both 0..1. */
+  compareAmount: number;
+  /** Not persisted: a blob URL dies with the page. */
+  snapshot: Snapshot | null;
 
   setScene: (patch: Partial<SimScene>) => void;
   resetScene: () => void;
   setOverlayOnLive: (on: boolean) => void;
   toggleKind: (kind: SpotKind) => void;
   setShowLabels: (on: boolean) => void;
+  setCompare: (patch: Partial<Pick<RheedSimStore, "compareSource" | "compareMode" | "compareAmount">>) => void;
+  setSnapshot: (snapshot: Snapshot | null) => void;
 }
 
 /**
@@ -126,6 +147,10 @@ const useRheedSimStore = create<RheedSimStore>()(
       overlayOnLive: false,
       shownKinds: [...SPOT_KINDS],
       showLabels: true,
+      compareSource: "off",
+      compareMode: "blend",
+      compareAmount: 0.5,
+      snapshot: null,
 
       setScene: (patch) => set((s) => ({ scene: { ...s.scene, ...patch } })),
       resetScene: () => set({ scene: DEFAULT_SCENE }),
@@ -137,10 +162,23 @@ const useRheedSimStore = create<RheedSimStore>()(
             : SPOT_KINDS.filter((k) => k === kind || s.shownKinds.includes(k)),
         })),
       setShowLabels: (on) => set({ showLabels: on }),
+      setCompare: (patch) => set(patch),
+      setSnapshot: (snapshot) =>
+        set((s) => {
+          if (s.snapshot && s.snapshot.url !== snapshot?.url) URL.revokeObjectURL(s.snapshot.url);
+          return { snapshot };
+        }),
     }),
     {
       name: "lumi-rheed-sim",
       version: 1,
+      // A snapshot is a blob URL, gone after a reload; and without one, a
+      // restored "snapshot" source would show nothing.
+      partialize: (s) => ({
+        ...s,
+        snapshot: null,
+        compareSource: s.compareSource === "snapshot" ? "off" : s.compareSource,
+      }),
       // A scene saved by an older build may lack a field added since: fill it
       // from the defaults rather than send the node an undefined.
       merge: (persisted, current) => {
