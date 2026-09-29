@@ -1054,3 +1054,11 @@ with the requests you gave lands on the frames:
 
 The page now has one-click **Lab frames** presets with exactly those scenes, and its default
 incidence is 1.89°. Terminations were already sent by index.
+
+**Follow-up 2026-09-29 — beam shift consumed (`d342e20`, contract `5edbcfae`).** The Beam
+section has "Beam shift y/z (mm)" inputs, default 0, ±500 mm, with ±20 mm sliders in 0.1 mm
+steps. All overlays draw from the result's pixel positions, so the shift was picked up with no
+overlay change, and nothing reads `meta.screen.origin_*`. Checked on the restarted sim stack
+(SrTiO3 lab frame): y +2 mm moves the pattern 20 px left and z +1 mm moves it 10 px down
+(origin 374.6, 129.7 → 354.6, 139.7). The divergence help now says it blurs, not streaks.
+A shifted scene no longer counts as a Lab frame; picking the preset resets the shift to 0.
