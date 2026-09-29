@@ -214,16 +214,16 @@ export const useRecordingFrame = (name: string | null, index: number, opts?: Par
   );
 
 /**
- * Frees a frame's or a file's blob once react-query evicts it. Installed once
- * on the app's client: eviction happens `gcTime` after the last viewer
- * unmounts, when no component is left to do it.
+ * Frees an object URL -- a recorded frame, a file, a simulated pattern -- once
+ * react-query evicts the query holding it. Installed once on the app's client:
+ * eviction happens `gcTime` after the last viewer unmounts, when no component
+ * is left to do it. Any query whose data carries a `blob:` `url` is covered.
  */
 export const revokeEvictedBlobs = (client: QueryClient) =>
   client.getQueryCache().subscribe((event) => {
-    const kind = event.query.queryKey[2];
-    if (event.type !== "removed" || (kind !== "frame" && kind !== "file")) return;
-    const blob = event.query.state.data as { url: string } | undefined;
-    if (blob) URL.revokeObjectURL(blob.url);
+    if (event.type !== "removed") return;
+    const url = (event.query.state.data as { url?: unknown } | undefined)?.url;
+    if (typeof url === "string" && url.startsWith("blob:")) URL.revokeObjectURL(url);
   });
 
 export const useLogWindow = (query: LogWindowQuery | null) =>

@@ -9,6 +9,7 @@ import theme from "./theme.ts";
 import App from "./App.tsx";
 import DashboardGrid from "./components/Dashboard/DashboardGrid.tsx";
 import HistoryPage from "./components/History/HistoryPage.tsx";
+import SimulationPage from "./components/Simulation/SimulationPage.tsx";
 import LoginPage from "./components/Auth/LoginPage.tsx";
 import ProtectedRoute from "./components/Auth/ProtectedRoute.tsx";
 import { revokeEvictedBlobs } from "./hooks/useHistory.ts";
@@ -35,6 +36,7 @@ createRoot(document.getElementById("root")!).render(
           >
             <Route index element={<DashboardGrid />} />
             <Route path="history" element={<HistoryPage />} />
+            <Route path="simulation" element={<SimulationPage />} />
           </Route>
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
