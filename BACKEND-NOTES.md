@@ -1046,7 +1046,7 @@ The UI never overrides `screen`. When the geometry fit from `docs/TODO.md` lands
 recorded-frame overlay.
 
 **Follow-up 2026-09-29 — both answered, and the overlay lines up.** Checked against the
-working-tree change (not yet committed on `rheed-sim`), contract still `fc175a0c`. On the sim
+change that is now `1c29e27` on `rheed-sim`; the contract is still `fc175a0c`. On the sim
 stack with `--substrate sto`, then `--substrate ysz`, the live-camera overlay from `rheed_spots`
 with the requests you gave lands on the frames:
 - **SrTiO3:** shadow edge on the shadow, 0 0 on the specular, 0 ±1 on the first-order spots.
