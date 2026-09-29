@@ -8,6 +8,9 @@ import VideoPlayerController from "./VideoPlayerController";
 import RectangleSelector from "../Drawing/RectangleSelector";
 import CameraConfigModal from "./CameraConfigModal";
 import useLiveAnalysisStore from "../../stores/liveAnalysis";
+import useRheedSimStore from "../../stores/rheedSim";
+import useRheedNodeStore from "../../stores/nodes/rheed";
+import SimSpotsLayer from "../Simulation/SimSpotsLayer";
 
 
 const VideoMain = () => {
@@ -23,6 +26,10 @@ const VideoMain = () => {
   // manual-box button over on the video before their drag does anything.
   const redrawTargetID = useLiveAnalysisStore((s) => s.redrawTargetID);
   const isSelecting = isManualBox || redrawTargetID !== null;
+
+  // The Simulation page's scene, drawn over the feed to index what is on it.
+  const showSimSpots = useRheedSimStore((s) => s.overlayOnLive);
+  const frameDims = useRheedNodeStore((s) => s.state.frame_dims);
 
 
   return (
@@ -51,6 +58,7 @@ const VideoMain = () => {
         >
           <Box width="100%" height="100%" position="relative">
             <VideoPlayer videoRef={videoRef} />
+            {showSimSpots && <SimSpotsLayer frame={frameDims} />}
             {showDetections && <Detection />}
             {isSelecting && <RectangleSelector />}
 

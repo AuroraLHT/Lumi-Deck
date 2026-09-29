@@ -34,6 +34,8 @@ interface StorageFormValues {
   save_ai: boolean;
   save_log: boolean;
   save_integration: boolean;
+  /** Text as typed; empty is the lab's usual energy. */
+  rheed_energy_kev: string;
 }
 
 /**
@@ -45,13 +47,20 @@ interface StorageFormValues {
  */
 const CONFIRM_TIMEOUT_MS = 8000;
 
+/** The contract takes (0, 200] keV; empty (or anything else) is null, the lab's default. */
+const energyKev = (text: string) => {
+  const n = Number(text);
+  return text.trim() !== "" && Number.isFinite(n) && n > 0 && n <= 200 ? n : null;
+};
+
 const StorageMain: React.FC = () => {
-  const { register, handleSubmit } = useForm<StorageFormValues>({
+  const { register, handleSubmit, watch } = useForm<StorageFormValues>({
     defaultValues: {
       save_frame: true,
       save_ai: true,
       save_log: true,
       save_integration: true,
+      rheed_energy_kev: "",
     },
   });
   const { isOpen, onToggle } = useDisclosure();
@@ -128,7 +137,10 @@ const StorageMain: React.FC = () => {
     try {
       const status = wasStoring
         ? await client.stop_recording()
-        : await client.start_recording(data);
+        : await client.start_recording({
+            ...data,
+            rheed_energy_kev: energyKev(data.rheed_energy_kev),
+          });
 
       if (status.ok) {
         toast({
@@ -295,6 +307,28 @@ const StorageMain: React.FC = () => {
                   </Checkbox>
                 </Stack>
               </CheckboxGroup>
+
+              {/* Nothing reads the energy off the RHEED gun, so the recording
+                  keeps what is said here -- and a pattern cannot be indexed
+                  without it. */}
+              <Flex alignItems="center" gap={2} mt={3}>
+                <FormLabel htmlFor="rheed_energy_kev" mb={0} fontSize="sm" flexShrink={0}>
+                  RHEED beam energy (keV):
+                </FormLabel>
+                <Input
+                  id="rheed_energy_kev"
+                  size="sm"
+                  type="number"
+                  step="0.5"
+                  min={0}
+                  max={200}
+                  placeholder="lab default"
+                  maxW="120px"
+                  isDisabled={isStoring}
+                  isInvalid={watch("rheed_energy_kev") !== "" && energyKev(watch("rheed_energy_kev")) === null}
+                  {...register("rheed_energy_kev")}
+                />
+              </Flex>
 
               {/* Storage records other nodes, so it can be up and still unable
                   to save what you ticked. Better to see that before the growth
