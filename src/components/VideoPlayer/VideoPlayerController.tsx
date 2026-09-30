@@ -14,6 +14,8 @@ import { RiEditBoxLine } from "react-icons/ri";
 import { GoScreenFull } from "react-icons/go";
 import { GoScreenNormal } from "react-icons/go";
 import { IoIosSettings } from "react-icons/io";
+import { LuAtom } from "react-icons/lu";
+import useRheedSimStore from "../../stores/rheedSim";
 
 interface VideoPlayerControllerProps {
   videoRef: React.RefObject<HTMLVideoElement>;
@@ -42,6 +44,8 @@ const VideoPlayerController = ({
 }: VideoPlayerControllerProps) => {
   // console.log("VideoPlayerController rendered");
   const [isPlaying, setIsPlaying] = useState(false);
+  const showSimSpots = useRheedSimStore((s) => s.overlayOnLive);
+  const setShowSimSpots = useRheedSimStore((s) => s.setOverlayOnLive);
   //   const [progress, setProgress] = useState(0);
   //   const [lastBufferedTime, setLastBufferedTime] = useState(0);
   const progressRef = useRef(0); // Use ref for progress
@@ -182,6 +186,14 @@ const VideoPlayerController = ({
           setIsManualBox(!isManualBox);
         }}
         {...(isManualBox ? { colorScheme: "red" } : {})}
+      />
+
+      <CircularButton
+        aria-label={showSimSpots ? "Hide simulated spots" : "Show simulated spots"}
+        title="Simulated spots (scene from the Simulation page)"
+        icon={<LuAtom size={18} />}
+        onClick={() => setShowSimSpots(!showSimSpots)}
+        {...(showSimSpots ? { colorScheme: "red" } : {})}
       />
 
       <CircularButton

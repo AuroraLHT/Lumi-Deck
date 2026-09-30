@@ -7,6 +7,7 @@ import {
   IntegratorState,
   MIModeState,
   NodeRecord,
+  RheedSimState,
   STFTState,
   StorageState,
 } from "../generated/lumi";
@@ -21,6 +22,7 @@ import useStorageNodeStore from "../stores/nodes/storage";
 import useMIModeNodeStore from "../stores/nodes/miMode";
 import useFiducialNodeStore from "../stores/nodes/fiducial";
 import useExperimentDriverNodeStore from "../stores/nodes/experimentDriver";
+import useSimulationNodeStore from "../stores/nodes/simulation";
 import { projectDriverState } from "./useExperimentDriverStream";
 
 /**
@@ -56,6 +58,7 @@ const useNodeStates = () => {
   const setMIModeNodeState = useMIModeNodeStore((s) => s.setState);
   const setFiducialNodeState = useFiducialNodeStore((s) => s.setState);
   const setExperimentDriverNodeState = useExperimentDriverNodeStore((s) => s.setState);
+  const setSimulationNodeState = useSimulationNodeStore((s) => s.setState);
 
   useEffect(() => {
     const byEquipment = new Map<string, NodeRecord>();
@@ -73,6 +76,7 @@ const useNodeStates = () => {
     const detection = byEquipment.get("detection");
     const storage = byEquipment.get("storage");
     const experiment = byEquipment.get("experiment");
+    const simulation = byEquipment.get("simulation");
 
     const common = (node: NodeRecord | undefined, capability: string) => {
       const state = capabilityState(node, capability);
@@ -160,6 +164,14 @@ const useNodeStates = () => {
       is_available: experiment?.status === "up",
       ...projectDriverState(capabilityState(experiment, "driver") as ExperimentState | undefined),
     });
+
+    const rheedSim = capabilityState(simulation, "rheed_sim") as RheedSimState | undefined;
+    setSimulationNodeState({
+      is_available: simulation?.status === "up",
+      is_running: Boolean(rheedSim?.is_running),
+      n_builtin: rheedSim?.n_builtin ?? 0,
+      n_saved: rheedSim?.n_saved ?? 0,
+    });
   }, [
     nodes,
     setRHEEDNodeState,
@@ -172,6 +184,7 @@ const useNodeStates = () => {
     setMIModeNodeState,
     setExperimentDriverNodeState,
     setFiducialNodeState,
+    setSimulationNodeState,
   ]);
 };
 

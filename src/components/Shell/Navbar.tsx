@@ -20,6 +20,7 @@ import {
   useDisclosure,
 } from "@chakra-ui/react";
 import {
+  LuAtom,
   LuHistory,
   LuLayoutDashboard,
   LuLayoutGrid,
@@ -79,6 +80,7 @@ const SyncIndicator = ({ status }: { status: SyncStatus }) => {
 const PAGES = [
   { to: "/", label: "Dashboard", icon: LuLayoutDashboard },
   { to: "/history", label: "History", icon: LuHistory },
+  { to: "/simulation", label: "Simulation", icon: LuAtom },
 ];
 
 const PageLinks = () => (

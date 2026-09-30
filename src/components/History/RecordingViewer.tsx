@@ -12,9 +12,11 @@ import {
   SliderTrack,
   Spinner,
   Text,
+  Tooltip,
   VStack,
 } from "@chakra-ui/react";
-import { LuChevronLeft, LuChevronRight, LuPause, LuPlay } from "react-icons/lu";
+import { LuAtom, LuChevronLeft, LuChevronRight, LuPause, LuPlay } from "react-icons/lu";
+import { Link as RouterLink } from "react-router-dom";
 
 import { IntegrationBox, RecordingInfo } from "../../generated/lumi";
 import {
@@ -25,6 +27,7 @@ import {
 } from "../../hooks/useHistory";
 import useSeriesPalette, { MAX_SERIES } from "../Plotting/seriesPalette";
 import IntegrationChart from "./IntegrationChart";
+import SimSpotsLayer from "../Simulation/SimSpotsLayer";
 import { formatDuration, formatTime, nearestFrame, recordingsOf, SampleRecording } from "./history";
 
 /** Playback speed: frames shown per second, whatever the recording's own rate was. */
@@ -81,6 +84,7 @@ const Player = ({ info, deposition }: { info: RecordingInfo; deposition: SampleR
   const nFrames = info.frame_times?.length ?? 0;
   const [index, setIndex] = useState(0);
   const [playing, setPlaying] = useState(false);
+  const [simSpots, setSimSpots] = useState(false);
 
   const frame = useRecordingFrame(nFrames ? info.name : null, index);
   const integration = useRecordingIntegration(info.n_integrations ? info.name : null);
@@ -136,6 +140,7 @@ const Player = ({ info, deposition }: { info: RecordingInfo; deposition: SampleR
             />
           )}
           {info.boxes && <BoxOverlay boxes={info.boxes} shape={shape} />}
+          {simSpots && <SimSpotsLayer energyKev={info.rheed_energy_kev ?? null} frame={shape} />}
           {frame.isFetching && (
             <Spinner size="sm" color="white" position="absolute" top={2} right={2} />
           )}
@@ -190,6 +195,17 @@ const Player = ({ info, deposition }: { info: RecordingInfo; deposition: SampleR
             isDisabled={index >= nFrames - 1}
             onClick={() => setIndex((i) => Math.min(nFrames - 1, i + 1))}
           />
+          <Tooltip label="Simulated spots at this recording's beam energy (scene from the Simulation page)" openDelay={300}>
+            <IconButton
+              aria-label={simSpots ? "Hide simulated spots" : "Show simulated spots"}
+              aria-pressed={simSpots}
+              icon={<Icon as={LuAtom} />}
+              size="sm"
+              variant={simSpots ? "solid" : "panelGhost"}
+              colorScheme={simSpots ? "blue" : undefined}
+              onClick={() => setSimSpots(!simSpots)}
+            />
+          </Tooltip>
           <Text fontSize="xs" color="text.secondary" fontFamily="mono" minW="120px" textAlign="right">
             {index + 1}/{nFrames} · +{formatDuration(frameTime != null ? frameTime - t0 : null) || "0s"}
           </Text>
@@ -198,6 +214,15 @@ const Player = ({ info, deposition }: { info: RecordingInfo; deposition: SampleR
           <Text fontSize="xs" color="text.muted" textAlign="center">
             {formatTime(frameTime)} · contrast {Math.round(frame.data.low)}–{Math.round(frame.data.high)}{" "}
             (fixed for the whole recording)
+          </Text>
+        )}
+        {simSpots && (
+          <Text fontSize="xs" color="text.muted" textAlign="center">
+            Spots for the scene on the{" "}
+            <Text as={RouterLink} to="/simulation" color="accent.solid" textDecoration="underline">
+              Simulation page
+            </Text>
+            , at {info.rheed_energy_kev ?? "the lab's"} keV.
           </Text>
         )}
 
@@ -279,6 +304,23 @@ const RecordingViewer = ({ sampleId }: { sampleId: number }) => {
           <Text fontSize="xs" color="text.muted">
             {info.data.n_frames ?? 0} frames · {formatDuration((info.data.end ?? 0) - (info.data.start ?? 0))} ·{" "}
             {((info.data.size_bytes ?? 0) / 1e6).toFixed(0)} MB
+            {info.data.rheed_energy_kev != null && (
+              <>
+                {" · "}
+                <Tooltip
+                  label={
+                    info.data.rheed_energy_recorded
+                      ? "Beam energy stored with the recording"
+                      : "Recorded before files kept their beam energy: this is the lab's configured default"
+                  }
+                  openDelay={300}
+                >
+                  <Text as="span" borderBottom={info.data.rheed_energy_recorded ? undefined : "1px dotted"}>
+                    {info.data.rheed_energy_kev} keV{info.data.rheed_energy_recorded ? "" : " (assumed)"}
+                  </Text>
+                </Tooltip>
+              </>
+            )}
           </Text>
         )}
       </HStack>
