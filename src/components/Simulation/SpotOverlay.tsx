@@ -1,3 +1,5 @@
+import { useId } from "react";
+
 import { RheedSimMeta, RheedSpot } from "../../generated/lumi";
 import { SpotKind } from "../../stores/rheedSim";
 import { useKindColors } from "./spotKinds";
@@ -86,6 +88,21 @@ const SpotOverlay = ({
   const [[x1, y1], [x2, y2]] = meta.shadow_edge_px;
   const [sx, sy] = meta.specular_px;
   const [dx, dy] = meta.direct_beam_px;
+  // The zeroth Laue circle: about the origin (the shadow edge's centre, beam
+  // shift included) through the specular spot. Only its half on the specular
+  // side of the shadow edge is on the screen's lit part, so it is clipped there.
+  const [ox, oy] = meta.origin_px;
+  const laueR = Math.hypot(sx - ox, sy - oy);
+  const ex = x2 - x1;
+  const ey = y2 - y1;
+  const side = Math.sign(ex * (sy - y1) - ey * (sx - x1)) || 1;
+  const far = 4 * (w + h);
+  const len = Math.hypot(ex, ey) || 1;
+  const [nx, ny] = [(-ey / len) * side * far, (ex / len) * side * far];
+  const litHalf = `${x1 - ex * far},${y1 - ey * far} ${x2 + ex * far},${y2 + ey * far} ${x2 + ex * far + nx},${
+    y2 + ey * far + ny
+  } ${x1 - ex * far + nx},${y1 - ey * far + ny}`;
+  const clipId = `laue-${useId().replace(/:/g, "")}`;
 
   return (
     <svg
@@ -104,6 +121,23 @@ const SpotOverlay = ({
     >
       {showGeometry && (
         <g fill="none" strokeWidth={1.5} vectorEffect="non-scaling-stroke">
+          <clipPath id={clipId}>
+            <polygon points={litHalf} />
+          </clipPath>
+          {laueR > 0 && (
+            <circle
+              cx={ox}
+              cy={oy}
+              r={laueR}
+              stroke="rgba(255, 255, 255, 0.55)"
+              strokeWidth={1}
+              strokeDasharray="2 4"
+              clipPath={`url(#${clipId})`}
+              vectorEffect="non-scaling-stroke"
+            >
+              <title>Zeroth Laue circle</title>
+            </circle>
+          )}
           <line x1={x1} y1={y1} x2={x2} y2={y2} stroke={HALO} strokeWidth={3} vectorEffect="non-scaling-stroke" />
           <line
             x1={x1}
@@ -116,6 +150,10 @@ const SpotOverlay = ({
           >
             <title>Shadow edge</title>
           </line>
+          {/* The origin: where the beam's axis meets the shadow edge. */}
+          <circle cx={ox} cy={oy} r={r * 0.35} fill="white" stroke={HALO} strokeWidth={1}>
+            <title>Origin</title>
+          </circle>
           {/* Specular: a diamond. Direct beam: a cross. Neither is a diffraction spot. */}
           <path
             d={`M ${sx} ${sy - r * 1.4} L ${sx + r * 1.4} ${sy} L ${sx} ${sy + r * 1.4} L ${sx - r * 1.4} ${sy} Z`}

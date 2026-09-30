@@ -277,7 +277,7 @@ const SimulationPage = () => {
                 <CompareControls videoRef={liveRef} />
                 <SpotLegend spots={spots} />
                 <Text fontSize="xs" color="text.muted">
-                  Dashed: the shadow edge. Diamond: the specular spot. Cross: the direct beam. Positions are
+                  Dashed: the shadow edge, with the origin on it. Dotted: the zeroth Laue circle. Diamond: the specular spot. Cross: the direct beam. Positions are
                   what to trust; kinematic intensities are qualitative.
                 </Text>
               </VStack>

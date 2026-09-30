@@ -1062,3 +1062,6 @@ overlay change, and nothing reads `meta.screen.origin_*`. Checked on the restart
 (SrTiO3 lab frame): y +2 mm moves the pattern 20 px left and z +1 mm moves it 10 px down
 (origin 374.6, 129.7 → 354.6, 139.7). The divergence help now says it blurs, not streaks.
 A shifted scene no longer counts as a Lab frame; picking the preset resets the shift to 0.
+The overlays now also draw the zeroth Laue circle, about `origin_px` through `specular_px` and
+clipped to the lit side of the shadow edge, with the origin marked. It follows the shift, and on
+the live SrTiO3 frame it passes through 0 0 and 0 ±1.
