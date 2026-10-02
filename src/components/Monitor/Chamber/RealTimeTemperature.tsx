@@ -9,8 +9,8 @@ import RTVToolBarMenu, { RangeValue } from "../../Plotting/RTVToolBarMenu";
 import { useState } from "react";
 
 const RealTimeTemperature = () => {
-  const [rangeMin, setRangeMin] = useState<RangeValue>("auto");
-  const [rangeMax, setRangeMax] = useState<RangeValue>("auto");
+  const [rangeMin, setRangeMin] = useState<RangeValue>(0);
+  const [rangeMax, setRangeMax] = useState<RangeValue>(1000);
   const [windowSize, setWindowSize] = useState(10*60*1000);
 
   // console.log(
@@ -78,8 +78,8 @@ const RealTimeTemperature = () => {
         yaxisName="Temperature (°C)"
         xaxisMin="auto"
         xaxisMax="auto"
-        yaxisMin={0}
-        yaxisMax={1000}
+        yaxisMin={rangeMin}
+        yaxisMax={rangeMax}
         windowSize={windowSize}
       />
     </MediumContainer>

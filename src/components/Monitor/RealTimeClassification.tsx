@@ -12,8 +12,8 @@ import { useState } from "react";
 // import {v4 as uuidv4} from 'uuid';
 
 const RealTimeClassification = () => {
-  const [rangeMin, setRangeMin] = useState<RangeValue>("auto");
-  const [rangeMax, setRangeMax] = useState<RangeValue>("auto");
+  const [rangeMin, setRangeMin] = useState<RangeValue>(0);
+  const [rangeMax, setRangeMax] = useState<RangeValue>(1);
   const [windowSize, setWindowSize] = useState(20000);
 
   // console.log("RealTimeClassification re-rendered", new Date().toISOString(), uuidv4());
@@ -91,8 +91,8 @@ const RealTimeClassification = () => {
         yaxisName="Probability"
         xaxisMin="auto"
         xaxisMax="auto"
-        yaxisMin={0}
-        yaxisMax={1}
+        yaxisMin={rangeMin}
+        yaxisMax={rangeMax}
         windowSize={windowSize}
       />
     </MediumContainer>
