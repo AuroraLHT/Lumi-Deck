@@ -13,8 +13,8 @@ const RealTimePressure = () => {
   // console.log("RealTimePressure Re-render", new Date().toISOString(), uuidv4());
 
   // const { logs, recentLog } = useLog();
-  const [rangeMin, setRangeMin] = useState<RangeValue>("auto");
-  const [rangeMax, setRangeMax] = useState<RangeValue>("auto");
+  const [rangeMin, setRangeMin] = useState<RangeValue>(-11);
+  const [rangeMax, setRangeMax] = useState<RangeValue>(3);
   const [windowSize, setWindowSize] = useState(10*60*1000);
 
   let data: Serie[] = [
@@ -140,8 +140,8 @@ const RealTimePressure = () => {
         yaxisName="log₁₀ Pressure (Torr)"
         xaxisMin="auto"
         xaxisMax="auto"
-        yaxisMin={-11}
-        yaxisMax={3}
+        yaxisMin={rangeMin}
+        yaxisMax={rangeMax}
         windowSize={windowSize}
       />
     </MediumContainer>

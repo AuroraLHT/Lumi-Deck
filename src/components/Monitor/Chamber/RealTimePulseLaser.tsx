@@ -11,7 +11,7 @@ import { useState } from "react";
 
 const RealTimePulseLaser = () => {
   // const { logs, recentLog } = useLog();
-  const [rangeMin, setRangeMin] = useState<RangeValue>("auto");
+  const [rangeMin, setRangeMin] = useState<RangeValue>(0);
   const [rangeMax, setRangeMax] = useState<RangeValue>("auto");
   const [windowSize, setWindowSize] = useState(10 * 60 * 1000);
 
@@ -101,8 +101,8 @@ const RealTimePulseLaser = () => {
         yaxisName="Pulse (count)"
         xaxisMin="auto"
         xaxisMax="auto"
-        yaxisMin={0}
-        yaxisMax="auto"
+        yaxisMin={rangeMin}
+        yaxisMax={rangeMax}
         windowSize={windowSize}
       />
     </MediumContainer>
