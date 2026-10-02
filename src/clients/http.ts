@@ -1,6 +1,6 @@
 import axios, { AxiosInstance } from "axios";
 import { useMemo } from "react";
-import useAppStore from "../stores/app";
+import useAppStore, { httpOrigin } from "../stores/app";
 import useAuthStore, { getAuthToken } from "../stores/auth";
 
 /**
@@ -9,7 +9,7 @@ import useAuthStore, { getAuthToken } from "../stores/auth";
  */
 export const createHTTPClient = (host: string): AxiosInstance => {
   const client = axios.create({
-    baseURL: `http://${host}`,
+    baseURL: httpOrigin(host),
     headers: {
       "Content-Type": "application/json",
     },

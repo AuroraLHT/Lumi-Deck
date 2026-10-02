@@ -23,6 +23,35 @@ scripts/start_server_host.sh         # or the real one, on the server machine
 Pick that server's address on the login screen. The backend must list this app's
 origin in `api.allow_origins`, or the browser will block every request.
 
+### Connecting to a TLS backend
+
+The simulation stack and most lab servers speak plain `http`/`ws`. The real
+server now sits behind Tailscale and terminates TLS itself, and no longer
+answers on `http://`/`ws://` at all.
+
+Join the tailnet (Tailscale installed and signed in -- this applies to
+phones too), then enter the address on the login screen **with an `https://`
+prefix**:
+
+```
+https://msewkkeb1232c.tail2c7a5d.ts.net:8000
+```
+
+`stores/app.ts` remembers that marker and derives `wss://` for the websocket
+automatically. Bare addresses still default to `http`/`ws`, so the sim keeps
+working unchanged.
+
+The certificate is a real Let's Encrypt cert for that MagicDNS name only --
+nothing to trust manually, but it is **only** valid for that name. Connecting
+by IP (`10.229.54.16`) or by the bare hostname (`msewkkeb1232c`) fails the TLS
+check; it has to be the full `*.ts.net` address. Renewal is automatic
+server-side; nothing changes on the client.
+
+A server without Tailscale falls back to a private lab CA
+(`Lumi-Lab/scripts/make_lab_cert.sh`), which does need importing into the OS
+or browser trust store, and `NODE_EXTRA_CA_CERTS=/path/to/ca.crt` for any
+Node-side tooling -- but that's the fallback, not the default setup.
+
 `src/generated/lumi.ts` is generated from the backend's contract and carries a
 `contract_hash`. It must match the backend's — the nodes reject a mismatched hash on
 join — so a contract change means redeploying both halves together.

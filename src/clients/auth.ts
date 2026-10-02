@@ -1,4 +1,5 @@
 import axios from "axios";
+import { httpOrigin } from "../stores/app";
 import useAuthStore, { User } from "../stores/auth";
 
 interface LoginResponse {
@@ -33,7 +34,7 @@ export const login = async (
 
   try {
     const { data } = await axios.post<LoginResponse>(
-      `http://${host}/auth/login`,
+      `${httpOrigin(host)}/auth/login`,
       form,
       {
         headers: { "Content-Type": "application/x-www-form-urlencoded" },

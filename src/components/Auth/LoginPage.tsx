@@ -30,10 +30,11 @@ import { LuEye, LuEyeOff } from "react-icons/lu";
 import { LoginError, login } from "../../clients/auth";
 import useAppStore, { DEFAULT_HOSTS, normalizeHost } from "../../stores/app";
 
-// Bare host or host:port -- an IPv4 address or a hostname, optionally with a
-// port. Deliberately rejects schemes and paths; `normalizeHost` strips those
-// first, so anything left here is a real mistake.
-const HOST_PATTERN = /^[a-zA-Z0-9.-]+(:\d{1,5})?$/;
+// Bare host or host:port, optionally prefixed `https://` for a TLS backend --
+// an IPv4 address or a hostname, optionally with a port. `normalizeHost` drops
+// ws(s)/http and collapses wss to the https marker first, so anything else
+// left here is a real mistake.
+const HOST_PATTERN = /^(https:\/\/)?[a-zA-Z0-9.-]+(:\d{1,5})?$/;
 
 interface LoginForm {
   host: string;
@@ -159,7 +160,7 @@ const LoginPage = () => {
                     setValueAs: normalizeHost,
                     validate: (value) =>
                       HOST_PATTERN.test(normalizeHost(value)) ||
-                      "Use host or host:port, e.g. 10.0.0.5:8000",
+                      "Use host or host:port, e.g. 10.0.0.5:8000 (prefix https:// for a TLS server)",
                   })}
                   list="known-hosts"
                   placeholder="host:port"
