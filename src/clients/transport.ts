@@ -1,6 +1,7 @@
 import { create } from "zustand";
 
 import { LumiTransport } from "../generated/lumi";
+import { wsOrigin } from "../stores/app";
 import useAuthStore, { withAuthToken } from "../stores/auth";
 
 /**
@@ -67,7 +68,7 @@ const useTransportStore = create<TransportState>((set, get) => {
 
     // withAuthToken appends the current `?token=` -- the browser WebSocket API
     // cannot send an Authorization header.
-    const t = new LumiTransport(withAuthToken(`ws://${host}/ws`));
+    const t = new LumiTransport(withAuthToken(`${wsOrigin(host)}/ws`));
     const connected = t.connect();
 
     // LumiTransport creates its WebSocket synchronously inside connect() and keeps
