@@ -1,5 +1,5 @@
 import axios from "axios";
-import { httpOrigin } from "../stores/app";
+import { httpOrigin, isSecureHost, tailscaleHostHint } from "../stores/app";
 import useAuthStore, { User } from "../stores/auth";
 
 interface LoginResponse {
@@ -9,7 +9,27 @@ interface LoginResponse {
   user: User;
 }
 
-export class LoginError extends Error {}
+export class LoginError extends Error {
+  /**
+   * Set when the host is `https://` and the request failed with no response
+   * at all -- the shape a rejected/untrusted certificate takes in the browser
+   * (indistinguishable from a DNS failure or an unreachable host, since
+   * fetch/XHR never exposes *why* a TLS handshake failed). `healthUrl` is an
+   * unauthenticated endpoint the user can open directly to see and accept the
+   * certificate warning once, then come back and retry.
+   */
+  readonly certLikely: boolean;
+  readonly healthUrl?: string;
+
+  constructor(
+    message: string,
+    opts?: { certLikely?: boolean; healthUrl?: string }
+  ) {
+    super(message);
+    this.certLikely = opts?.certLikely ?? false;
+    this.healthUrl = opts?.healthUrl;
+  }
+}
 
 /**
  * Exchange credentials for a token and store the resulting session.
@@ -56,6 +76,15 @@ export const login = async (
         throw new LoginError(`${host} did not respond. Is the server running?`);
       }
       if (!error.response) {
+        if (isSecureHost(host)) {
+          throw new LoginError(
+            `Could not reach ${host}. If its certificate isn't trusted in ` +
+              `this browser yet, open its health check below and accept the ` +
+              `warning, then retry -- or use ${tailscaleHostHint()}, which ` +
+              `needs no click-through.`,
+            { certLikely: true, healthUrl: `${httpOrigin(host)}/health` }
+          );
+        }
         throw new LoginError(
           `Could not reach ${host}. Check the address and that the server allows this origin.`
         );
