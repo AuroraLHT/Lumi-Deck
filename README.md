@@ -6,6 +6,7 @@ Chakra UI for components, Zustand for state, talking to the FastAPI backend
 
 ```bash
 npm install
+cp .env.example .env # optional -- see "Connecting to a TLS backend"
 npm run dev         # http://localhost:5173
 npm run build       # typecheck + production bundle
 npm run sync:client # re-copy src/generated/lumi.ts from a sibling Lumi-Lab checkout
@@ -34,8 +35,11 @@ phones too), then enter the address on the login screen **with an `https://`
 prefix**:
 
 ```
-https://msewkkeb1232c.tail2c7a5d.ts.net:8000
+https://<machine>.<tailnet>.ts.net:8000
 ```
+
+(Ask whoever runs your lab's server for its actual `*.ts.net` address, or
+check `VITE_TAILSCALE_HOST` in your `.env` -- see below.)
 
 `stores/app.ts` remembers that marker and derives `wss://` for the websocket
 automatically. Bare addresses still default to `http`/`ws`, so the sim keeps
@@ -43,7 +47,7 @@ working unchanged.
 
 The certificate is a real Let's Encrypt cert for that MagicDNS name only --
 nothing to trust manually, but it is **only** valid for that name. Connecting
-by IP (`10.229.54.16`) or by the bare hostname (`msewkkeb1232c`) fails the TLS
+by IP or by the bare hostname (without the `.ts.net` suffix) fails the TLS
 check; it has to be the full `*.ts.net` address. Renewal is automatic
 server-side; nothing changes on the client.
 
@@ -51,6 +55,22 @@ A server without Tailscale falls back to a private lab CA
 (`Lumi-Lab/scripts/make_lab_cert.sh`), which does need importing into the OS
 or browser trust store, and `NODE_EXTRA_CA_CERTS=/path/to/ca.crt` for any
 Node-side tooling -- but that's the fallback, not the default setup.
+
+The login screen's default hosts (`stores/app.ts`'s `DEFAULT_HOSTS`) are
+`https://127.0.0.1:8000` and `https://localhost:8000`, for the common case of
+running the deck on the server machine itself, loopback. Since the
+certificate is only valid for the tailnet name, the browser will flag those
+as "not safe" -- click through the warning once per browser and it is
+remembered. A plain `localhost:8000` default is kept too, for the
+simulation stack.
+
+If sign-in fails with "Could not reach ..." on a `https://` host, that is
+almost always this click-through step (a rejected certificate and an
+unreachable host look identical to the browser, so the message can't tell
+them apart) -- the error links straight to the server's `/health` check for
+it. Set `VITE_TAILSCALE_HOST=<host:port>` in `.env` (see `.env.example`) so
+that message also names this lab's tailnet address as the click-through-free
+alternative.
 
 `src/generated/lumi.ts` is generated from the backend's contract and carries a
 `contract_hash`. It must match the backend's — the nodes reject a mismatched hash on

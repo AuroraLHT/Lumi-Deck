@@ -13,9 +13,26 @@ interface AppState {
 }
 
 export const DEFAULT_HOSTS = [
-  "127.0.0.1:8000",
+  "https://127.0.0.1:8000",
+  "https://localhost:8000",
+  // The simulation stack (Lumi-Lab scripts/start_simulation.sh) still serves
+  // plain http -- kept as a default too so local sim testing stays one click.
   "localhost:8000",
 ];
+
+/**
+ * A hint for where to find the server's trusted TLS address, shown when a
+ * `https://` host fails with no response (likely an untrusted certificate).
+ * `VITE_TAILSCALE_HOST` is set per-lab in a git-ignored `.env` (see
+ * `.env.example`); falls back to a generic description when unset so nothing
+ * lab-specific is hard-coded in the repo.
+ */
+export const tailscaleHostHint = (): string => {
+  const raw = import.meta.env.VITE_TAILSCALE_HOST as string | undefined;
+  return raw
+    ? `https://${raw}`
+    : "the server's https://<machine>.<tailnet>.ts.net:8000 address";
+};
 
 /**
  * The rest of the app builds request URLs from this host via `httpOrigin` /

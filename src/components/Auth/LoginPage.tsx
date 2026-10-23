@@ -17,6 +17,7 @@ import {
   Input,
   InputGroup,
   InputRightElement,
+  Link,
   Tag,
   TagCloseButton,
   TagLabel,
@@ -53,7 +54,9 @@ const LoginPage = () => {
   const removeCustomHost = useAppStore((s) => s.removeCustomHost);
 
   const [showPassword, setShowPassword] = useState(false);
-  const [formError, setFormError] = useState<string | null>(null);
+  const [formError, setFormError] = useState<LoginError | string | null>(
+    null
+  );
 
   const {
     register,
@@ -86,9 +89,7 @@ const LoginPage = () => {
       navigate(from, { replace: true });
     } catch (error) {
       setFormError(
-        error instanceof LoginError
-          ? error.message
-          : "Sign-in failed. Please try again."
+        error instanceof LoginError ? error : "Sign-in failed. Please try again."
       );
     }
   };
@@ -144,9 +145,31 @@ const LoginPage = () => {
           </VStack>
 
           {formError && (
-            <Alert status="error" borderRadius="lg" fontSize="sm">
+            <Alert
+              status="error"
+              borderRadius="lg"
+              fontSize="sm"
+              alignItems="flex-start"
+            >
               <AlertIcon />
-              {formError}
+              <VStack align="stretch" spacing={1}>
+                <Text fontSize="sm">
+                  {formError instanceof LoginError
+                    ? formError.message
+                    : formError}
+                </Text>
+                {formError instanceof LoginError && formError.healthUrl && (
+                  <Link
+                    href={formError.healthUrl}
+                    isExternal
+                    fontWeight="600"
+                    color="inherit"
+                    textDecoration="underline"
+                  >
+                    Open {formError.healthUrl}
+                  </Link>
+                )}
+              </VStack>
             </Alert>
           )}
 
