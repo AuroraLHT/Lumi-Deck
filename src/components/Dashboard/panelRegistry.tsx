@@ -10,6 +10,7 @@ import ChamberCameraMain from "../ChamberCamera/ChamberCameraMain";
 import MiModeMonitor from "../MiMode/MiModeMonitor";
 import FiducialTraceMain from "../FiducialTrace/FiducialTraceMain";
 import ExperimentDriverMain from "../ExperimentDriver/ExperimentDriverMain";
+import ChamberPldMain from "../ChamberPld/ChamberPldMain";
 
 /**
  * The dashboard is assembled from these panels at runtime. Adding a new panel
@@ -26,7 +27,8 @@ export type PanelType =
   | "controller"
   | "storage"
   | "fiducialTrace"
-  | "experimentDriver";
+  | "experimentDriver"
+  | "chamberPld";
 
 export interface PanelDefinition {
   type: PanelType;
@@ -118,6 +120,15 @@ export const PANEL_REGISTRY: Record<PanelType, PanelDefinition> = {
     defaultSize: { w: 4, h: 10 },
     minSize: { w: 3, h: 6 },
     description: "Driver status, operator prompts and mask auto-alignment",
+  },
+  chamberPld: {
+    type: "chamberPld",
+    title: "PLD Chamber",
+    render: () => <ChamberPldMain />,
+    defaultSize: { w: 6, h: 12 },
+    minSize: { w: 4, h: 6 },
+    description:
+      "Pressures, heater, motion, valves, gas, excimer, pumps and load lock",
   },
 };
 

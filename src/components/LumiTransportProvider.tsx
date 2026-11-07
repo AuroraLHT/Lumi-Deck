@@ -4,6 +4,7 @@ import useAppStore from "../stores/app";
 import useAuthStore from "../stores/auth";
 import useTransportStore from "../clients/transport";
 import useChamberLogStream from "../hooks/useChamberLogStream";
+import useChamberPldStream from "../hooks/useChamberPldStream";
 import useAnalysisStreams from "../hooks/useAnalysisStreams";
 import useDetectionStream from "../hooks/useDetectionStream";
 import useMiModeStream from "../hooks/useMiModeStream";
@@ -35,6 +36,7 @@ const LumiTransportProvider = ({ children }: { children: ReactNode }) => {
 
   useSystemRegistryStream();
   useChamberLogStream();
+  useChamberPldStream();
   useAnalysisStreams();
   useDetectionStream();
   useNodeStates();
