@@ -72,6 +72,17 @@ export const fmtTorr = (v: number | null | undefined): string => {
   return `${v.toFixed(3)} Torr`;
 };
 
+/**
+ * TMP20/TMP21 are PLD Controller's "TMP2 (RHEED)"/"TMP4 (2nd RHEED)" button
+ * names, not a location -- REA confirmed which physical pump each one is.
+ */
+const PUMP_LABELS: Record<string, string> = {
+  TMP20: "TMP20 (RHEED, far from gun)",
+  TMP21: "TMP21 (RHEED, near gun)",
+};
+
+export const pumpLabel = (name: string): string => PUMP_LABELS[name] ?? name;
+
 const AXIS_COLOR: Record<string, string> = {
   IDLE: "gray",
   MOVING: "blue",

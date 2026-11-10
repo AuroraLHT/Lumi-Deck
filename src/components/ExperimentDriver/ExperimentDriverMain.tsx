@@ -7,7 +7,10 @@ import useExperimentDriverNodeStore from "../../stores/nodes/experimentDriver";
 import CalibrationActions from "./CalibrationActions";
 import MaskAutoAlign from "./MaskAutoAlign";
 import PendingConfirmationCard from "./PendingConfirmationCard";
+import StopDepositionButton from "./StopDepositionButton";
 import { AUTO_ALIGN_KIND } from "./maskAlign";
+
+const STOPPABLE_TASKS = new Set(["perform_deposition", "perform_preablation"]);
 
 const TASK_LABELS: Record<string, string> = {
   [AUTO_ALIGN_KIND]: "Mask auto-align",
@@ -122,6 +125,11 @@ const ExperimentDriverMain = () => {
           <Text color="text.muted">
             running <Elapsed startedAt={task.started_at} />
           </Text>
+          {STOPPABLE_TASKS.has(task.kind) && (
+            <HStack ml="auto">
+              <StopDepositionButton task={task} />
+            </HStack>
+          )}
         </HStack>
       )}
 

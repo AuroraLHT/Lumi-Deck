@@ -3,13 +3,16 @@ import { useEffect, useRef } from "react";
 import { ChamberPldClient } from "../generated/lumi";
 import useTransportStore from "../clients/transport";
 import useChamberPldStore from "../stores/chamberPld";
+import useChamberPldSeriesStore, { toSeriesRow } from "../stores/chamberPldSeries";
 
 const EVENTS_POLL_MS = 5000;
 const EVENTS_LIMIT = 200;
 
 /**
  * Feeds the chamber.pld cache: the full `PldChamberState` pushed on its `state`
- * stream, plus `recent_events`, which has no push channel and is polled.
+ * stream, plus `recent_events`, which has no push channel and is polled. Also
+ * flattens each push into `chamberPldSeries`, the rolling buffer the Monitor
+ * charts plot from when the chamber is running the pld driver.
  *
  * Mounted exactly once, by `LumiTransportProvider`, for the same reason as
  * `useChamberLogStream`: `LumiTransport.subscribe` keys handlers by
@@ -26,6 +29,7 @@ const useChamberPldStream = () => {
 
     if (trackedHost.current !== null && trackedHost.current !== host) {
       useChamberPldStore.getState().reset();
+      useChamberPldSeriesStore.getState().reset();
     }
     trackedHost.current = host;
 
@@ -33,9 +37,14 @@ const useChamberPldStream = () => {
     const client = new ChamberPldClient(transport);
 
     // Subscribe before seeding so a push landing mid-request is not missed.
+    // Both stores are fed from this one push -- a second subscriber would
+    // silently replace this handler (`LumiTransport.subscribe` keys by
+    // `target:stream`), so the Monitor charts read off this same tick rather
+    // than opening their own.
     const subscriptionKey = client.onState((state) => {
       if (cancelled) return;
       useChamberPldStore.getState().setChamber(state);
+      useChamberPldSeriesStore.getState().appendRow(toSeriesRow(state));
     });
 
     client

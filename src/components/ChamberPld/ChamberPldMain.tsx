@@ -14,7 +14,7 @@ import {
 import useAppStore from "../../stores/app";
 import useChamberPldNodeStore from "../../stores/nodes/chamberPld";
 import useChamberPldStore from "../../stores/chamberPld";
-import { AxisBadge, BoolBadge, Field, Section, fmt, fmtTorr } from "./primitives";
+import { AxisBadge, BoolBadge, Field, Section, fmt, fmtTorr, pumpLabel } from "./primitives";
 
 const AXIS_LABELS: Record<string, string> = {
   TG: "Target carousel",
@@ -404,7 +404,7 @@ const ChamberPldMain = () => {
           <Section title="Pumps">
             <SimpleGrid columns={2} spacingX={4} spacingY="1px">
               {Object.entries(chamber.pumps ?? {}).map(([name, pump]) => (
-                <Field label={name} key={name}>
+                <Field label={pumpLabel(name)} key={name}>
                   <HStack spacing={1} justify="flex-end">
                     <Text fontSize="xs" color="text.muted">
                       {pump.state ?? "—"}

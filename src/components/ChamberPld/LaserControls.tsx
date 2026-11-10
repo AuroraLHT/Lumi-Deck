@@ -2,8 +2,12 @@ import { Text, VStack } from "@chakra-ui/react";
 
 import useChamberPldCall from "../../hooks/useChamberPldCall";
 import useChamberPldStore from "../../stores/chamberPld";
+import useExperimentDriverNodeStore from "../../stores/nodes/experimentDriver";
+import StopDepositionButton from "../ExperimentDriver/StopDepositionButton";
 import { Field, Section } from "./primitives";
 import { ConfirmOpButton, NumberOp, OpButton, SelectOp, SwitchOp, TwoNumberOp } from "./controlPrimitives";
+
+const STOPPABLE_TASKS = new Set(["perform_deposition", "perform_preablation"]);
 
 const MODE_OPTIONS = [
   { value: "hv", label: "HV" },
@@ -26,6 +30,7 @@ const LaserControls = () => {
   const chamber = useChamberPldStore((s) => s.chamber);
   const laser = chamber?.laser;
   const excimer = chamber?.excimer;
+  const task = useExperimentDriverNodeStore((s) => s.state.current_task);
 
   return (
     <Section title="Laser & excimer">
@@ -64,6 +69,11 @@ const LaserControls = () => {
             STOP
           </ConfirmOpButton>
         </Field>
+        {task && STOPPABLE_TASKS.has(task.kind) && (
+          <Field label="Driver is running a deposition">
+            <StopDepositionButton task={task} />
+          </Field>
+        )}
 
         <VStack align="stretch" spacing="2px" pt={1} borderTopWidth="1px" borderColor="panel.border">
           <Text fontSize="xs" fontWeight="600" color="text.secondary">
