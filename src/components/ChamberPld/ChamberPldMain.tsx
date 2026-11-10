@@ -381,7 +381,7 @@ const ChamberPldMain = () => {
                   {chamber.laser?.status === "firing" ? fmt(chamber.laser?.rate_hz, 1, " Hz") : "—"}
                 </Text>
               </Field>
-              <Field label="Pulses fired / requested">
+              <Field label="Fired / requested">
                 <Text fontSize="xs">
                   {chamber.laser?.pulses_fired ?? 0} / {chamber.laser?.pulses_requested ?? 0}
                 </Text>

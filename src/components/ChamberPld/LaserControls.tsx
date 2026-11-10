@@ -1,4 +1,4 @@
-import { Text, VStack } from "@chakra-ui/react";
+import { Badge, HStack, Text, VStack } from "@chakra-ui/react";
 
 import useChamberPldCall from "../../hooks/useChamberPldCall";
 import useChamberPldStore from "../../stores/chamberPld";
@@ -55,9 +55,17 @@ const LaserControls = () => {
           />
         </Field>
         <Field label="Status">
-          <Text fontSize="xs">
-            {laser?.status ?? "—"} · {laser?.pulses_fired ?? 0} fired
-          </Text>
+          <HStack spacing={1} justify="flex-end">
+            <Text fontSize="xs">
+              {laser?.status ?? "—"} · {laser?.pulses_fired ?? 0}/{laser?.pulses_requested ?? 0} fired
+              {laser?.status === "firing" && laser?.rate_hz != null && ` @ ${laser.rate_hz.toFixed(1)} Hz`}
+            </Text>
+            {laser?.stop_requested && (
+              <Badge colorScheme="orange" variant="subtle" fontSize="0.65rem">
+                stop requested
+              </Badge>
+            )}
+          </HStack>
         </Field>
         <Field label="STOP firing">
           <ConfirmOpButton
