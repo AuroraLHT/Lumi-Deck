@@ -17,7 +17,18 @@ export const Section = ({
   </Box>
 );
 
-/** A label/value row, the basic unit of every section here. */
+/**
+ * A label/value row, the basic unit of every section here.
+ *
+ * Both sides get `minW={0}` so plain flex-shrink (not a hard floor on either
+ * side) decides who gives way: it shrinks each side roughly in proportion to
+ * its own content width, so a long label (e.g. "Current set -> monitor")
+ * wraps onto a second line before a short numeric value does, while a short
+ * label next to a long value (e.g. "Logging" with a full log-file path)
+ * leaves the label alone and lets the value's own `noOfLines` ellipsis it.
+ * Forcing one side to never shrink (as this used to) just moves the squeeze
+ * onto the other side instead of fixing it.
+ */
 export const Field = ({
   label,
   children,
@@ -26,7 +37,7 @@ export const Field = ({
   children: ReactNode;
 }) => (
   <Flex justify="space-between" align="center" py="1px" fontSize="xs" gap={2}>
-    <Text color="text.muted" flexShrink={0}>
+    <Text color="text.muted" minW={0}>
       {label}
     </Text>
     <Box textAlign="right" minW={0}>
