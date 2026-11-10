@@ -150,6 +150,12 @@ const ChamberPldMain = () => {
               </Text>
             )}
           </Field>
+          <Field label="PLC session">
+            <BoolBadge value={chamber?.session?.plc_session} onLabel="open" offLabel="closed" />
+          </Field>
+          <Field label="Watchdog">
+            <BoolBadge value={chamber?.session?.watchdog} />
+          </Field>
         </SimpleGrid>
       </Section>
 
@@ -192,6 +198,13 @@ const ChamberPldMain = () => {
                 </Field>
               ))}
             </SimpleGrid>
+            {chamber.limits && (
+              <Text fontSize="xs" color="text.muted" mt={2}>
+                IG1 off above {fmtTorr(chamber.limits.ig1_max_torr)} (CDG10) · IG3 off above{" "}
+                {fmtTorr(chamber.limits.ig3_max_torr)} (TCG31) · MV3 refused above{" "}
+                {fmtTorr(chamber.limits.mv3_max_torr)} (TCG31)
+              </Text>
+            )}
           </Section>
 
           <Section title="Heater">
@@ -229,6 +242,12 @@ const ChamberPldMain = () => {
                   {fmt(chamber.heater?.current_max, 2, " A")}
                 </Text>
               </Field>
+              <Field label="Trip limits">
+                <Text fontSize="xs">
+                  {fmt(chamber.limits?.heater_max_celsius, 0, " °C")} /{" "}
+                  {fmt(chamber.limits?.heater_max_amps, 2, " A")}
+                </Text>
+              </Field>
               <Field label="Key / start / threshold">
                 <HStack spacing={1} justify="flex-end">
                   <BoolBadge value={chamber.heater?.key_on} />
@@ -237,9 +256,21 @@ const ChamberPldMain = () => {
                 </HStack>
               </Field>
               <Field label="Auto-tune">
-                <BoolBadge value={chamber.heater?.auto_tune} />
+                <HStack spacing={1} justify="flex-end">
+                  <BoolBadge value={chamber.heater?.auto_tune} />
+                  {chamber.heater?.auto_tune && chamber.heater?.tune_cycles ? (
+                    <Text fontSize="xs" color="text.muted">
+                      {chamber.heater?.tune_cycles_done ?? 0}/{chamber.heater.tune_cycles}
+                    </Text>
+                  ) : null}
+                </HStack>
               </Field>
             </SimpleGrid>
+            {chamber.heater?.writes_failing && (
+              <Text fontSize="xs" color="status.error" mt={1}>
+                LD current writes are failing
+              </Text>
+            )}
           </Section>
 
           <Section title="Motion">
@@ -336,10 +367,24 @@ const ChamberPldMain = () => {
           <Section title="Laser trigger">
             <SimpleGrid columns={2} spacingX={4} spacingY="1px">
               <Field label="Status">
-                <Text fontSize="xs">{chamber.laser?.status ?? "—"}</Text>
+                <HStack spacing={1} justify="flex-end">
+                  <Text fontSize="xs">{chamber.laser?.status ?? "—"}</Text>
+                  {chamber.laser?.stop_requested && (
+                    <Badge colorScheme="orange" variant="subtle" fontSize="0.65rem">
+                      stop requested
+                    </Badge>
+                  )}
+                </HStack>
               </Field>
-              <Field label="Pulses fired">
-                <Text fontSize="xs">{chamber.laser?.pulses_fired ?? 0}</Text>
+              <Field label="Rate">
+                <Text fontSize="xs">
+                  {chamber.laser?.status === "firing" ? fmt(chamber.laser?.rate_hz, 1, " Hz") : "—"}
+                </Text>
+              </Field>
+              <Field label="Pulses fired / requested">
+                <Text fontSize="xs">
+                  {chamber.laser?.pulses_fired ?? 0} / {chamber.laser?.pulses_requested ?? 0}
+                </Text>
               </Field>
               <Field label="Missed shots">
                 <Text fontSize="xs">{chamber.laser?.missed_shots ?? 0}</Text>

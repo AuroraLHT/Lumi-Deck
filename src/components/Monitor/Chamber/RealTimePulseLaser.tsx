@@ -10,11 +10,10 @@ import RTVToolBarMenu, { RangeValue } from "../../Plotting/RTVToolBarMenu";
 import PldStreamBanner from "./PldStreamBanner";
 
 /**
- * Under the pld driver, the state only carries pulses fired so far in the
- * current/last train and the train's missed-shot count -- not the requested
- * pulse count ("Laser set") or rate ("LaserHz"), so those two series are
- * dropped rather than left plotting nothing. REA is adding rate_hz and the
- * requested pulse count to the stream; both return once that lands.
+ * Under the pld driver, plots the chamber.pld state stream's laser fields.
+ * "Laser set" (pulses_requested) and "LaserHz" (rate_hz) both persist after
+ * a train ends; rate_hz is gated to null outside "firing" in chamberPldSeries
+ * so the rate series shows real-time speed, not a flat line between trains.
  *
  * Falls back to the CSV log under --use-legacy-mi-mode, where chamber.pld
  * carries no state at all.
@@ -45,6 +44,14 @@ const RealTimePulseLaser = () => {
         {
           id: "Missed shots",
           data: pldRows.map((row) => ({ x: new Date(row.time * 1000), y: row.laser_missed_shots })),
+        },
+        {
+          id: "Laser set",
+          data: pldRows.map((row) => ({ x: new Date(row.time * 1000), y: row.laser_pulses_requested })),
+        },
+        {
+          id: "LaserHz",
+          data: pldRows.map((row) => ({ x: new Date(row.time * 1000), y: row.laser_rate_hz })),
         },
       ] as Serie[];
     }

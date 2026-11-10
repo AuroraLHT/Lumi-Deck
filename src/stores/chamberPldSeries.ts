@@ -27,6 +27,9 @@ export interface PldSeriesRow {
   pressures_tcg0: number | null;
   laser_pulses_fired: number | null;
   laser_missed_shots: number | null;
+  laser_pulses_requested: number | null;
+  /** Null unless the current/last train is actively firing -- rate_hz persists after a train ends and would otherwise plot a flat line with no "firing" meaning. */
+  laser_rate_hz: number | null;
 }
 
 const MAX_ROWS = 3600; // 30 min at the service's 2 Hz state_rate_hz
@@ -46,6 +49,8 @@ export const toSeriesRow = (state: PldChamberState): PldSeriesRow => ({
   pressures_tcg0: state.pressures?.tcg?.[0] ?? null,
   laser_pulses_fired: state.laser?.pulses_fired ?? null,
   laser_missed_shots: state.laser?.missed_shots ?? null,
+  laser_pulses_requested: state.laser?.pulses_requested ?? null,
+  laser_rate_hz: state.laser?.status === "firing" ? state.laser?.rate_hz ?? null : null,
 });
 
 interface ChamberPldSeriesState {
