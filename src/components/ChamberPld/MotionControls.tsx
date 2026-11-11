@@ -2,7 +2,7 @@ import { HStack, Text, VStack } from "@chakra-ui/react";
 
 import useChamberPldCall from "../../hooks/useChamberPldCall";
 import useChamberPldStore from "../../stores/chamberPld";
-import { Field, Section } from "./primitives";
+import { Field, Section, sortedEntries } from "./primitives";
 import { NumberOp, OpButton, SelectOp, SwitchOp } from "./controlPrimitives";
 
 const TARGET_OPTIONS = ["A", "B", "C", "D", "E", "F", "Clear"].map((t) => ({ value: t, label: t }));
@@ -21,7 +21,7 @@ const MotionControls = () => {
   const call = useChamberPldCall();
   const chamber = useChamberPldStore((s) => s.chamber);
   const motion = chamber?.motion;
-  const valves = Object.entries(chamber?.valves ?? {});
+  const valves = sortedEntries(chamber?.valves);
 
   return (
     <Section title="Motion">

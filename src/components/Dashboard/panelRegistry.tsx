@@ -127,8 +127,8 @@ export const PANEL_REGISTRY: Record<PanelType, PanelDefinition> = {
     type: "chamberPld",
     title: "PLD Chamber",
     render: () => <ChamberPldMain />,
-    defaultSize: { w: 6, h: 12 },
-    minSize: { w: 4, h: 6 },
+    defaultSize: { w: 9, h: 16 },
+    minSize: { w: 5, h: 8 },
     description:
       "Pressures, heater, motion, valves, gas, excimer, pumps and load lock",
   },

@@ -2,6 +2,7 @@ import {
   Alert,
   AlertIcon,
   Badge,
+  Box,
   Center,
   Grid,
   HStack,
@@ -14,7 +15,17 @@ import {
 import useAppStore from "../../stores/app";
 import useChamberPldNodeStore from "../../stores/nodes/chamberPld";
 import useChamberPldStore from "../../stores/chamberPld";
-import { AxisBadge, BoolBadge, Field, Section, fmt, fmtTorr, pumpLabel } from "./primitives";
+import {
+  AxisBadge,
+  BoolBadge,
+  Field,
+  PumpStateBadge,
+  Section,
+  TruncatedText,
+  fmt,
+  fmtTorr,
+  sortedEntries,
+} from "./primitives";
 
 const AXIS_LABELS: Record<string, string> = {
   TG: "Target carousel",
@@ -94,7 +105,7 @@ const ChamberPldMain = () => {
       )}
 
       <Section title="Overview">
-        <SimpleGrid columns={2} spacingX={4} spacingY="1px">
+        <SimpleGrid minChildWidth="220px" spacingX={4} spacingY="1px">
           <Field label="Backend">
             <Badge
               variant="subtle"
@@ -122,9 +133,7 @@ const ChamberPldMain = () => {
             </Tooltip>
           </Field>
           <Field label="Address">
-            <Text fontSize="xs" noOfLines={1}>
-              {node.address ?? "—"}
-            </Text>
+            <TruncatedText text={node.address} />
           </Field>
           <Field label="Laser control (CM)">
             {node.laser_control == null ? (
@@ -141,9 +150,7 @@ const ChamberPldMain = () => {
           </Field>
           <Field label="Logging">
             {node.log_file ? (
-              <Text fontSize="xs" noOfLines={1}>
-                {node.log_file}
-              </Text>
+              <TruncatedText text={node.log_file} />
             ) : (
               <Text fontSize="xs" color="text.muted">
                 not logging
@@ -168,7 +175,7 @@ const ChamberPldMain = () => {
       ) : (
         <Grid templateColumns="repeat(auto-fit, minmax(240px, 1fr))" gap={2}>
           <Section title="Pressures">
-            <SimpleGrid columns={2} spacingX={4} spacingY="1px">
+            <SimpleGrid minChildWidth="220px" spacingX={4} spacingY="1px">
               <Field label="IG1 (main)">
                 <Text fontSize="xs">
                   {chamber.pressures?.ig1_on
@@ -208,7 +215,7 @@ const ChamberPldMain = () => {
           </Section>
 
           <Section title="Heater">
-            <SimpleGrid columns={2} spacingX={4} spacingY="1px">
+            <SimpleGrid minChildWidth="220px" spacingX={4} spacingY="1px">
               <Field label="Temperature">
                 <Text fontSize="xs">
                   {fmt(chamber.heater?.temperature, 1, " °C")}
@@ -274,7 +281,7 @@ const ChamberPldMain = () => {
           </Section>
 
           <Section title="Motion">
-            <SimpleGrid columns={2} spacingX={4} spacingY="1px">
+            <SimpleGrid minChildWidth="220px" spacingX={4} spacingY="1px">
               <Field label="Target">
                 <Text fontSize="xs">
                   {chamber.motion?.target || "(between slots)"}
@@ -297,26 +304,26 @@ const ChamberPldMain = () => {
                   {fmt(chamber.motion?.rheed_gun_x, 2, " mm")}
                 </Text>
               </Field>
-              <Field label="Spin / twist">
-                <HStack spacing={1} justify="flex-end">
-                  <BoolBadge
-                    value={chamber.motion?.target_spinning}
-                    onLabel="spin"
-                    offLabel="spin off"
-                  />
-                  <BoolBadge
-                    value={chamber.motion?.target_twisting}
-                    onLabel="twist"
-                    offLabel="twist off"
-                  />
-                </HStack>
+              <Field label="Spin">
+                <BoolBadge
+                  value={chamber.motion?.target_spinning}
+                  onLabel="spin"
+                  offLabel="spin off"
+                />
+              </Field>
+              <Field label="Twist">
+                <BoolBadge
+                  value={chamber.motion?.target_twisting}
+                  onLabel="twist"
+                  offLabel="twist off"
+                />
               </Field>
               <Field label="Motor free">
                 <BoolBadge value={chamber.motion?.motor_free} />
               </Field>
             </SimpleGrid>
             <VStack align="stretch" spacing="1px" mt={2}>
-              {Object.entries(chamber.motion?.axes ?? {}).map(
+              {sortedEntries(chamber.motion?.axes).map(
                 ([axis, status]) => (
                   <Field label={AXIS_LABELS[axis] ?? axis} key={axis}>
                     <AxisBadge status={status} />
@@ -327,8 +334,8 @@ const ChamberPldMain = () => {
           </Section>
 
           <Section title="Valves">
-            <SimpleGrid columns={2} spacingX={4} spacingY="1px">
-              {Object.entries(chamber.valves ?? {}).map(([name, open]) => (
+            <SimpleGrid minChildWidth="220px" spacingX={4} spacingY="1px">
+              {sortedEntries(chamber.valves).map(([name, open]) => (
                 <Field label={name} key={name}>
                   <BoolBadge value={open} onLabel="open" offLabel="closed" />
                 </Field>
@@ -337,7 +344,7 @@ const ChamberPldMain = () => {
           </Section>
 
           <Section title="Gas & pressure control">
-            <SimpleGrid columns={2} spacingX={4} spacingY="1px">
+            <SimpleGrid minChildWidth="220px" spacingX={4} spacingY="1px">
               <Field label="MFC1 setpoint → flow">
                 <Text fontSize="xs">
                   {fmt(chamber.gas?.mfc1_setpoint, 1, " sccm")} →{" "}
@@ -365,7 +372,7 @@ const ChamberPldMain = () => {
           </Section>
 
           <Section title="Laser trigger">
-            <SimpleGrid columns={2} spacingX={4} spacingY="1px">
+            <SimpleGrid minChildWidth="220px" spacingX={4} spacingY="1px">
               <Field label="Status">
                 <HStack spacing={1} justify="flex-end">
                   <Text fontSize="xs">{chamber.laser?.status ?? "—"}</Text>
@@ -393,7 +400,7 @@ const ChamberPldMain = () => {
           </Section>
 
           <Section title="Excimer (COMPexPro)">
-            <SimpleGrid columns={2} spacingX={4} spacingY="1px">
+            <SimpleGrid minChildWidth="220px" spacingX={4} spacingY="1px">
               <Field label="Present / connected">
                 <HStack spacing={1} justify="flex-end">
                   <BoolBadge value={chamber.excimer?.present} />
@@ -447,26 +454,17 @@ const ChamberPldMain = () => {
           </Section>
 
           <Section title="Pumps">
-            <SimpleGrid columns={2} spacingX={4} spacingY="1px">
-              {Object.entries(chamber.pumps ?? {}).map(([name, pump]) => (
-                <Field label={pumpLabel(name)} key={name}>
-                  <HStack spacing={1} justify="flex-end">
-                    <Text fontSize="xs" color="text.muted">
-                      {pump.state ?? "—"}
-                    </Text>
-                    <BoolBadge
-                      value={pump.at_speed}
-                      onLabel="at speed"
-                      offLabel={pump.running ? "spinning up" : "stopped"}
-                    />
-                  </HStack>
+            <SimpleGrid minChildWidth="220px" spacingX={4} spacingY="1px">
+              {sortedEntries(chamber.pumps).map(([name, pump]) => (
+                <Field label={name} key={name}>
+                  <PumpStateBadge state={pump.state} />
                 </Field>
               ))}
             </SimpleGrid>
           </Section>
 
           <Section title="Load lock">
-            <SimpleGrid columns={2} spacingX={4} spacingY="1px">
+            <SimpleGrid minChildWidth="220px" spacingX={4} spacingY="1px">
               <Field label="Hatch closed">
                 <BoolBadge value={chamber.load_lock?.hatch_closed} />
               </Field>
@@ -494,7 +492,7 @@ const ChamberPldMain = () => {
           </Section>
 
           <Section title="Shutter & interlocks">
-            <SimpleGrid columns={2} spacingX={4} spacingY="1px">
+            <SimpleGrid minChildWidth="220px" spacingX={4} spacingY="1px">
               <Field label="Sample shutter away">
                 <BoolBadge
                   value={chamber.sample_shutter_away}
@@ -538,7 +536,9 @@ const ChamberPldMain = () => {
                 <Badge variant="subtle" fontSize="0.6rem" flexShrink={0}>
                   {e.kind ?? "event"}
                 </Badge>
-                <Text noOfLines={1}>{e.message}</Text>
+                <Box flex={1} minW={0}>
+                  <TruncatedText text={e.message} />
+                </Box>
               </HStack>
             ))}
           </VStack>

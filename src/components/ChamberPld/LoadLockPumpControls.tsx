@@ -2,7 +2,7 @@ import { Text, VStack } from "@chakra-ui/react";
 
 import useChamberPldCall from "../../hooks/useChamberPldCall";
 import useChamberPldStore from "../../stores/chamberPld";
-import { Field, Section, pumpLabel } from "./primitives";
+import { Field, Section, sortedEntries } from "./primitives";
 import { ConfirmOpButton, OpButton, SwitchOp } from "./controlPrimitives";
 
 type PumpName = "TMP1" | "TMP20" | "TMP21" | "TMP3" | "DP1" | "DP2" | "DP3";
@@ -16,7 +16,7 @@ const LoadLockPumpControls = () => {
   const call = useChamberPldCall();
   const chamber = useChamberPldStore((s) => s.chamber);
   const loadLock = chamber?.load_lock;
-  const pumps = Object.entries(chamber?.pumps ?? {});
+  const pumps = sortedEntries(chamber?.pumps);
 
   return (
     <Section title="Load lock & pumps">
@@ -56,7 +56,7 @@ const LoadLockPumpControls = () => {
               <SwitchOp
                 key={name}
                 call={call}
-                label={pumpLabel(name)}
+                label={name}
                 checked={Boolean(pump.running)}
                 op={(c, on) => c.set_pump({ pump: name as PumpName, on })}
               />

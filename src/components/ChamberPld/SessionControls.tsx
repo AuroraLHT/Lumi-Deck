@@ -3,7 +3,7 @@ import { Button, HStack, Input, Text, VStack } from "@chakra-ui/react";
 
 import useChamberPldCall from "../../hooks/useChamberPldCall";
 import useChamberPldNodeStore from "../../stores/nodes/chamberPld";
-import { Field, Section } from "./primitives";
+import { Field, Section, TruncatedText } from "./primitives";
 import { AnyReply, ConfirmOpButton, OpButton, ReplyText, operatorTitle } from "./controlPrimitives";
 
 /**
@@ -56,9 +56,13 @@ const SessionControls = () => {
         )}
 
         <Field label="Growth log">
-          <Text fontSize="xs" noOfLines={1}>
-            {node.log_file ?? "not logging"}
-          </Text>
+          {node.log_file ? (
+            <TruncatedText text={node.log_file} />
+          ) : (
+            <Text fontSize="xs" color="text.muted">
+              not logging
+            </Text>
+          )}
         </Field>
         <HStack spacing={1} flexWrap="wrap">
           <Input
