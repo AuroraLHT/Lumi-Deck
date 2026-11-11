@@ -27,6 +27,8 @@ export const projectDriverState = (
   deps_available: s?.deps_available ?? {},
   error: s?.error ?? null,
   center_mask_pos: s?.center_mask_pos ?? null,
+  laser_power_set: s?.laser_power_set ?? null,
+  laser_power_real: s?.laser_power_real ?? null,
 });
 
 /**

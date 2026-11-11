@@ -6,6 +6,7 @@ import useExperimentDriverStore from "../../stores/experimentDriver";
 import useExperimentDriverNodeStore from "../../stores/nodes/experimentDriver";
 import CalibrationActions from "./CalibrationActions";
 import MaskAutoAlign from "./MaskAutoAlign";
+import OperationConsole from "./OperationConsole";
 import PendingConfirmationCard from "./PendingConfirmationCard";
 import StopDepositionButton from "./StopDepositionButton";
 import { AUTO_ALIGN_KIND } from "./maskAlign";
@@ -133,6 +134,7 @@ const ExperimentDriverMain = () => {
         </HStack>
       )}
 
+      <OperationConsole locked={locked} />
       <MaskAutoAlign locked={locked} />
       <CalibrationActions locked={locked} />
 

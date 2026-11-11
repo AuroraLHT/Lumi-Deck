@@ -33,6 +33,9 @@ export interface ExperimentDriverNodeState extends NodeState {
    * calibration. Saved by the backend, so it survives a node restart.
    */
   center_mask_pos: number | null;
+  /** The laser power last checked with begin_set_laser_power, and what the meter read. */
+  laser_power_set: number | null;
+  laser_power_real: number | null;
 }
 
 // `Node`, not `StreamNode`: the driver's `pending` channel is PUBSUB, like
@@ -55,6 +58,8 @@ const useExperimentDriverNodeStore = create<ExperimentDriverNode>()(
       deps_available: {},
       error: null,
       center_mask_pos: null,
+      laser_power_set: null,
+      laser_power_real: null,
     },
     setState: (newState) =>
       set((state) => {
