@@ -4,8 +4,6 @@ import { Badge, Center, HStack, Spinner, Text, Tooltip, VStack } from "@chakra-u
 import useAppStore from "../../stores/app";
 import useExperimentDriverStore from "../../stores/experimentDriver";
 import useExperimentDriverNodeStore from "../../stores/nodes/experimentDriver";
-import CalibrationActions from "./CalibrationActions";
-import MaskAutoAlign from "./MaskAutoAlign";
 import OperationConsole from "./OperationConsole";
 import PendingConfirmationCard from "./PendingConfirmationCard";
 import StopDepositionButton from "./StopDepositionButton";
@@ -135,8 +133,6 @@ const ExperimentDriverMain = () => {
       )}
 
       <OperationConsole locked={locked} />
-      <MaskAutoAlign locked={locked} />
-      <CalibrationActions locked={locked} />
 
       {recent.length > 0 && (
         <VStack align="stretch" spacing={1}>

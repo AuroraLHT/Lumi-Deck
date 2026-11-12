@@ -2,10 +2,17 @@ import { Box, HStack, Icon, IconButton, Text, VStack } from "@chakra-ui/react";
 import { Reorder, useDragControls } from "framer-motion";
 import { LuGripVertical, LuPin, LuX } from "react-icons/lu";
 
+import MaskAlignResultView from "./MaskAlignResultView";
+import { AUTO_ALIGN_KIND } from "./maskAlign";
 import OpForm, { RunControl } from "./OpForm";
 import OpLiveContext from "./OpLiveContext";
 import { OpSpec } from "./opRegistry";
 import useOpForm from "./useOpForm";
+
+/** What some ops show under their form: results richer than the reply line. */
+const EXTRAS: Record<string, () => JSX.Element | null> = {
+  [AUTO_ALIGN_KIND]: MaskAlignResultView,
+};
 
 /**
  * One op on the console: its live readings and its form, with a header to
@@ -35,6 +42,7 @@ const OpCard = ({
 }) => {
   const controls = useDragControls();
   const form = useOpForm(op, locked);
+  const Extra = EXTRAS[op.id];
 
   return (
     <Reorder.Item
@@ -102,6 +110,7 @@ const OpCard = ({
         <VStack align="stretch" spacing={2}>
           <OpLiveContext op={op} />
           <OpForm form={form} />
+          {Extra && <Extra />}
         </VStack>
       </Box>
     </Reorder.Item>

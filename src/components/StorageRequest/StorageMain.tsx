@@ -1,29 +1,22 @@
 import React, { useEffect, useRef, useState } from "react";
 import {
+  Badge,
   Box,
-  Checkbox,
-  FormControl,
-  FormLabel,
+  Button,
+  HStack,
   Icon,
-  IconButton,
   Input,
-  Stack,
-  Collapse,
-  CheckboxGroup,
-  Flex,
+  InputGroup,
+  InputRightAddon,
+  SimpleGrid,
+  Switch,
   Text,
   Tooltip,
-  useDisclosure,
+  VStack,
   useToast,
 } from "@chakra-ui/react";
 import { useForm, SubmitHandler } from "react-hook-form";
-import {
-  MdExpandLess,
-  MdExpandMore,
-  MdFiberManualRecord,
-  MdStop,
-} from "react-icons/md";
-import CircularButton from "../VideoPlayer/CircularButton";
+import { MdFiberManualRecord, MdStop, MdWarningAmber } from "react-icons/md";
 import { StorageStorageClient } from "../../generated/lumi";
 import useTransportStore from "../../clients/transport";
 import useStorageNodeStore from "../../stores/nodes/storage";
@@ -47,6 +40,13 @@ interface StorageFormValues {
  */
 const CONFIRM_TIMEOUT_MS = 8000;
 
+const OPTIONS: { key: "save_frame" | "save_ai" | "save_log" | "save_integration"; label: string }[] = [
+  { key: "save_frame", label: "Frames" },
+  { key: "save_ai", label: "Detections" },
+  { key: "save_log", label: "Chamber log" },
+  { key: "save_integration", label: "Integrations" },
+];
+
 /** The contract takes (0, 200] keV; empty (or anything else) is null, the lab's default. */
 const energyKev = (text: string) => {
   const n = Number(text);
@@ -63,7 +63,6 @@ const StorageMain: React.FC = () => {
       rheed_energy_kev: "",
     },
   });
-  const { isOpen, onToggle } = useDisclosure();
   const transport = useTransportStore((s) => s.transport);
   const toast = useToast();
 
@@ -181,176 +180,156 @@ const StorageMain: React.FC = () => {
     }
   };
 
+  const energyText = watch("rheed_energy_kev");
+  const energyInvalid = energyText !== "" && energyKev(energyText) === null;
+
   return (
-    <Box pt={2}>
-      <form id="storageForm" onSubmit={handleSubmit(onSubmit)}>
-        <FormControl>
-          <Flex alignItems="center" justifyContent="space-between" gap={2}>
-            <IconButton
-              aria-label="Toggle options"
-              icon={
-                isOpen ? <Icon as={MdExpandLess} /> : <Icon as={MdExpandMore} />
-              }
-              onClick={onToggle}
-              variant="outline"
-              size="sm"
-              borderWidth="0"
+    <VStack
+      as="form"
+      id="storageForm"
+      onSubmit={handleSubmit(onSubmit)}
+      align="stretch"
+      spacing={3}
+      p={2}
+    >
+      {/* What the node is doing now -- shared by every client, so a session
+          started elsewhere shows here too. */}
+      <HStack spacing={2} minW={0}>
+        {!isAvailable ? (
+          <Badge variant="subtle" colorScheme="gray">
+            Offline
+          </Badge>
+        ) : isStoring ? (
+          <Badge variant="subtle" colorScheme="red" display="flex" alignItems="center" gap={1}>
+            <Box w="6px" h="6px" borderRadius="full" bg="red.400" />
+            Recording
+          </Badge>
+        ) : (
+          <Badge variant="subtle" colorScheme="gray">
+            Idle
+          </Badge>
+        )}
+        <Text fontSize="xs" color="text.muted" noOfLines={1} title={activePath ?? undefined}>
+          {!isAvailable
+            ? "The storage node is not on the bus"
+            : isStoring
+            ? activePath
+              ? `Writing to ${activePath}`
+              : "Recording in progress"
+            : "Ready to record"}
+        </Text>
+      </HStack>
+
+      {/* While the node is recording, the name is the node's, not this form's
+          -- typing a different one would suggest it could be renamed
+          mid-session. */}
+      <HStack spacing={2}>
+        {isStoring ? (
+          <Input
+            size="sm"
+            aria-label="Project name"
+            value={activeProject ?? "recording"}
+            isReadOnly
+            fontWeight="600"
+          />
+        ) : (
+          <Input
+            id="project_name"
+            size="sm"
+            aria-label="Project name"
+            placeholder="Project name"
+            {...register("project_name")}
+          />
+        )}
+        <Tooltip
+          label={
+            !isAvailable
+              ? "The storage node is not on the bus"
+              : showsRecording
+              ? "Stop the recording"
+              : "Start recording"
+          }
+        >
+          <Button
+            type="submit"
+            size="sm"
+            flexShrink={0}
+            minW="84px"
+            colorScheme={showsRecording ? "red" : "teal"}
+            variant={showsRecording ? "solid" : "outline"}
+            leftIcon={<Icon as={showsRecording ? MdStop : MdFiberManualRecord} />}
+            isLoading={isBusy}
+            isDisabled={!transport || !isAvailable}
+          >
+            {showsRecording ? "Stop" : "Record"}
+          </Button>
+        </Tooltip>
+      </HStack>
+
+      <Box borderWidth="1px" borderColor="panel.border" borderRadius="md" p={2}>
+        <Text fontSize="xs" fontWeight="600" color="text.secondary" mb={2}>
+          Record
+        </Text>
+        {/* Read once, when the recorder's datasets are created, so they cannot
+            be changed on a running session. */}
+        <SimpleGrid minChildWidth="120px" spacingX={3} spacingY={2}>
+          {OPTIONS.map(({ key, label }) => (
+            <HStack key={key} spacing={2}>
+              <Switch size="sm" id={key} isDisabled={isStoring} {...register(key)} />
+              <Text as="label" htmlFor={key} fontSize="xs">
+                {label}
+              </Text>
+            </HStack>
+          ))}
+        </SimpleGrid>
+
+        {/* Nothing reads the energy off the RHEED gun, so the recording keeps
+            what is said here -- and a pattern cannot be indexed without it. */}
+        <VStack align="stretch" spacing="1px" mt={3} maxW="200px">
+          <Text as="label" htmlFor="rheed_energy_kev" fontSize="0.65rem" color="text.muted">
+            RHEED beam energy
+          </Text>
+          <InputGroup size="xs">
+            <Input
+              id="rheed_energy_kev"
+              type="number"
+              step="0.5"
+              min={0}
+              max={200}
+              placeholder="lab default"
+              isDisabled={isStoring}
+              isInvalid={energyInvalid}
+              {...register("rheed_energy_kev")}
             />
-            <FormLabel htmlFor="project_name" mb="0" flexShrink={0}>
-              Project Name:
-            </FormLabel>
+            <InputRightAddon>keV</InputRightAddon>
+          </InputGroup>
+        </VStack>
+      </Box>
 
-            {/* While the node is recording, the name is the node's, not this
-                form's -- typing a different one would suggest it could be
-                renamed mid-session, and would hide which file is being written
-                when the session was started somewhere else. */}
-            {isStoring ? (
-              <Tooltip label={activePath ?? "Recording in progress"}>
-                <Flex
-                  alignItems="center"
-                  gap={2}
-                  minW={0}
-                  maxWidth={["100%", "300px"]}
-                  flex="1"
-                >
-                  <Box
-                    w="8px"
-                    h="8px"
-                    borderRadius="full"
-                    bg="red.400"
-                    flexShrink={0}
-                  />
-                  <Text fontSize="sm" fontWeight="600" noOfLines={1}>
-                    {activeProject ?? "recording"}
-                  </Text>
-                </Flex>
-              </Tooltip>
-            ) : (
-              <Input
-                id="project_name"
-                placeholder="Project Name"
-                {...register("project_name")}
-                maxWidth={["100%", "300px"]}
-              />
-            )}
-
-            <Tooltip
-              label={
-                !isAvailable
-                  ? "The storage node is not on the bus"
-                  : showsRecording
-                    ? "Stop the recording"
-                    : "Start recording"
-              }
-            >
-              <Box>
-                <CircularButton
-                  type="submit"
-                  aria-label={showsRecording ? "Stop" : "Start"}
-                  icon={showsRecording ? <MdStop /> : <MdFiberManualRecord />}
-                  fontSize={"1rem"}
-                  colorScheme={showsRecording ? "red" : "teal"}
-                  size="sm"
-                  isLoading={isBusy}
-                  isDisabled={!transport || !isAvailable}
-                />
-              </Box>
-            </Tooltip>
-          </Flex>
-
-          <Collapse in={isOpen} animateOpacity>
-            <Box
-              bg="panel.bgElevated"
-              color="text.primary"
-              borderWidth="1px"
-              borderColor="panel.border"
-              boxShadow="md"
-              p={4}
-              borderRadius="md"
-            >
-              <CheckboxGroup colorScheme="green">
-                <Stack spacing={[1, 5]} direction={["column", "row"]}>
-                  <FormLabel htmlFor="save_frame">Options:</FormLabel>
-
-                  {/* These are read once, when the recorder's datasets are
-                      created, so they cannot be changed on a running session. */}
-                  <Checkbox
-                    id="save_frame"
-                    isDisabled={isStoring}
-                    {...register("save_frame")}
-                  >
-                    Frame
-                  </Checkbox>
-
-                  <Checkbox
-                    id="save_ai"
-                    isDisabled={isStoring}
-                    {...register("save_ai")}
-                  >
-                    Detection
-                  </Checkbox>
-
-                  <Checkbox
-                    id="save_log"
-                    isDisabled={isStoring}
-                    {...register("save_log")}
-                  >
-                    Log
-                  </Checkbox>
-
-                  <Checkbox
-                    id="save_integration"
-                    isDisabled={isStoring}
-                    {...register("save_integration")}
-                  >
-                    Integration
-                  </Checkbox>
-                </Stack>
-              </CheckboxGroup>
-
-              {/* Nothing reads the energy off the RHEED gun, so the recording
-                  keeps what is said here -- and a pattern cannot be indexed
-                  without it. */}
-              <Flex alignItems="center" gap={2} mt={3}>
-                <FormLabel htmlFor="rheed_energy_kev" mb={0} fontSize="sm" flexShrink={0}>
-                  RHEED beam energy (keV):
-                </FormLabel>
-                <Input
-                  id="rheed_energy_kev"
-                  size="sm"
-                  type="number"
-                  step="0.5"
-                  min={0}
-                  max={200}
-                  placeholder="lab default"
-                  maxW="120px"
-                  isDisabled={isStoring}
-                  isInvalid={watch("rheed_energy_kev") !== "" && energyKev(watch("rheed_energy_kev")) === null}
-                  {...register("rheed_energy_kev")}
-                />
-              </Flex>
-
-              {/* Storage records other nodes, so it can be up and still unable
-                  to save what you ticked. Better to see that before the growth
-                  than to find an empty dataset afterwards. */}
-              {missingDeps.length > 0 && (
-                <Text fontSize="xs" color="orange.400" mt={3}>
-                  {`Not on the bus: ${missingDeps.join(", ")} — anything sourced from ${
-                    missingDeps.length > 1 ? "them" : "it"
-                  } cannot be recorded.`}
-                </Text>
-              )}
-
-              {isStoring && activePath && (
-                <Text fontSize="xs" color="text.secondary" mt={3} noOfLines={1}>
-                  {`Writing to ${activePath}`}
-                </Text>
-              )}
-            </Box>
-          </Collapse>
-        </FormControl>
-      </form>
-    </Box>
+      {/* Storage records other nodes, so it can be up and still unable to save
+          what you ticked. Better to see that before the growth than to find an
+          empty dataset afterwards. */}
+      {missingDeps.length > 0 && (
+        <HStack
+          spacing={2}
+          align="flex-start"
+          fontSize="xs"
+          color="status.warn"
+          borderWidth="1px"
+          borderColor="status.warn"
+          borderRadius="md"
+          px={2}
+          py={1}
+        >
+          <Icon as={MdWarningAmber} mt="2px" flexShrink={0} />
+          <Text>
+            {`Not on the bus: ${missingDeps.join(", ")} -- anything sourced from ${
+              missingDeps.length > 1 ? "them" : "it"
+            } cannot be recorded.`}
+          </Text>
+        </HStack>
+      )}
+    </VStack>
   );
 };
 

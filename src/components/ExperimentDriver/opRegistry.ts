@@ -1,5 +1,6 @@
 import {
   Anneal,
+  AutoAlignMaskCenter,
   BeginSetLaserPower,
   CoolDown,
   EndStorage,
@@ -13,6 +14,8 @@ import {
   ResumeSubstrate,
   SampleAngle,
   SetMfcControl,
+  SetLaserEnergy,
+  SetLaserHv,
   SetMfcFlow,
   SetPressure,
   SetPressureControl,
@@ -23,25 +26,73 @@ import {
   ToTemperature,
   TurnOffHeatingLaser,
 } from "../../generated/lumi";
+import useExperimentDriverStore from "../../stores/experimentDriver";
+import { AUTO_ALIGN_KIND } from "./maskAlign";
 
 export type OpCategory =
   | "Task"
+  | "Heating laser"
+  | "Excimer"
   | "Motion"
   | "Gas & pressure"
-  | "Laser"
   | "Target"
   | "Logging & storage"
   | "Substrate";
 
 export const OP_CATEGORIES: OpCategory[] = [
   "Task",
+  "Heating laser",
+  "Excimer",
   "Motion",
   "Gas & pressure",
-  "Laser",
   "Target",
   "Logging & storage",
   "Substrate",
 ];
+
+/** One live reading on an op's card; OpLiveContext renders each. */
+export type Reading =
+  | "temperature"
+  | "heatingLaser"
+  | "pid"
+  | "excimer"
+  | "excimerEnergy"
+  | "excimerHv"
+  | "excimerRange"
+  | "confirmedPower"
+  | "target"
+  | "spin"
+  | "twist"
+  | "autoSpin"
+  | "autoTwist"
+  | "shutter"
+  | "pressure"
+  | "cdg"
+  | "mfc"
+  | "pressureControl"
+  | "pressureSetpoint"
+  | "mask"
+  | "maskCalibration"
+  | "rheedGun"
+  | "sampleAngle"
+  | "motorFree"
+  | "pixel"
+  | "substrate"
+  | "project"
+  | "growthLog"
+  | "recording";
+
+/** What a card shows unless its op names its own readings. */
+export const CATEGORY_READINGS: Record<OpCategory, Reading[]> = {
+  Task: ["target", "shutter", "mask", "excimerEnergy"],
+  "Heating laser": ["temperature", "heatingLaser", "pid"],
+  Excimer: ["excimer", "excimerEnergy", "excimerHv", "confirmedPower"],
+  Motion: ["mask", "rheedGun", "sampleAngle", "pixel", "motorFree"],
+  "Gas & pressure": ["pressure", "cdg", "mfc", "pressureControl", "pressureSetpoint"],
+  Target: ["target", "spin", "twist", "autoSpin", "autoTwist", "motorFree"],
+  "Logging & storage": ["growthLog", "recording", "project"],
+  Substrate: ["substrate", "pixel", "project"],
+};
 
 export interface FieldSpec {
   key: string;
@@ -72,6 +123,8 @@ export interface OpSpec {
   category: OpCategory;
   hint?: string;
   fields: FieldSpec[];
+  /** Live readings on the card; the category's when left out, none when empty. */
+  readings?: Reading[];
   /**
    * Opens a pending confirmation: blocked while one is open or a task runs,
    * since the backend keeps one at a time and a second replaces the first.
@@ -94,27 +147,6 @@ const dryrun: FieldSpec = { key: "is_dryrun", label: "Dry run", type: "boolean",
 export const OP_REGISTRY: OpSpec[] = [
   // --- Task ------------------------------------------------------------------
   {
-    id: "to_temperature",
-    startsTask: true,
-    label: "Ramp to temperature",
-    category: "Task",
-    hint: "Needs the heating laser on first. Wait off: the task ends once the ramp is under way.",
-    fields: [
-      { key: "temperature", label: "Temperature", type: "number", unit: "°C" },
-      { key: "ramp_rate", label: "Ramp rate", type: "number", unit: "°C/min", initial: "20" },
-      { key: "wait", label: "Wait until arrived", type: "boolean", initial: true },
-    ],
-    run: (c, p) => c.to_temperature(p as unknown as ToTemperature),
-  },
-  {
-    id: "cool_down",
-    startsTask: true,
-    label: "Cool down",
-    category: "Task",
-    fields: [{ key: "ramp_rate", label: "Ramp rate", type: "number", unit: "°C/min", initial: "20" }],
-    run: (c, p) => c.cool_down(p as CoolDown),
-  },
-  {
     id: "perform_preablation",
     startsTask: true,
     label: "Pre-ablation",
@@ -134,6 +166,7 @@ export const OP_REGISTRY: OpSpec[] = [
     startsTask: true,
     label: "Deposition",
     category: "Task",
+    readings: ["target", "shutter", "mask", "excimerEnergy", "temperature", "pressure"],
     fields: [
       { key: "target_id", label: "Target", type: "targets" },
       { key: "num_pulse", label: "Pulses", type: "integer" },
@@ -144,23 +177,156 @@ export const OP_REGISTRY: OpSpec[] = [
     stop: stopDeposition,
   },
   {
-    id: "anneal",
-    startsTask: true,
-    label: "Anneal",
-    category: "Task",
-    hint: "Steps run in order: ramp to each temperature, then hold.",
-    fields: [{ key: "steps", label: "Steps", type: "steps" }],
-    run: (c, p) => c.anneal(p as unknown as Anneal),
-  },
-  {
     id: "stop_deposition",
     label: "Stop deposition / pre-ablation",
     category: "Task",
     hint: "Ends the running deposition or pre-ablation and stops the laser. Harmless when nothing fires.",
+    readings: ["excimer", "shutter"],
     fields: [{ key: "reason", label: "Reason", type: "text", optional: true, initial: "operator stop" }],
     run: (c, p) => c.stop_deposition(p as StopDeposition),
   },
+  {
+    id: AUTO_ALIGN_KIND,
+    startsTask: true,
+    // It may stop on a prompt for the marker, and the backend keeps one prompt at a time.
+    opensPrompt: true,
+    label: "Mask center auto-align",
+    category: "Task",
+    hint: "Scans Mask1 while watching the marker tagged mask-center on the chamber camera, then centers the slit on it. Scan around left blank: the current calibration.",
+    readings: ["mask", "maskCalibration"],
+    fields: [
+      { key: "center_mm", label: "Scan around", type: "number", unit: "mm", step: 0.5, optional: true },
+      { key: "half_window_mm", label: "Half-width", type: "number", unit: "± mm", step: 0.5, initial: "4" },
+      { key: "apply", label: "Auto apply", type: "boolean", initial: true },
+    ],
+    run: (c, p) => c.auto_align_center_mask(p as AutoAlignMaskCenter),
+  },
+  {
+    id: "begin_check_mask_center",
+    label: "Check mask center",
+    category: "Task",
+    hint: "Operator check: asks you to confirm the mask sits on its center.",
+    opensPrompt: true,
+    readings: ["mask", "maskCalibration"],
+    fields: [],
+    run: (c) => c.begin_check_mask_center(),
+  },
+  {
+    id: "begin_align_center_mask",
+    label: "Align mask by hand",
+    category: "Task",
+    hint: "Operator check: you step the mask onto center and confirm the position.",
+    opensPrompt: true,
+    readings: ["mask", "maskCalibration"],
+    fields: [],
+    run: (c) => c.begin_align_center_mask(),
+  },
+  {
+    id: "begin_adjust_rheed_gain",
+    label: "Tune RHEED gain",
+    category: "Task",
+    hint: "Operator check: adjust the RHEED camera gain, then confirm.",
+    opensPrompt: true,
+    readings: ["rheedGun"],
+    fields: [],
+    run: (c) => c.begin_adjust_rheed_gain(),
+  },
+  {
+    id: "begin_check_rheed_pixels",
+    label: "Check RHEED pixels",
+    category: "Task",
+    hint: "Operator check: steps through the substrate's pixels for you to confirm each one.",
+    opensPrompt: true,
+    readings: ["substrate", "pixel", "rheedGun"],
+    fields: [],
+    run: async (c) => {
+      const status = await c.begin_check_rheed_pixels();
+      // The prompt card reads the walk's position from here.
+      useExperimentDriverStore.getState().setPixelStatus(status);
+      return status.done
+        ? { note: "No substrate positions to check -- register or resume a substrate first." }
+        : status;
+    },
+  },
 
+  // --- Heating laser ---------------------------------------------------------
+  {
+    id: "initiate_heating_laser",
+    label: "Heating laser on",
+    category: "Heating laser",
+    fields: [],
+    run: (c) => c.initiate_heating_laser(),
+  },
+  {
+    id: "turn_off_heating_laser",
+    label: "Heating laser off",
+    category: "Heating laser",
+    hint: "Refused above 165 °C -- cool down first. Force overrides.",
+    fields: [{ key: "force", label: "Force", type: "boolean", initial: false }],
+    run: (c, p) => c.turn_off_heating_laser(p as TurnOffHeatingLaser),
+  },
+  {
+    id: "to_temperature",
+    startsTask: true,
+    label: "Ramp to temperature",
+    category: "Heating laser",
+    hint: "Needs the heating laser on first. Wait off: the task ends once the ramp is under way.",
+    fields: [
+      { key: "temperature", label: "Temperature", type: "number", unit: "°C" },
+      { key: "ramp_rate", label: "Ramp rate", type: "number", unit: "°C/min", initial: "20" },
+      { key: "wait", label: "Wait until arrived", type: "boolean", initial: true },
+    ],
+    run: (c, p) => c.to_temperature(p as unknown as ToTemperature),
+  },
+  {
+    id: "cool_down",
+    startsTask: true,
+    label: "Cool down",
+    category: "Heating laser",
+    fields: [{ key: "ramp_rate", label: "Ramp rate", type: "number", unit: "°C/min", initial: "20" }],
+    run: (c, p) => c.cool_down(p as CoolDown),
+  },
+  {
+    id: "anneal",
+    startsTask: true,
+    label: "Anneal",
+    category: "Heating laser",
+    hint: "Steps run in order: ramp to each temperature, then hold.",
+    fields: [{ key: "steps", label: "Steps", type: "steps" }],
+    run: (c, p) => c.anneal(p as unknown as Anneal),
+  },
+
+  // --- Excimer ---------------------------------------------------------------
+  {
+    id: "set_laser_energy",
+    label: "Set laser energy",
+    category: "Excimer",
+    hint: "Switches the excimer to energy mode (EGY PGR). Forgets the confirmed laser power -- run Laser energy check after. Refused while the laser fires or a deposition runs.",
+    readings: ["excimer", "excimerEnergy", "excimerRange", "confirmedPower"],
+    fields: [{ key: "mj", label: "Energy", type: "number", unit: "mJ", step: 0.5 }],
+    run: (c, p) => c.set_laser_energy(p as unknown as SetLaserEnergy),
+  },
+  {
+    id: "set_laser_hv",
+    label: "Set laser HV",
+    category: "Excimer",
+    hint: "Switches the excimer to HV mode (HV PGR). Forgets the confirmed laser power -- run Laser energy check after. Refused while the laser fires or a deposition runs.",
+    readings: ["excimer", "excimerHv", "excimerRange", "confirmedPower"],
+    fields: [{ key: "kv", label: "HV", type: "number", unit: "kV", step: 0.01 }],
+    run: (c, p) => c.set_laser_hv(p as unknown as SetLaserHv),
+  },
+  {
+    id: "begin_set_laser_power",
+    label: "Laser energy check",
+    category: "Excimer",
+    hint: "Closes the shutter, turns the carousel to Clear, then asks for the meter reading.",
+    opensPrompt: true,
+    fields: [
+      { key: "laser_power", label: "Laser power", type: "number", unit: "mJ" },
+      { key: "force", label: "Redo if already confirmed", type: "boolean", initial: false },
+    ],
+    run: (c, p) => c.begin_set_laser_power(p as unknown as BeginSetLaserPower),
+  },
   // --- Motion ----------------------------------------------------------------
   {
     id: "move_mask_to_position",
@@ -241,35 +407,6 @@ export const OP_REGISTRY: OpSpec[] = [
     category: "Gas & pressure",
     fields: [{ key: "on", label: "On", type: "boolean", initial: true }],
     run: (c, p) => c.set_pressure_control(p as unknown as SetPressureControl),
-  },
-
-  // --- Laser -----------------------------------------------------------------
-  {
-    id: "initiate_heating_laser",
-    label: "Heating laser on",
-    category: "Laser",
-    fields: [],
-    run: (c) => c.initiate_heating_laser(),
-  },
-  {
-    id: "turn_off_heating_laser",
-    label: "Heating laser off",
-    category: "Laser",
-    hint: "Refused above 165 °C -- cool down first. Force overrides.",
-    fields: [{ key: "force", label: "Force", type: "boolean", initial: false }],
-    run: (c, p) => c.turn_off_heating_laser(p as TurnOffHeatingLaser),
-  },
-  {
-    id: "begin_set_laser_power",
-    label: "Laser energy check",
-    category: "Laser",
-    hint: "Closes the shutter, turns the carousel to Clear, then asks for the meter reading.",
-    opensPrompt: true,
-    fields: [
-      { key: "laser_power", label: "Laser power", type: "number", unit: "mJ" },
-      { key: "force", label: "Redo if already confirmed", type: "boolean", initial: false },
-    ],
-    run: (c, p) => c.begin_set_laser_power(p as unknown as BeginSetLaserPower),
   },
 
   // --- Target ----------------------------------------------------------------
