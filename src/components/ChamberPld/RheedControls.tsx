@@ -5,6 +5,10 @@ import useChamberPldStore from "../../stores/chamberPld";
 import { Field, Section, fmt } from "./primitives";
 import { NumberOp, OpButton, SwitchOp, TwoNumberOp } from "./controlPrimitives";
 
+
+/** Under ~0.1 µA is the controller's idle noise, not a beam. */
+const emission = (ua: number | null | undefined) =>
+  ua == null ? "—" : ua < 0.1 ? "no emission" : `${ua.toFixed(1)} µA emission`;
 /** Placeholder text naming the allowed range, read from the service's limits. */
 const span = (lo: number | null | undefined, hi: number | null | undefined, unit: string) =>
   lo == null && hi == null ? unit : `${fmt(lo, 0)}–${fmt(hi, 0)} ${unit}`;
@@ -102,7 +106,7 @@ const RheedControls = () => {
             </Badge>
           )}
           <Text fontSize="xs" color="text.muted" ml="auto">
-            {fmt(rheed.emission_ua, 1, " µA")} emission
+            {emission(rheed.emission_ua)}
           </Text>
         </HStack>
         <HStack justify="space-between" align="flex-start">

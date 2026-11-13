@@ -3,6 +3,10 @@ import { Badge, HStack, SimpleGrid, Text } from "@chakra-ui/react";
 import { PldRheed } from "../../generated/lumi";
 import { BoolBadge, Field, Section, fmt } from "./primitives";
 
+
+/** Under ~0.1 µA is the controller's idle noise, not a beam. */
+const emission = (ua: number | null | undefined) =>
+  ua == null ? "—" : ua < 0.1 ? "no emission" : `${ua.toFixed(1)} µA`;
 /** "lo–hi unit", or undefined when the service has not said. */
 const range = (lo: number | null | undefined, hi: number | null | undefined, unit: string) =>
   lo == null && hi == null ? undefined : `Range ${fmt(lo, 0)}–${fmt(hi, 0)} ${unit}`;
@@ -124,7 +128,7 @@ const RheedStatus = ({ rheed }: { rheed: PldRheed | undefined }) => {
           limits={rheed.hv_max_kv == null ? undefined : `Up to ${fmt(rheed.hv_max_kv, 1)} kV`}
         />
         <Field label="Emission">
-          <Text fontSize="xs">{fmt(rheed.emission_ua, 1, " µA")}</Text>
+          <Text fontSize="xs">{emission(rheed.emission_ua)}</Text>
         </Field>
         <Output
           label="Focus"
