@@ -143,18 +143,24 @@ const ExperimentDriverMain = () => {
           <Text fontSize="xs" fontWeight="600" color="text.secondary">
             Recent tasks
           </Text>
-          {recent.map((r, i) => (
-            <HStack key={`${r.finishedAt}-${i}`} spacing={2} fontSize="xs">
-              <Badge colorScheme={r.ok ? "green" : "red"}>{r.ok ? "ok" : "failed"}</Badge>
-              <Text>{taskLabel(r.kind)}</Text>
-              <Text color="text.muted">{new Date(r.finishedAt).toLocaleTimeString()}</Text>
-              {r.error && (
-                <Text color="status.error" noOfLines={1} title={r.error}>
-                  {r.error}
-                </Text>
-              )}
-            </HStack>
-          ))}
+          {recent.map((r, i) => {
+            // An operator stop (cancel_task, stop_deposition) is not a failure.
+            const stopped = !r.ok && r.data.aborted === true;
+            return (
+              <HStack key={`${r.finishedAt}-${i}`} spacing={2} fontSize="xs">
+                <Badge colorScheme={r.ok ? "green" : stopped ? "gray" : "red"}>
+                  {r.ok ? "ok" : stopped ? "stopped" : "failed"}
+                </Badge>
+                <Text>{taskLabel(r.kind)}</Text>
+                <Text color="text.muted">{new Date(r.finishedAt).toLocaleTimeString()}</Text>
+                {r.error && (
+                  <Text color={stopped ? "text.muted" : "status.error"} noOfLines={1} title={r.error}>
+                    {r.error}
+                  </Text>
+                )}
+              </HStack>
+            );
+          })}
         </VStack>
       )}
     </VStack>

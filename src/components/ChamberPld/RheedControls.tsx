@@ -211,6 +211,16 @@ const RheedControls = () => {
           </Text>
         )}
 
+        {rheed.filament_open && (
+          <Text fontSize="xs" color="status.error">
+            Filament open? It stays off. Emergency off clears the flag once the filament is fixed.
+          </Text>
+        )}
+        {rheed.interlock && (
+          <Text fontSize="xs" color="status.error">
+            Interlock: filament and HV are off and are refused until it is cleared.
+          </Text>
+        )}
         {rheed.last_alert && (
           <Text fontSize="xs" color="status.warn" noOfLines={2} title={rheed.last_alert}>
             Last alert: {rheed.last_alert}
