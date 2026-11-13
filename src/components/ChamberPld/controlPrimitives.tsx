@@ -219,11 +219,14 @@ export const SwitchOp = <T extends AnyReply>({
   label,
   checked,
   op,
+  ariaLabel,
 }: {
   call: Call;
   label: string;
   checked: boolean;
   op: (client: ChamberPldClient, on: boolean) => Promise<T>;
+  /** Names the switch when `label` is empty because a Field beside it says what it is. */
+  ariaLabel?: string;
 }) => {
   const [reply, setReply] = useState<AnyReply | null>(null);
   return (
@@ -236,6 +239,7 @@ export const SwitchOp = <T extends AnyReply>({
         )}
         <Switch
           size="sm"
+          aria-label={ariaLabel || label || undefined}
           isChecked={checked}
           isDisabled={!call.canOperate || call.busy}
           title={operatorTitle(call)}

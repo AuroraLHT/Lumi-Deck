@@ -9,6 +9,7 @@ import HeaterControls from "./HeaterControls";
 import LaserControls from "./LaserControls";
 import LoadLockPumpControls from "./LoadLockPumpControls";
 import MotionControls from "./MotionControls";
+import RheedControls from "./RheedControls";
 import SessionControls from "./SessionControls";
 
 /**
@@ -96,6 +97,7 @@ const ChamberPldControls = () => {
           <HeaterControls />
           <GasControls />
           <LaserControls />
+          <RheedControls />
           <LoadLockPumpControls />
         </Grid>
       )}

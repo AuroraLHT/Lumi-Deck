@@ -26,6 +26,7 @@ import {
   fmtTorr,
   sortedEntries,
 } from "./primitives";
+import RheedStatus from "./RheedStatus";
 
 const AXIS_LABELS: Record<string, string> = {
   TG: "Target carousel",
@@ -452,6 +453,8 @@ const ChamberPldMain = () => {
               )}
             </SimpleGrid>
           </Section>
+
+          <RheedStatus rheed={chamber.rheed} />
 
           <Section title="Pumps">
             <SimpleGrid minChildWidth="220px" spacingX={4} spacingY="1px">
