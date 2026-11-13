@@ -90,7 +90,7 @@ const OpLiveContext = ({ op }: { op: OpSpec }) => {
     ),
     confirmedPower: (
       <Field label="Confirmed power" key="lp">
-        {txt(`${fmt(driver.laser_power_set, 1)} → ${fmt(driver.laser_power_real, 1, " mJ")}`)}
+        {txt(`${fmt(driver.laser_power_set, 1)} → ${fmt(driver.laser_power_real, 1)}`)}
       </Field>
     ),
     target,

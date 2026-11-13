@@ -332,10 +332,12 @@ export const OP_REGISTRY: OpSpec[] = [
     id: "begin_set_laser_power",
     label: "Laser energy check",
     category: "Excimer",
-    hint: "Closes the shutter, turns the carousel to Clear, then asks for the meter reading.",
+    // laser_power's unit is not settled (a power setting? the meter's pulse
+    // energy?), so no unit here until it is.
+    hint: "Closes the shutter, turns the carousel to Clear, then asks for the meter reading. Laser power in the units the prompt states.",
     opensPrompt: true,
     fields: [
-      { key: "laser_power", label: "Laser power", type: "number", unit: "mJ" },
+      { key: "laser_power", label: "Laser power", type: "number" },
       { key: "force", label: "Redo if already confirmed", type: "boolean", initial: false },
     ],
     run: (c, p) => c.begin_set_laser_power(p as unknown as BeginSetLaserPower),
