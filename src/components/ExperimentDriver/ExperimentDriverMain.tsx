@@ -4,12 +4,14 @@ import { Badge, Center, HStack, Spinner, Text, Tooltip, VStack } from "@chakra-u
 import useAppStore from "../../stores/app";
 import useExperimentDriverStore from "../../stores/experimentDriver";
 import useExperimentDriverNodeStore from "../../stores/nodes/experimentDriver";
+import CancelTaskButton from "./CancelTaskButton";
 import OperationConsole from "./OperationConsole";
 import PendingConfirmationCard from "./PendingConfirmationCard";
 import StopDepositionButton from "./StopDepositionButton";
 import { AUTO_ALIGN_KIND } from "./maskAlign";
 
-const STOPPABLE_TASKS = new Set(["perform_deposition", "perform_preablation"]);
+/** Stopped with the laser too; any other task is cancelled. */
+const ABLATING_TASKS = new Set(["perform_deposition", "perform_preablation"]);
 
 const TASK_LABELS: Record<string, string> = {
   [AUTO_ALIGN_KIND]: "Mask auto-align",
@@ -124,11 +126,13 @@ const ExperimentDriverMain = () => {
           <Text color="text.muted">
             running <Elapsed startedAt={task.started_at} />
           </Text>
-          {STOPPABLE_TASKS.has(task.kind) && (
-            <HStack ml="auto">
+          <HStack ml="auto">
+            {ABLATING_TASKS.has(task.kind) ? (
               <StopDepositionButton task={task} />
-            </HStack>
-          )}
+            ) : (
+              <CancelTaskButton task={task} label={taskLabel(task.kind)} />
+            )}
+          </HStack>
         </HStack>
       )}
 

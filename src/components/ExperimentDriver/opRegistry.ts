@@ -138,9 +138,14 @@ export interface OpSpec {
    * have one; the rest run to completion once started.
    */
   stop?: (client: ExperimentDriverClient) => Promise<unknown>;
+  /** The stop button's confirm question, when the default (about pulses) does not fit. */
+  stopConfirm?: string;
 }
 
 const stopDeposition = (c: ExperimentDriverClient) => c.stop_deposition({ reason: "operator stop" });
+/** Ends whatever task runs; a heating task switches the PID off and holds the LD current. */
+const cancelTask = (c: ExperimentDriverClient) => c.cancel_task({ reason: "operator stop" });
+const HOLD = "PID goes off and the heater stays at its present current, so the temperature settles wherever that current puts it.";
 
 const dryrun: FieldSpec = { key: "is_dryrun", label: "Dry run", type: "boolean", initial: false };
 
@@ -200,6 +205,8 @@ export const OP_REGISTRY: OpSpec[] = [
       { key: "apply", label: "Auto apply", type: "boolean", initial: true },
     ],
     run: (c, p) => c.auto_align_center_mask(p as AutoAlignMaskCenter),
+    stop: cancelTask,
+    stopConfirm: "Stop the alignment now?",
   },
   {
     id: "begin_check_mask_center",
@@ -277,6 +284,8 @@ export const OP_REGISTRY: OpSpec[] = [
       { key: "wait", label: "Wait until arrived", type: "boolean", initial: true },
     ],
     run: (c, p) => c.to_temperature(p as unknown as ToTemperature),
+    stop: cancelTask,
+    stopConfirm: `Stop this ramp now? ${HOLD}`,
   },
   {
     id: "cool_down",
@@ -285,6 +294,8 @@ export const OP_REGISTRY: OpSpec[] = [
     category: "Heating laser",
     fields: [{ key: "ramp_rate", label: "Ramp rate", type: "number", unit: "°C/min", initial: "20" }],
     run: (c, p) => c.cool_down(p as CoolDown),
+    stop: cancelTask,
+    stopConfirm: `Stop the cool-down now? ${HOLD}`,
   },
   {
     id: "anneal",
@@ -294,6 +305,8 @@ export const OP_REGISTRY: OpSpec[] = [
     hint: "Steps run in order: ramp to each temperature, then hold.",
     fields: [{ key: "steps", label: "Steps", type: "steps" }],
     run: (c, p) => c.anneal(p as unknown as Anneal),
+    stop: cancelTask,
+    stopConfirm: `Stop the anneal now? ${HOLD}`,
   },
 
   // --- Excimer ---------------------------------------------------------------

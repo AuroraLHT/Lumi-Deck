@@ -188,7 +188,7 @@ export const RunControl = ({ form }: { form: OpFormState }) => {
         title={`Stop ${op.label.toLowerCase()}`}
         isLoading={form.stopping}
         isDisabled={!form.canOperate}
-        confirmLabel={`Stop this ${op.label.toLowerCase()} now? Pulses already fired are kept.`}
+        confirmLabel={op.stopConfirm ?? `Stop this ${op.label.toLowerCase()} now? Pulses already fired are kept.`}
         onConfirm={stop}
       >
         <Icon as={LuSquare} boxSize={3.5} fill="currentColor" />
