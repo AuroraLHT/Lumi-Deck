@@ -25,7 +25,11 @@ import GasFields from "./GasControls";
 
 type PumpName = PldPumpRequest["pump"];
 
-/** Which chamber each valve and pump serves, from the PLC's own labels (log_fields.py). */
+/**
+ * Which chamber each valve and pump serves, from the PLC's own labels
+ * (log_fields.py). The RHEED line pairs MV20/FV20 with TMP20 and MV21/FV21
+ * with TMP21, confirmed by the operator (2026-11-15).
+ */
 const MAIN = { valves: ["MV10", "MV11", "FV1", "CV1", "CV301"], pumps: ["DP1", "TMP1"] };
 const RHEED_PUMPING = { valves: ["MV20", "FV20", "MV21", "FV21"], pumps: ["DP2", "TMP20", "TMP21"] };
 const LOAD_LOCK = { valves: ["MV3", "FV3", "RV3", "VT1", "VT2"], pumps: ["DP3", "TMP3"] };
@@ -41,6 +45,18 @@ const VALVE_NOTES: Record<string, string> = {
   FV21: "2nd RHEED",
   VT1: "N2 vent",
   VT2: "air vent",
+};
+
+/**
+ * What a pump is for, from the operator and REA (2026-11-10): the two RHEED
+ * turbos and which dry pump backs each. DP1 is labelled Main by the PLC and
+ * also backs TMP20, so stopping it reaches the RHEED line too.
+ */
+const PUMP_NOTES: Record<string, string> = {
+  DP1: "also backs TMP20",
+  DP2: "backs TMP21",
+  TMP20: "1st RHEED, far from gun",
+  TMP21: "2nd RHEED, near gun",
 };
 
 /** A pump or load-lock action waiting for the operator to confirm it. */
@@ -121,6 +137,9 @@ const describe = (p: Pending, chamber: PldChamberState | null) => {
     body: (
       <>
         <Text fontSize="sm">
+          {/backs/.test(PUMP_NOTES[p.name] ?? "") && !p.on
+            ? `${p.name} ${PUMP_NOTES[p.name]}: stopping it takes away that backing. `
+            : ""}
           {p.on
             ? `This starts ${p.name} on ${where}. Check that the valves and backing pump around it are as you expect.`
             : `This stops ${p.name} on ${where}. Pressure can rise where it was pumping.${
@@ -222,7 +241,7 @@ const PumpRows = ({ names, vacuum }: { names: string[]; vacuum: ReturnType<typeo
         .filter((n) => pumps?.[n])
         .map((name) => (
           <Flex key={name} align="center" gap={2} minH="20px">
-            <RowName name={name} />
+            <RowName name={name} note={PUMP_NOTES[name]} />
             <Flex ml="auto" align="center" gap={2}>
               <PumpStateBadge state={pumps?.[name]?.state} />
               <Switch
