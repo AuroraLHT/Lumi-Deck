@@ -103,7 +103,7 @@ export const PANEL_REGISTRY: Record<PanelType, PanelDefinition> = {
     type: "storage",
     title: "Storage",
     render: () => <StorageMain />,
-    defaultSize: { w: 4, h: 8 },
+    defaultSize: { w: 4, h: 13 },
     minSize: { w: 3, h: 5 },
     description: "Start and stop recording a project",
   },

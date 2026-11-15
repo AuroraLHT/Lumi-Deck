@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 
 import { RheedVideoClient } from "../generated/lumi";
 import useTransportStore from "../clients/transport";
+import useRheedNodeStore from "../stores/nodes/rheed";
 
 // Matches the encoder on the RHEED node (H.264 baseline). MSE needs the codec up
 // front to create the source buffer before any fragment is appended.
@@ -43,15 +44,19 @@ const TRIM_SLACK_S = 15;
  * `onFragment` supplies the live media fragments.
  *
  * Re-subscribes automatically when the transport reconnects, because a fresh
- * `LumiTransport` instance re-runs the effect.
+ * `LumiTransport` instance re-runs the effect, and when the RHEED node comes
+ * back up. Nothing is sent while it is down: a call to an absent node holds the
+ * socket for its whole timeout (see `useDetectionStream`), and a start that
+ * timed out during a node restart was never retried, leaving the panel blank.
  */
 const useRheedVideo = (videoRef: React.RefObject<HTMLVideoElement>) => {
   const transport = useTransportStore((s) => s.transport);
+  const rheedNodeUp = useRheedNodeStore((s) => s.state.is_available);
   const [isReady, setIsReady] = useState(false);
 
   useEffect(() => {
     const video = videoRef.current;
-    if (!transport || !video) {
+    if (!transport || !video || !rheedNodeUp) {
       setIsReady(false);
       return;
     }
@@ -208,7 +213,7 @@ const useRheedVideo = (videoRef: React.RefObject<HTMLVideoElement>) => {
       URL.revokeObjectURL(objectUrl);
       if (video.src === objectUrl) video.removeAttribute("src");
     };
-  }, [transport, videoRef]);
+  }, [transport, videoRef, rheedNodeUp]);
 
   return { isReady };
 };

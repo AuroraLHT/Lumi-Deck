@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import {
+  Badge,
   Box,
   Grid,
   HStack,
@@ -20,6 +21,9 @@ import { Link as RouterLink } from "react-router-dom";
 
 import { IntegrationBox, RecordingInfo } from "../../generated/lumi";
 import {
+  useRecordingDetection,
+  useRecordingDetections,
+  useRecordingEvents,
   useRecordingFrame,
   useRecordingInfo,
   useRecordingIntegration,
@@ -28,7 +32,14 @@ import {
 import useSeriesPalette, { MAX_SERIES } from "../Plotting/seriesPalette";
 import IntegrationChart from "./IntegrationChart";
 import SimSpotsLayer from "../Simulation/SimSpotsLayer";
-import { formatDuration, formatTime, nearestFrame, recordingsOf, SampleRecording } from "./history";
+import { detectionAt, formatDuration, formatTime, nearestFrame, recordingsOf, SampleRecording } from "./history";
+import {
+  DetectionChart,
+  DetectionOverlay,
+  EventList,
+  MetadataPanel,
+  SectionTitle,
+} from "./RecordingExtras";
 
 /** Playback speed: frames shown per second, whatever the recording's own rate was. */
 const PLAY_FPS = 6;
@@ -39,6 +50,17 @@ const recordingLabel = (r: SampleRecording, i: number) => {
 };
 
 /** The integration boxes drawn over the frame, in the chart's series colours. */
+/**
+ * The integration boxes in place at `time`. A v2 file keeps each box's span, so
+ * a box moved or added mid-growth is drawn where it was then; a v1 file only
+ * knows the boxes at the end.
+ */
+const boxesAt = (info: RecordingInfo, time: number | null): IntegrationBox[] => {
+  const history = info.box_history ?? [];
+  if (!history.length || time == null) return info.boxes ?? [];
+  return history.filter((b) => b.t_from <= time && (b.t_to == null || time < b.t_to));
+};
+
 const BoxOverlay = ({ boxes, shape }: { boxes: IntegrationBox[]; shape: number[] }) => {
   const palette = useSeriesPalette();
   const [height, width] = shape;
@@ -85,9 +107,13 @@ const Player = ({ info, deposition }: { info: RecordingInfo; deposition: SampleR
   const [index, setIndex] = useState(0);
   const [playing, setPlaying] = useState(false);
   const [simSpots, setSimSpots] = useState(false);
+  const [showDetections, setShowDetections] = useState(true);
+  const live = Boolean(info.recording);
 
   const frame = useRecordingFrame(nFrames ? info.name : null, index);
-  const integration = useRecordingIntegration(info.n_integrations ? info.name : null);
+  const integration = useRecordingIntegration(info.n_integrations ? info.name : null, undefined, live);
+  const detections = useRecordingDetections(info.n_detections ? info.name : null, live);
+  const events = useRecordingEvents(info.format_version === 2 ? info.name : null, live);
 
   // Advance only once the frame on screen is the one asked for, so playback
   // never outruns the backend and skips frames nobody saw.
@@ -106,6 +132,12 @@ const Player = ({ info, deposition }: { info: RecordingInfo; deposition: SampleR
   const t0 = info.start ?? frameTimes[0] ?? 0;
   const frameTime = frameTimes[index] ?? null;
   const shape = info.frame_shape ?? [frame.data?.height ?? 540, frame.data?.width ?? 720];
+  const detectionIndex = showDetections ? detectionAt(detections.data, frameTime) : null;
+  const detection = useRecordingDetection(detectionIndex !== null ? info.name : null, detectionIndex);
+  const seek = (time: number) => {
+    setPlaying(false);
+    setIndex(nearestFrame(frameTimes, time));
+  };
 
   if (!nFrames) {
     return (
@@ -139,7 +171,10 @@ const Player = ({ info, deposition }: { info: RecordingInfo; deposition: SampleR
               style={{ width: "100%", height: "100%", display: "block" }}
             />
           )}
-          {info.boxes && <BoxOverlay boxes={info.boxes} shape={shape} />}
+          <BoxOverlay boxes={boxesAt(info, frameTime)} shape={shape} />
+          {detectionIndex !== null && detection.data && (
+            <DetectionOverlay boxes={detection.data.boxes ?? []} crop={detection.data.crop} shape={shape} />
+          )}
           {simSpots && <SimSpotsLayer energyKev={info.rheed_energy_kev ?? null} frame={shape} />}
           {frame.isFetching && (
             <Spinner size="sm" color="white" position="absolute" top={2} right={2} />
@@ -195,6 +230,19 @@ const Player = ({ info, deposition }: { info: RecordingInfo; deposition: SampleR
             isDisabled={index >= nFrames - 1}
             onClick={() => setIndex((i) => Math.min(nFrames - 1, i + 1))}
           />
+          {Boolean(info.n_detections) && (
+            <Tooltip label="The detector's boxes on this frame" openDelay={300}>
+              <IconButton
+                aria-label={showDetections ? "Hide detections" : "Show detections"}
+                aria-pressed={showDetections}
+                icon={<Box w="12px" h="10px" border="2px solid" borderColor="purple.400" borderRadius="1px" />}
+                size="sm"
+                variant={showDetections ? "solid" : "panelGhost"}
+                colorScheme={showDetections ? "purple" : undefined}
+                onClick={() => setShowDetections(!showDetections)}
+              />
+            </Tooltip>
+          )}
           <Tooltip label="Simulated spots at this recording's beam energy (scene from the Simulation page)" openDelay={300}>
             <IconButton
               aria-label={simSpots ? "Hide simulated spots" : "Show simulated spots"}
@@ -214,6 +262,14 @@ const Player = ({ info, deposition }: { info: RecordingInfo; deposition: SampleR
           <Text fontSize="xs" color="text.muted" textAlign="center">
             {formatTime(frameTime)} · contrast {Math.round(frame.data.low)}–{Math.round(frame.data.high)}{" "}
             (fixed for the whole recording)
+            {showDetections && Boolean(info.n_detections) && (
+              <>
+                {" · "}
+                {detectionIndex === null
+                  ? "no detection within 1 s"
+                  : `${detection.data?.boxes?.length ?? "…"} boxes`}
+              </>
+            )}
           </Text>
         )}
         {simSpots && (
@@ -228,10 +284,9 @@ const Player = ({ info, deposition }: { info: RecordingInfo; deposition: SampleR
 
       </VStack>
 
+      <VStack align="stretch" spacing={5} minW={0}>
       <Box>
-        <Text fontSize="sm" fontWeight="600" mb={1}>
-          Integrated intensity
-        </Text>
+        <SectionTitle loading={integration.isFetching && !integration.isPending}>Integrated intensity</SectionTitle>
         {!info.n_integrations ? (
           <Text fontSize="sm" color="text.muted">
             This recording saved no integration boxes.
@@ -248,14 +303,145 @@ const Player = ({ info, deposition }: { info: RecordingInfo; deposition: SampleR
             t0={t0}
             cursor={frameTime}
             deposition={deposition}
-            onSeek={(time) => {
-              setPlaying(false);
-              setIndex(nearestFrame(frameTimes, time));
-            }}
+            onSeek={seek}
           />
         )}
       </Box>
+
+      {Boolean(info.n_detections) && (
+        <Box>
+          <SectionTitle loading={detections.isFetching}>Detector</SectionTitle>
+          {detections.isError ? (
+            <Text fontSize="sm" color="status.error">
+              {detections.error.message}
+            </Text>
+          ) : detections.data ? (
+            <>
+              <DetectionChart
+                detections={detections.data}
+                t0={t0}
+                cursor={frameTime}
+                deposition={deposition}
+                onSeek={seek}
+              />
+              <Text fontSize="xs" color="text.muted">
+                {detections.data.n_detections?.toLocaleString()} detections
+                {(detections.data.stride ?? 1) > 1 && `, 1 in ${detections.data.stride} charted`}
+              </Text>
+            </>
+          ) : null}
+        </Box>
+      )}
+
+      {info.format_version === 2 && (
+        <Box>
+          <SectionTitle loading={events.isFetching}>Events</SectionTitle>
+          {events.isError ? (
+            <Text fontSize="sm" color="status.error">
+              {events.error.message}
+            </Text>
+          ) : events.data?.events?.length ? (
+            <EventList events={events.data.events} t0={t0} onSeek={seek} />
+          ) : events.data ? (
+            <Text fontSize="sm" color="text.muted">
+              Nothing was logged.
+            </Text>
+          ) : null}
+        </Box>
+      )}
+      </VStack>
     </Grid>
+  );
+};
+
+/** v2 files say who, why and whether they were closed cleanly; v1 files do not. */
+const RecordingHeader = ({ info }: { info: RecordingInfo }) => (
+  <VStack align="stretch" spacing={1}>
+    <HStack spacing={2} flexWrap="wrap" rowGap={1}>
+      {info.recording ? (
+        <Badge colorScheme="red" variant="subtle" display="flex" alignItems="center" gap={1}>
+          <Box w="6px" h="6px" borderRadius="full" bg="red.400" />
+          Recording
+        </Badge>
+      ) : info.complete === false ? (
+        <Tooltip label="The file was not closed cleanly: the recorder stopped without finishing it. What was written is readable.">
+          <Badge colorScheme="orange" variant="subtle">
+            Not closed
+          </Badge>
+        </Tooltip>
+      ) : null}
+      <Badge variant="outline" fontSize="0.6rem">
+        {info.format_version ? `v${info.format_version}` : "v1"}
+      </Badge>
+      <Text fontSize="xs" color="text.muted">
+        {formatTime(info.start)} · {info.n_frames ?? 0} frames ·{" "}
+        {formatDuration((info.end ?? 0) - (info.start ?? 0))} · {((info.size_bytes ?? 0) / 1e6).toFixed(0)} MB
+        {info.rheed_energy_kev != null && (
+          <>
+            {" · "}
+            <Tooltip
+              label={
+                info.rheed_energy_recorded
+                  ? "Beam energy stored with the recording"
+                  : "Recorded before files kept their beam energy: this is the lab's configured default"
+              }
+              openDelay={300}
+            >
+              <Text as="span" borderBottom={info.rheed_energy_recorded ? undefined : "1px dotted"}>
+                {info.rheed_energy_kev} keV{info.rheed_energy_recorded ? "" : " (assumed)"}
+              </Text>
+            </Tooltip>
+          </>
+        )}
+        {info.recording && " · updating every 5 s"}
+      </Text>
+    </HStack>
+    {(info.operator || info.note) && (
+      <Text fontSize="sm">
+        {info.operator && (
+          <Text as="span" fontWeight="600">
+            {info.operator}
+          </Text>
+        )}
+        {info.operator && info.note && " — "}
+        {info.note}
+      </Text>
+    )}
+  </VStack>
+);
+
+/**
+ * One recording, by file name: its header, the frame player with the charts
+ * and events beside it, and what the file says about itself.
+ */
+export const RecordingBody = ({
+  name,
+  deposition = null,
+}: {
+  name: string;
+  deposition?: SampleRecording["deposition"];
+}) => {
+  const info = useRecordingInfo(name);
+
+  if (!info.nodeUp) return <Text color="text.muted">The storage node is not running, so recordings cannot be read.</Text>;
+  if (info.isPending) return <Spinner size="sm" />;
+  if (info.isError) return <Text color="status.error">{info.error.message}</Text>;
+  if (info.data.error) return <Text color="status.error">This file cannot be read: {info.data.error}</Text>;
+  // A v1 file cannot be opened while it is written; v2 can.
+  if (info.data.recording && info.data.format_version !== 2)
+    return <Text color="text.muted">Still being recorded. It can be opened once the recording stops.</Text>;
+
+  return (
+    <VStack align="stretch" spacing={4}>
+      <RecordingHeader info={info.data} />
+      <Player key={info.data.name} info={info.data} deposition={deposition} />
+      {info.data.format_version === 2 && (
+        <Box>
+          <SectionTitle>Saved with the recording</SectionTitle>
+          <MetadataPanel info={info.data} />
+        </Box>
+      )}
+    </VStack>
   );
 };
 
@@ -274,73 +460,33 @@ const RecordingViewer = ({ sampleId }: { sampleId: number }) => {
   const name = recordings.some((r) => r.name === picked) ? picked : recordings[recordings.length - 1]?.name ?? null;
   const current = recordings.find((r) => r.name === name) ?? null;
 
-  const info = useRecordingInfo(name);
-
   if (steps.isPending && steps.nodeUp) return <Spinner size="sm" />;
   if (steps.isError) return <Text color="status.error">{steps.error.message}</Text>;
-  if (!recordings.length)
+  if (!recordings.length || !name)
     return <Text color="text.muted">No RHEED recording was made for this sample.</Text>;
 
   return (
     <VStack align="stretch" spacing={3}>
-      <HStack spacing={3} flexWrap="wrap" rowGap={2}>
-        {recordings.length > 1 && (
-          <Select
-            size="sm"
-            aria-label="Recording"
-            value={name ?? ""}
-            onChange={(e) => setPicked(e.target.value)}
-            maxW="360px"
-            borderRadius="md"
-          >
-            {recordings.map((r, i) => (
-              <option key={r.name} value={r.name}>
-                {recordingLabel(r, i)}
-              </option>
-            ))}
-          </Select>
-        )}
-        {info.data && (
-          <Text fontSize="xs" color="text.muted">
-            {info.data.n_frames ?? 0} frames · {formatDuration((info.data.end ?? 0) - (info.data.start ?? 0))} ·{" "}
-            {((info.data.size_bytes ?? 0) / 1e6).toFixed(0)} MB
-            {info.data.rheed_energy_kev != null && (
-              <>
-                {" · "}
-                <Tooltip
-                  label={
-                    info.data.rheed_energy_recorded
-                      ? "Beam energy stored with the recording"
-                      : "Recorded before files kept their beam energy: this is the lab's configured default"
-                  }
-                  openDelay={300}
-                >
-                  <Text as="span" borderBottom={info.data.rheed_energy_recorded ? undefined : "1px dotted"}>
-                    {info.data.rheed_energy_kev} keV{info.data.rheed_energy_recorded ? "" : " (assumed)"}
-                  </Text>
-                </Tooltip>
-              </>
-            )}
-          </Text>
-        )}
-      </HStack>
+      {recordings.length > 1 && (
+        <Select
+          size="sm"
+          aria-label="Recording"
+          value={name}
+          onChange={(e) => setPicked(e.target.value)}
+          maxW="360px"
+          borderRadius="md"
+        >
+          {recordings.map((r, i) => (
+            <option key={r.name} value={r.name}>
+              {recordingLabel(r, i)}
+            </option>
+          ))}
+        </Select>
+      )}
       <Text fontSize="xs" color="text.muted" fontFamily="mono" wordBreak="break-all">
         {name}
       </Text>
-
-      {!info.nodeUp ? (
-        <Text color="text.muted">The storage node is not running, so recordings cannot be read.</Text>
-      ) : info.isPending ? (
-        <Spinner size="sm" />
-      ) : info.isError ? (
-        <Text color="status.error">{info.error.message}</Text>
-      ) : info.data.recording ? (
-        <Text color="text.muted">Still being recorded. It can be opened once the recording stops.</Text>
-      ) : info.data.error ? (
-        <Text color="status.error">This file cannot be read: {info.data.error}</Text>
-      ) : (
-        <Player key={info.data.name} info={info.data} deposition={current?.deposition ?? null} />
-      )}
+      <RecordingBody key={name} name={name} deposition={current?.deposition ?? null} />
     </VStack>
   );
 };

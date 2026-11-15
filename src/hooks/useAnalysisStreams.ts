@@ -7,6 +7,7 @@ import {
   STFTSample,
 } from "../generated/lumi";
 import useTransportStore from "../clients/transport";
+import useRheedNodeStore from "../stores/nodes/rheed";
 import useIntegratorStore from "../stores/integrator";
 import useSTFTStore from "../stores/stft";
 
@@ -30,15 +31,17 @@ const FLUSH_MS = 100;
  * capability emits anything until a box is registered (`useAnalyzerControl`).
  *
  * Re-subscribes automatically when the transport reconnects, because a fresh
- * `LumiTransport` instance re-runs the effect.
+ * `LumiTransport` instance re-runs the effect, and when the RHEED node comes
+ * back up -- nothing is sent while it is down, as in `useDetectionStream`.
  */
 const useAnalysisStreams = () => {
   const transport = useTransportStore((s) => s.transport);
   const host = useTransportStore((s) => s.host);
+  const rheedNodeUp = useRheedNodeStore((s) => s.state.is_available);
   const chartedHost = useRef<string | null>(null);
 
   useEffect(() => {
-    if (!transport) return;
+    if (!transport || !rheedNodeUp) return;
 
     // Series from a different chamber must not continue the previous host's.
     // Registrations do not survive the switch either, so both caches go.
@@ -104,7 +107,7 @@ const useAnalysisStreams = () => {
       integrator.unsubscribe(integratorKey);
       stft.unsubscribe(stftKey);
     };
-  }, [transport, host]);
+  }, [transport, host, rheedNodeUp]);
 };
 
 export default useAnalysisStreams;

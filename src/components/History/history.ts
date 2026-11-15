@@ -1,4 +1,4 @@
-import { StepInfo } from "../../generated/lumi";
+import { RecordingDetections, StepInfo } from "../../generated/lumi";
 
 /** Epoch seconds -> "Sep 24, 15:49:46", in the viewer's time zone. */
 export const formatTime = (sec: number | null | undefined, withDate = true) =>
@@ -79,6 +79,22 @@ export const nearestFrame = (frameTimes: number[], time: number) => {
   }
   if (lo > 0 && time - frameTimes[lo - 1] < frameTimes[lo] - time) return lo - 1;
   return lo;
+};
+
+/** A detection further than this from the frame on screen is not drawn on it. */
+const DETECTION_MATCH_S = 1;
+
+/**
+ * Which detection belongs on the frame recorded at `time`: the nearest one in
+ * the (possibly thinned) list, as its index in the file, or null when the
+ * detector had nothing that close -- it runs slower than the camera, and not
+ * every frame was looked at.
+ */
+export const detectionAt = (detections: RecordingDetections | undefined, time: number | null) => {
+  const times = detections?.time ?? [];
+  if (time == null || !times.length) return null;
+  const i = nearestFrame(times, time);
+  return Math.abs(times[i] - time) <= DETECTION_MATCH_S ? detections?.index?.[i] ?? null : null;
 };
 
 /** First step start to last step end: when this sample was in the chamber being worked on. */

@@ -11,14 +11,19 @@ import {
   SimpleGrid,
   Switch,
   Text,
+  Textarea,
   Tooltip,
   VStack,
+  Wrap,
+  WrapItem,
   useToast,
 } from "@chakra-ui/react";
 import { useForm, SubmitHandler } from "react-hook-form";
 import { MdFiberManualRecord, MdStop, MdWarningAmber } from "react-icons/md";
-import { StorageStorageClient } from "../../generated/lumi";
+import { RecordingSummary, StorageArchiveClient, StorageStorageClient } from "../../generated/lumi";
 import useTransportStore from "../../clients/transport";
+import useAuthStore from "../../stores/auth";
+import useExperimentDriverNodeStore from "../../stores/nodes/experimentDriver";
 import useStorageNodeStore from "../../stores/nodes/storage";
 
 interface StorageFormValues {
@@ -29,7 +34,67 @@ interface StorageFormValues {
   save_integration: boolean;
   /** Text as typed; empty is the lab's usual energy. */
   rheed_energy_kev: string;
+  /** Empty is the signed-in user. */
+  operator: string;
+  note: string;
 }
+
+/** How often the counts of the recording in progress are re-read. */
+const LIVE_POLL_MS = 5000;
+
+/**
+ * What a v2 recording keeps besides the data, by the node it comes from. The
+ * storage node snapshots each at the start and logs changes as events, so a
+ * source that is down when Record is pressed is simply missing from the file.
+ */
+const META_SOURCES: { dep: string; label: string }[] = [
+  { dep: "chamber", label: "Chamber state" },
+  { dep: "chamber", label: "Log columns" },
+  { dep: "rheed", label: "Camera settings" },
+  { dep: "rheed", label: "Integration boxes" },
+  { dep: "detection", label: "Detector model and crop" },
+];
+
+/** The file stem the archive names a recording by, from the node's path. */
+const recordingName = (path: string | null) =>
+  path ? path.replace(/^.*[\\/]/, "").replace(/\.(hdf5|h5)$/i, "") : null;
+
+const formatMb = (bytes: number) => `${(bytes / 1e6).toFixed(bytes < 1e8 ? 1 : 0)} MB`;
+
+/**
+ * The recording in progress, re-read from the archive while it runs. v2 files
+ * can be read mid-recording, so these are the counts on disk, not the node's
+ * own estimate. Null for a v1 node, which refuses to open an open file.
+ */
+const useLiveRecording = (name: string | null): RecordingSummary | null => {
+  const transport = useTransportStore((s) => s.transport);
+  const [summary, setSummary] = useState<RecordingSummary | null>(null);
+
+  useEffect(() => {
+    setSummary(null);
+    if (!transport || !name) return;
+    let cancelled = false;
+    const archive = new StorageArchiveClient(transport);
+    const poll = () =>
+      archive
+        .list_recordings({ search: name, limit: 5 })
+        .then((list) => {
+          if (cancelled) return;
+          setSummary(list.recordings?.find((r) => r.name === name) ?? null);
+        })
+        .catch(() => {
+          if (!cancelled) setSummary(null);
+        });
+    poll();
+    const timer = window.setInterval(poll, LIVE_POLL_MS);
+    return () => {
+      cancelled = true;
+      window.clearInterval(timer);
+    };
+  }, [transport, name]);
+
+  return summary;
+};
 
 /**
  * How long to keep the button busy waiting for the node to confirm.
@@ -61,10 +126,19 @@ const StorageMain: React.FC = () => {
       save_log: true,
       save_integration: true,
       rheed_energy_kev: "",
+      operator: "",
+      note: "",
     },
   });
   const transport = useTransportStore((s) => s.transport);
   const toast = useToast();
+  const user = useAuthStore((s) => s.user);
+  const signedInAs = user ? user.full_name || user.username : null;
+  // The driver's session, saved as the recording's experiment context so a file
+  // started from this panel still says which sample and pixel it was.
+  const driverProject = useExperimentDriverNodeStore((s) => s.state.project_name);
+  const driverSubstrate = useExperimentDriverNodeStore((s) => s.state.substrate_id);
+  const driverPixel = useExperimentDriverNodeStore((s) => s.state.current_pixel_index);
 
   // Recording is the node's state, shared by every client -- not this tab's.
   // It arrives on the storage node's heartbeat via the system registry, so a
@@ -113,6 +187,7 @@ const StorageMain: React.FC = () => {
   const showsRecording = pendingTarget ?? isStoring;
 
   const missingDeps = missingDepsKey ? missingDepsKey.split(",") : [];
+  const live = useLiveRecording(isStoring ? recordingName(activePath) : null);
 
   const onSubmit: SubmitHandler<StorageFormValues> = async (data) => {
     if (!transport) {
@@ -139,6 +214,14 @@ const StorageMain: React.FC = () => {
         : await client.start_recording({
             ...data,
             rheed_energy_kev: energyKev(data.rheed_energy_kev),
+            operator: data.operator.trim() || signedInAs,
+            note: data.note.trim() || null,
+            context: {
+              source: "lumi-deck storage panel",
+              ...(driverProject != null && { project_name: driverProject }),
+              ...(driverSubstrate != null && { substrate_id: driverSubstrate }),
+              ...(driverPixel != null && { pixel_index: driverPixel }),
+            },
           });
 
       if (status.ok) {
@@ -304,7 +387,44 @@ const StorageMain: React.FC = () => {
             <InputRightAddon>keV</InputRightAddon>
           </InputGroup>
         </VStack>
+
+        {/* Who and why go into the file itself (v2), so a recording found later
+            says who ran it without growth.db. Fixed once recording starts. */}
+        {!isStoring && (
+          <VStack align="stretch" spacing={2} mt={3}>
+            <VStack align="stretch" spacing="1px" maxW="260px">
+              <Text as="label" htmlFor="operator" fontSize="0.65rem" color="text.muted">
+                Operator
+              </Text>
+              <Input
+                id="operator"
+                size="xs"
+                placeholder={signedInAs ?? "Your name"}
+                {...register("operator")}
+              />
+            </VStack>
+            <VStack align="stretch" spacing="1px">
+              <Text as="label" htmlFor="note" fontSize="0.65rem" color="text.muted">
+                Note
+              </Text>
+              <Textarea
+                id="note"
+                size="xs"
+                rows={2}
+                resize="vertical"
+                placeholder="What this growth is for, anything unusual"
+                {...register("note")}
+              />
+            </VStack>
+          </VStack>
+        )}
       </Box>
+
+      {isStoring ? (
+        <LiveRecording summary={live} />
+      ) : (
+        isAvailable && <SavedWith missingDeps={missingDeps} context={driverProject} />
+      )}
 
       {/* Storage records other nodes, so it can be up and still unable to save
           what you ticked. Better to see that before the growth than to find an
@@ -329,6 +449,139 @@ const StorageMain: React.FC = () => {
           </Text>
         </HStack>
       )}
+    </VStack>
+  );
+};
+
+/** What a recording keeps besides the data, greyed where its node is down. */
+const SavedWith = ({ missingDeps, context }: { missingDeps: string[]; context: string | null }) => (
+  <VStack align="stretch" spacing={1}>
+    <Text fontSize="0.65rem" color="text.muted">
+      Saved with the recording
+    </Text>
+    <Wrap spacing={1}>
+      {["Operator and note", context ? `Driver session (${context})` : null]
+        .filter((label): label is string => label !== null)
+        .map((label) => (
+          <WrapItem key={label}>
+            <Badge variant="subtle" colorScheme="teal" fontSize="0.6rem" textTransform="none">
+              {label}
+            </Badge>
+          </WrapItem>
+        ))}
+      {META_SOURCES.map(({ dep, label }) => {
+        const down = missingDeps.includes(dep);
+        return (
+          <WrapItem key={label}>
+            <Tooltip label={down ? `The ${dep} node is not on the bus` : undefined}>
+              <Badge
+                variant="subtle"
+                colorScheme={down ? "gray" : "teal"}
+                fontSize="0.6rem"
+                textTransform="none"
+                textDecoration={down ? "line-through" : undefined}
+              >
+                {label}
+              </Badge>
+            </Tooltip>
+          </WrapItem>
+        );
+      })}
+    </Wrap>
+  </VStack>
+);
+
+/** Counts of the recording in progress, and a way to mark a moment in it. */
+const LiveRecording = ({ summary }: { summary: RecordingSummary | null }) => {
+  const transport = useTransportStore((s) => s.transport);
+  const toast = useToast();
+  const [text, setText] = useState("");
+  const [sending, setSending] = useState(false);
+
+  const addNote = async () => {
+    const message = text.trim();
+    if (!transport || !message) return;
+    setSending(true);
+    try {
+      const status = await new StorageStorageClient(transport).add_recording_event({
+        kind: "note",
+        message,
+      });
+      if (status.ok) setText("");
+      else
+        toast({ title: "Note not added", description: status.message, status: "warning", duration: 4000 });
+    } catch (error) {
+      toast({
+        title: "Note not added",
+        description: error instanceof Error ? error.message : String(error),
+        status: "error",
+        duration: 4000,
+      });
+    } finally {
+      setSending(false);
+    }
+  };
+
+  const counts = summary
+    ? [
+        [summary.n_frames, "frames"],
+        [summary.n_log_rows, "log rows"],
+        [summary.n_integrations, "integrations"],
+        [summary.n_detections, "detections"],
+        [summary.n_events, "events"],
+      ]
+        .filter(([n]) => n != null)
+        .map(([n, label]) => `${(n as number).toLocaleString()} ${label}`)
+    : [];
+
+  return (
+    <VStack align="stretch" spacing={2} borderWidth="1px" borderColor="panel.border" borderRadius="md" p={2}>
+      <Text fontSize="xs" fontWeight="600" color="text.secondary">
+        This recording
+      </Text>
+      {summary ? (
+        <>
+          <Text fontSize="xs" sx={{ fontVariantNumeric: "tabular-nums" }}>
+            {[...counts, formatMb(summary.size_bytes)].join(" · ")}
+          </Text>
+          {(summary.operator || summary.note) && (
+            <Text fontSize="xs" color="text.muted" noOfLines={2} title={summary.note ?? undefined}>
+              {[summary.operator, summary.note].filter(Boolean).join(" — ")}
+            </Text>
+          )}
+        </>
+      ) : (
+        <Text fontSize="xs" color="text.muted">
+          Counts appear once the file can be read.
+        </Text>
+      )}
+      <HStack spacing={2}>
+        <Input
+          size="xs"
+          aria-label="Note to add to the recording"
+          placeholder="Add a note at this moment"
+          value={text}
+          onChange={(e) => setText(e.target.value)}
+          onKeyDown={(e) => {
+            // Enter would otherwise submit the panel's form -- and stop the recording.
+            if (e.key === "Enter") {
+              e.preventDefault();
+              void addNote();
+            }
+          }}
+        />
+        <Button
+          type="button"
+          size="xs"
+          variant="outline"
+          flexShrink={0}
+          isLoading={sending}
+          isDisabled={!text.trim()}
+          onClick={() => void addNote()}
+        >
+          Add
+        </Button>
+      </HStack>
     </VStack>
   );
 };
