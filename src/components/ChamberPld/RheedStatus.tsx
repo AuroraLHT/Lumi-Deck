@@ -60,7 +60,7 @@ const Output = ({
  * The RHEED gun's controller as pld-service reads it through the handset
  * port: filament, HV and emission, focus and X/Y deflection.
  *
- * pld-service ramps filament (about 30 mA/s) and HV (about 500 V/s): `set`
+ * pld-service ramps filament and HV (rates in the state, 30 mA/s and 500 V/s by default): `set`
  * is what it sends now and `target` the goal, so a ramp shows as set → target
  * until they meet. An interlock or a suspected open filament has already
  * switched filament and HV off; nothing comes back on by itself.
@@ -95,7 +95,7 @@ const RheedStatus = ({ rheed }: { rheed: PldRheed | undefined }) => {
           )}
           {(rheed.filament_ramping_down || rheed.hv_ramping_down) && (
             <Badge colorScheme="orange" variant="subtle" fontSize="0.65rem">
-              {rheed.filament_ramping_down ? "filament ramping down" : "HV ramping down"}
+              {rheed.all_ramping_down ? "all off, ramping down" : rheed.filament_ramping_down ? "filament ramping down" : "HV ramping down"}
             </Badge>
           )}
           {rheed.filament_open && (

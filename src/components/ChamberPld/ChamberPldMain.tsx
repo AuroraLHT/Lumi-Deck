@@ -208,7 +208,8 @@ const ChamberPldMain = () => {
             </SimpleGrid>
             {chamber.limits && (
               <Text fontSize="xs" color="text.muted" mt={2}>
-                IG1 off above {fmtTorr(chamber.limits.ig1_max_torr)} (CDG10) · IG3 off above{" "}
+                IG1 off above {fmtTorr(chamber.limits.ig1_max_torr)} (CDG10)
+                {chamber.limits.ig1_off_torr != null && ` or ${fmtTorr(chamber.limits.ig1_off_torr)} (its own reading)`} · IG3 off above{" "}
                 {fmtTorr(chamber.limits.ig3_max_torr)} (TCG31) · MV3 refused above{" "}
                 {fmtTorr(chamber.limits.mv3_max_torr)} (TCG31)
               </Text>
