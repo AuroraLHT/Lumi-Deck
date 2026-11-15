@@ -314,7 +314,7 @@ export const OP_REGISTRY: OpSpec[] = [
     id: "set_laser_energy",
     label: "Set laser energy",
     category: "Excimer",
-    hint: "Switches the excimer to energy mode (EGY PGR). Forgets the confirmed laser power -- run Laser energy check after. Refused while the laser fires or a deposition runs.",
+    hint: "Switches the excimer to energy mode (EGY PGR). Forgets the confirmed pulse energy -- run Laser energy check after. Refused while the laser fires or a deposition runs.",
     readings: ["excimer", "excimerEnergy", "excimerRange", "confirmedPower"],
     fields: [{ key: "mj", label: "Energy", type: "number", unit: "mJ", step: 0.5 }],
     run: (c, p) => c.set_laser_energy(p as unknown as SetLaserEnergy),
@@ -323,7 +323,7 @@ export const OP_REGISTRY: OpSpec[] = [
     id: "set_laser_hv",
     label: "Set laser HV",
     category: "Excimer",
-    hint: "Switches the excimer to HV mode (HV PGR). Forgets the confirmed laser power -- run Laser energy check after. Refused while the laser fires or a deposition runs.",
+    hint: "Switches the excimer to HV mode (HV PGR). Forgets the confirmed pulse energy -- run Laser energy check after. Refused while the laser fires or a deposition runs.",
     readings: ["excimer", "excimerHv", "excimerRange", "confirmedPower"],
     fields: [{ key: "kv", label: "HV", type: "number", unit: "kV", step: 0.01 }],
     run: (c, p) => c.set_laser_hv(p as unknown as SetLaserHv),
@@ -332,12 +332,10 @@ export const OP_REGISTRY: OpSpec[] = [
     id: "begin_set_laser_power",
     label: "Laser energy check",
     category: "Excimer",
-    // laser_power's unit is not settled (a power setting? the meter's pulse
-    // energy?), so no unit here until it is.
-    hint: "Closes the shutter, turns the carousel to Clear, then asks for the meter reading. Laser power in the units the prompt states.",
+    hint: "Closes the shutter, turns the carousel to Clear, then asks for the pulse energy read off the meter at the exit port.",
     opensPrompt: true,
     fields: [
-      { key: "laser_power", label: "Laser power", type: "number" },
+      { key: "laser_power", label: "Laser pulse energy", type: "number", unit: "mJ" },
       { key: "force", label: "Redo if already confirmed", type: "boolean", initial: false },
     ],
     run: (c, p) => c.begin_set_laser_power(p as unknown as BeginSetLaserPower),

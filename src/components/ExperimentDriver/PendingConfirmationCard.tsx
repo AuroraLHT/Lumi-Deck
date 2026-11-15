@@ -281,8 +281,8 @@ const PixelCheckPrompt = ({ call }: { call: Call }) => {
 
 const LaserPowerPrompt = ({ call }: { call: Call }) => (
   <NumberPrompt
-    label="Measured laser power"
-    unit="W"
+    label="Measured pulse energy"
+    unit="mJ"
     action="Confirm reading"
     call={call}
     onSubmit={(measured_power) => call.run((c) => c.confirm_laser_power({ measured_power }))}
@@ -309,7 +309,7 @@ const TITLES: Record<string, string> = {
   mask_center_check: "Is the mask centered?",
   rheed_gain: "Tune RHEED gain",
   pixel_check: "Pixel check",
-  laser_power: "Laser power",
+  laser_power: "Laser pulse energy",
 };
 
 /**
