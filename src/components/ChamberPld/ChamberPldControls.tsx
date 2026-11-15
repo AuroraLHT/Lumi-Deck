@@ -4,13 +4,12 @@ import useAppStore from "../../stores/app";
 import useChamberPldNodeStore from "../../stores/nodes/chamberPld";
 import useChamberPldStore from "../../stores/chamberPld";
 import { useCanOperate } from "../../hooks/useChamberPldCall";
-import GasControls from "./GasControls";
 import HeaterControls from "./HeaterControls";
 import LaserControls from "./LaserControls";
-import LoadLockPumpControls from "./LoadLockPumpControls";
 import MotionControls from "./MotionControls";
 import RheedControls from "./RheedControls";
 import SessionControls from "./SessionControls";
+import { LoadLockControls, MainChamberControls } from "./VacuumControls";
 
 /**
  * Operator controls for the chamber.pld driver -- acquire control, move axes,
@@ -93,12 +92,12 @@ const ChamberPldControls = () => {
         </Center>
       ) : (
         <Grid templateColumns="repeat(auto-fit, minmax(260px, 1fr))" gap={2}>
+          <MainChamberControls />
+          <LoadLockControls />
           <MotionControls />
           <HeaterControls />
-          <GasControls />
           <LaserControls />
           <RheedControls />
-          <LoadLockPumpControls />
         </Grid>
       )}
     </VStack>

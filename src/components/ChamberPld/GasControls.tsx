@@ -3,8 +3,8 @@ import { Button, HStack, Input, Select, Text, VStack } from "@chakra-ui/react";
 
 import useChamberPldCall from "../../hooks/useChamberPldCall";
 import useChamberPldStore from "../../stores/chamberPld";
-import { Field, Section } from "./primitives";
-import { AnyReply, Call, NumberOp, OpButton, ReplyText, SwitchOp, TwoNumberOp, operatorTitle } from "./controlPrimitives";
+import { Field } from "./primitives";
+import { Call, NumberOp, OpButton, ReplyText, SwitchOp, TwoNumberOp, operatorTitle, useReply } from "./controlPrimitives";
 
 const GAUGE_OPTIONS = [
   { value: "", label: "(auto)" },
@@ -21,7 +21,7 @@ const GAUGE_OPTIONS = [
 const SetPressureRow = ({ call }: { call: Call }) => {
   const [torr, setTorr] = useState("");
   const [gauge, setGauge] = useState("");
-  const [reply, setReply] = useState<AnyReply | null>(null);
+  const [reply, setReply] = useReply();
   const n = Number(torr);
   const valid = torr.trim() !== "" && Number.isFinite(n);
   return (
@@ -68,14 +68,15 @@ const SetPressureRow = ({ call }: { call: Call }) => {
   );
 };
 
-/** MFC1 flow, the pressure-control loop and its limits, and the ion gauge filaments. */
-const GasControls = () => {
+/**
+ * MFC1 flow and the main chamber's pressure-control loop and its limits, as
+ * fields for the Main chamber section (the ion gauges are with its vacuum).
+ */
+const GasFields = () => {
   const call = useChamberPldCall();
   const gas = useChamberPldStore((s) => s.chamber)?.gas;
-  const pressures = useChamberPldStore((s) => s.chamber)?.pressures;
 
   return (
-    <Section title="Gas & pressure control">
       <VStack align="stretch" spacing={2}>
         <Field label="MFC1 setpoint (sccm)">
           <NumberOp
@@ -119,31 +120,13 @@ const GasControls = () => {
             Cancel
           </OpButton>
         </Field>
-        <Field label="IG1 filament">
-          <SwitchOp
-            call={call}
-            label=""
-            checked={Boolean(pressures?.ig1_on)}
-            op={(c, on) => c.set_ion_gauge({ gauge: "IG1", on })}
-          />
-        </Field>
-        <Field label="IG3 filament">
-          <SwitchOp
-            call={call}
-            label=""
-            checked={Boolean(pressures?.ig3_on)}
-            op={(c, on) => c.set_ion_gauge({ gauge: "IG3", on })}
-          />
-        </Field>
-
         {call.error && (
           <Text fontSize="xs" color="status.error">
             {call.error}
           </Text>
         )}
       </VStack>
-    </Section>
   );
 };
 
-export default GasControls;
+export default GasFields;

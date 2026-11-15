@@ -1,4 +1,4 @@
-import { ReactNode, useState } from "react";
+import { ReactNode, useEffect, useState } from "react";
 import { Box, Button, HStack, Input, Select, Switch, Text, VStack } from "@chakra-ui/react";
 
 import { ChamberPldClient } from "../../generated/lumi";
@@ -15,10 +15,40 @@ export type AnyReply = { message?: string; ok?: boolean; granted?: boolean };
 
 const isRefusal = (reply: AnyReply) => reply.ok === false || reply.granted === false;
 
+/** How long a reply stays under its control: long enough to read, short enough not to outlive the state it describes. */
+const REPLY_OK_MS = 8000;
+const REPLY_REFUSED_MS = 30000;
+
+/**
+ * The last reply a control got. It clears itself -- a success sooner than a
+ * refusal -- since a reply describes the moment it came back ("filament on at
+ * 507 mA, held there") and reads as wrong once the state has moved on.
+ */
+export const useReply = () => {
+  const [reply, setReply] = useState<AnyReply | null>(null);
+  useEffect(() => {
+    if (!reply?.message) return;
+    const timer = setTimeout(() => setReply(null), isRefusal(reply) ? REPLY_REFUSED_MS : REPLY_OK_MS);
+    return () => clearTimeout(timer);
+  }, [reply]);
+  return [reply, setReply] as const;
+};
+
+/**
+ * Where a control's reply goes. By default the control shows it under itself;
+ * a section that lays its controls out in rows can take it with `onReply` and
+ * show it full width instead.
+ */
+const useReplyTarget = (onReply?: (reply: AnyReply | null) => void) => {
+  const [reply, setReply] = useReply();
+  const deliver = (r: AnyReply | null | undefined) => (onReply ? onReply(r ?? null) : setReply(r ?? null));
+  return [onReply ? null : reply, deliver] as const;
+};
+
 /** The last reply a control got, as feedback under it -- a refusal is a normal reply, not an exception. */
-export const ReplyText = ({ reply }: { reply: AnyReply | null }) =>
+export const ReplyText = ({ reply, align }: { reply: AnyReply | null; align?: "left" | "right" }) =>
   reply?.message ? (
-    <Text fontSize="0.65rem" color={isRefusal(reply) ? "status.error" : "text.muted"}>
+    <Text fontSize="0.65rem" lineHeight="short" textAlign={align} color={isRefusal(reply) ? "status.error" : "text.muted"}>
       {reply.message}
     </Text>
   ) : null;
@@ -35,6 +65,7 @@ export const OpButton = <T extends AnyReply>({
   variant,
   isDisabled,
   title,
+  onReply,
 }: {
   children: ReactNode;
   call: Call;
@@ -43,8 +74,10 @@ export const OpButton = <T extends AnyReply>({
   variant?: string;
   isDisabled?: boolean;
   title?: string;
+  /** Takes the reply instead of showing it under the control. */
+  onReply?: (reply: AnyReply | null) => void;
 }) => {
-  const [reply, setReply] = useState<AnyReply | null>(null);
+  const [reply, setReply] = useReplyTarget(onReply);
   return (
     <Box>
       <Button
@@ -54,7 +87,7 @@ export const OpButton = <T extends AnyReply>({
         isLoading={call.busy}
         isDisabled={!call.canOperate || isDisabled}
         title={operatorTitle(call, title)}
-        onClick={() => call.run(op).then((r) => setReply(r ?? null))}
+        onClick={() => call.run(op).then(setReply)}
       >
         {children}
       </Button>
@@ -72,6 +105,7 @@ export const ConfirmOpButton = <T extends AnyReply>({
   colorScheme = "red",
   variant,
   isDisabled,
+  onReply,
 }: {
   children: ReactNode;
   call: Call;
@@ -80,8 +114,10 @@ export const ConfirmOpButton = <T extends AnyReply>({
   colorScheme?: string;
   variant?: string;
   isDisabled?: boolean;
+  /** Takes the reply instead of showing it under the control. */
+  onReply?: (reply: AnyReply | null) => void;
 }) => {
-  const [reply, setReply] = useState<AnyReply | null>(null);
+  const [reply, setReply] = useReplyTarget(onReply);
   return (
     <Box>
       <ConfirmButton
@@ -90,7 +126,7 @@ export const ConfirmOpButton = <T extends AnyReply>({
         variant={variant}
         isDisabled={!call.canOperate || isDisabled}
         confirmLabel={confirmLabel}
-        onConfirm={() => call.run(op).then((r) => setReply(r ?? null))}
+        onConfirm={() => call.run(op).then(setReply)}
       >
         {children}
       </ConfirmButton>
@@ -108,6 +144,7 @@ export const NumberOp = <T extends AnyReply>({
   action,
   op,
   step,
+  onReply,
 }: {
   call: Call;
   label: string;
@@ -116,9 +153,11 @@ export const NumberOp = <T extends AnyReply>({
   action: string;
   op: (client: ChamberPldClient, value: number) => Promise<T>;
   step?: number;
+  /** Takes the reply instead of showing it under the control. */
+  onReply?: (reply: AnyReply | null) => void;
 }) => {
   const [value, setValue] = useState(initial);
-  const [reply, setReply] = useState<AnyReply | null>(null);
+  const [reply, setReply] = useReplyTarget(onReply);
   const n = Number(value);
   const valid = value.trim() !== "" && Number.isFinite(n);
   return (
@@ -136,10 +175,11 @@ export const NumberOp = <T extends AnyReply>({
         />
         <Button
           size="xs"
+          minW="48px"
           isLoading={call.busy}
           isDisabled={!call.canOperate || !valid}
           title={operatorTitle(call)}
-          onClick={() => call.run((c) => op(c, n)).then((r) => setReply(r ?? null))}
+          onClick={() => call.run((c) => op(c, n)).then(setReply)}
         >
           {action}
         </Button>
@@ -160,6 +200,7 @@ export const TwoNumberOp = <T extends AnyReply>({
   initialB = "",
   action,
   op,
+  onReply,
 }: {
   call: Call;
   labelA: string;
@@ -170,10 +211,12 @@ export const TwoNumberOp = <T extends AnyReply>({
   initialB?: string;
   action: string;
   op: (client: ChamberPldClient, a: number, b: number) => Promise<T>;
+  /** Takes the reply instead of showing it under the control. */
+  onReply?: (reply: AnyReply | null) => void;
 }) => {
   const [a, setA] = useState(initialA);
   const [b, setB] = useState(initialB);
-  const [reply, setReply] = useState<AnyReply | null>(null);
+  const [reply, setReply] = useReplyTarget(onReply);
   const na = Number(a);
   const nb = Number(b);
   const valid = a.trim() !== "" && b.trim() !== "" && Number.isFinite(na) && Number.isFinite(nb);
@@ -200,10 +243,11 @@ export const TwoNumberOp = <T extends AnyReply>({
         />
         <Button
           size="xs"
+          minW="48px"
           isLoading={call.busy}
           isDisabled={!call.canOperate || !valid}
           title={operatorTitle(call)}
-          onClick={() => call.run((c) => op(c, na, nb)).then((r) => setReply(r ?? null))}
+          onClick={() => call.run((c) => op(c, na, nb)).then(setReply)}
         >
           {action}
         </Button>
@@ -220,6 +264,7 @@ export const SwitchOp = <T extends AnyReply>({
   checked,
   op,
   ariaLabel,
+  onReply,
 }: {
   call: Call;
   label: string;
@@ -227,8 +272,10 @@ export const SwitchOp = <T extends AnyReply>({
   op: (client: ChamberPldClient, on: boolean) => Promise<T>;
   /** Names the switch when `label` is empty because a Field beside it says what it is. */
   ariaLabel?: string;
+  /** Takes the reply instead of showing it under the control. */
+  onReply?: (reply: AnyReply | null) => void;
 }) => {
-  const [reply, setReply] = useState<AnyReply | null>(null);
+  const [reply, setReply] = useReplyTarget(onReply);
   return (
     <VStack align="stretch" spacing="1px">
       <HStack justify="space-between" spacing={2}>
@@ -243,7 +290,7 @@ export const SwitchOp = <T extends AnyReply>({
           isChecked={checked}
           isDisabled={!call.canOperate || call.busy}
           title={operatorTitle(call)}
-          onChange={(e) => call.run((c) => op(c, e.target.checked)).then((r) => setReply(r ?? null))}
+          onChange={(e) => call.run((c) => op(c, e.target.checked)).then(setReply)}
         />
       </HStack>
       <ReplyText reply={reply} />
@@ -259,6 +306,7 @@ export const SelectOp = <T extends AnyReply>({
   initial,
   action,
   op,
+  onReply,
 }: {
   call: Call;
   label: string;
@@ -266,9 +314,11 @@ export const SelectOp = <T extends AnyReply>({
   initial?: string;
   action: string;
   op: (client: ChamberPldClient, value: string) => Promise<T>;
+  /** Takes the reply instead of showing it under the control. */
+  onReply?: (reply: AnyReply | null) => void;
 }) => {
   const [value, setValue] = useState(initial ?? options[0]?.value ?? "");
-  const [reply, setReply] = useState<AnyReply | null>(null);
+  const [reply, setReply] = useReplyTarget(onReply);
   return (
     <VStack align="stretch" spacing="1px">
       <HStack spacing={1}>
@@ -285,7 +335,7 @@ export const SelectOp = <T extends AnyReply>({
           isLoading={call.busy}
           isDisabled={!call.canOperate}
           title={operatorTitle(call)}
-          onClick={() => call.run((c) => op(c, value)).then((r) => setReply(r ?? null))}
+          onClick={() => call.run((c) => op(c, value)).then(setReply)}
         >
           {action}
         </Button>

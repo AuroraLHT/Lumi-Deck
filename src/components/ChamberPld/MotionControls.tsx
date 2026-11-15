@@ -2,7 +2,7 @@ import { HStack, Text, VStack } from "@chakra-ui/react";
 
 import useChamberPldCall from "../../hooks/useChamberPldCall";
 import useChamberPldStore from "../../stores/chamberPld";
-import { Field, Section, sortedEntries } from "./primitives";
+import { Field, Section } from "./primitives";
 import { NumberOp, OpButton, SelectOp, SwitchOp } from "./controlPrimitives";
 
 const TARGET_OPTIONS = ["A", "B", "C", "D", "E", "F", "Clear"].map((t) => ({ value: t, label: t }));
@@ -13,7 +13,8 @@ const AXIS_OPTIONS = [
 ];
 
 /**
- * Carousel, mask, sample and RHEED gun motion, plus the valves. Moves are
+ * Carousel, mask, sample and RHEED gun motion. (Valves are with the chamber
+ * they serve, in VacuumControls.) Moves are
  * sent with `wait: false` -- a waited move can block for up to ten minutes,
  * and the chamber state stream reports the result as it happens anyway.
  */
@@ -21,7 +22,6 @@ const MotionControls = () => {
   const call = useChamberPldCall();
   const chamber = useChamberPldStore((s) => s.chamber);
   const motion = chamber?.motion;
-  const valves = sortedEntries(chamber?.valves);
 
   return (
     <Section title="Motion">
@@ -114,23 +114,6 @@ const MotionControls = () => {
             </OpButton>
           </HStack>
         </Field>
-
-        {valves.length > 0 && (
-          <VStack align="stretch" spacing="2px" pt={1} borderTopWidth="1px" borderColor="panel.border">
-            <Text fontSize="xs" fontWeight="600" color="text.secondary">
-              Valves
-            </Text>
-            {valves.map(([name, open]) => (
-              <SwitchOp
-                key={name}
-                call={call}
-                label={name}
-                checked={open}
-                op={(c, on) => c.set_valve({ valve: name, open: on, wait: false })}
-              />
-            ))}
-          </VStack>
-        )}
 
         {call.error && (
           <Text fontSize="xs" color="status.error">

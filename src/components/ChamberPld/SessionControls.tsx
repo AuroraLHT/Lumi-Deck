@@ -4,7 +4,7 @@ import { Button, HStack, Input, Text, VStack } from "@chakra-ui/react";
 import useChamberPldCall from "../../hooks/useChamberPldCall";
 import useChamberPldNodeStore from "../../stores/nodes/chamberPld";
 import { Field, Section, TruncatedText } from "./primitives";
-import { AnyReply, ConfirmOpButton, OpButton, ReplyText, operatorTitle } from "./controlPrimitives";
+import { ConfirmOpButton, OpButton, ReplyText, operatorTitle, useReply } from "./controlPrimitives";
 
 /**
  * Who holds chamber control, plus the growth-log CSV -- the two things that
@@ -21,7 +21,7 @@ const SessionControls = () => {
 
   const [fileName, setFileName] = useState("");
   const [intervalS, setIntervalS] = useState("");
-  const [logReply, setLogReply] = useState<AnyReply | null>(null);
+  const [logReply, setLogReply] = useReply();
   const interval = intervalS.trim() === "" ? undefined : Number(intervalS);
 
   return (

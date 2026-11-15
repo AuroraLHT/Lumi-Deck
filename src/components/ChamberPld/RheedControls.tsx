@@ -1,17 +1,20 @@
-import { Badge, HStack, Text, VStack } from "@chakra-ui/react";
+import { ReactNode } from "react";
+import { Badge, Box, Flex, HStack, Text, VStack } from "@chakra-ui/react";
 
 import useChamberPldCall from "../../hooks/useChamberPldCall";
 import useChamberPldStore from "../../stores/chamberPld";
-import { Field, Section, fmt } from "./primitives";
-import { NumberOp, OpButton, SwitchOp, TwoNumberOp } from "./controlPrimitives";
+import { Section, fmt } from "./primitives";
+import { LastGunAction } from "./ActivityList";
+import { AnyReply, NumberOp, OpButton, ReplyText, SwitchOp, TwoNumberOp, useReply } from "./controlPrimitives";
 
+const TABULAR = { fontVariantNumeric: "tabular-nums" };
 
 /** Under ~0.1 µA is the controller's idle noise, not a beam. */
 const emission = (ua: number | null | undefined) =>
   ua == null ? "—" : ua < 0.1 ? "no emission" : `${ua.toFixed(1)} µA emission`;
-/** Placeholder text naming the allowed range, read from the service's limits. */
+/** The allowed range, read from the service's limits. */
 const span = (lo: number | null | undefined, hi: number | null | undefined, unit: string) =>
-  lo == null && hi == null ? unit : `${fmt(lo, 0)}–${fmt(hi, 0)} ${unit}`;
+  lo == null && hi == null ? "" : `${fmt(lo, 0)} to ${fmt(hi, 0)} ${unit}`.trim();
 
 /** The filament's floor when pld-service has not said: it goes on, and comes down to, 507 mA. */
 const FILAMENT_FLOOR_MA = 507;
@@ -28,15 +31,14 @@ const fmtEta = (s: number | null) =>
  * and how long it has left at the service's own ramp rate.
  */
 const Ramp = ({
-  label,
   set,
   target,
   digits,
   unit,
   down,
   eta,
+  note,
 }: {
-  label: string;
   /** The service's ramping-down flag: the ramp is the way to off, so say that. */
   down?: boolean;
   set: number | null | undefined;
@@ -45,14 +47,69 @@ const Ramp = ({
   unit: string;
   /** Seconds left, from the state's ramp rates. */
   eta: number | null;
+  /** Added after "ramping down", e.g. that HV goes first. */
+  note?: string;
 }) =>
   down || (set != null && target != null && Math.abs(target - set) > 10 ** -digits / 2) ? (
-    <Text fontSize="xs" color="status.warn" sx={{ fontVariantNumeric: "tabular-nums" }}>
-      {label} ramping {down ? "down" : (target ?? 0) < (set ?? 0) ? "down" : "up"} {fmt(set, digits)} →{" "}
-      {down ? "off" : fmt(target, digits, ` ${unit}`)}
+    <Text fontSize="xs" color="status.warn" sx={TABULAR}>
+      Ramping {down ? "down" : (target ?? 0) < (set ?? 0) ? "down" : "up"}
+      {note && ` (${note})`} {fmt(set, digits)} → {down ? "off" : fmt(target, digits, ` ${unit}`)}
       {fmtEta(eta)}
     </Text>
   ) : null;
+
+/** What an output is doing now, then its last reply or error: one full-width line each, left aligned. */
+const Status = ({ children, reply, error }: { children?: ReactNode; reply: AnyReply | null; error?: string | null }) =>
+  children || reply?.message || error ? (
+    <VStack align="stretch" spacing="1px" mt={1}>
+      {children}
+      <ReplyText reply={reply} align="left" />
+      {error && (
+        <Text fontSize="0.65rem" color="status.error">
+          {error}
+        </Text>
+      )}
+    </VStack>
+  ) : null;
+
+/**
+ * One output of the gun: its name, reading and switch on one row, its set
+ * point and allowed range on the next, then what it is doing.
+ */
+const Output = ({
+  name,
+  reading,
+  toggle,
+  range,
+  setter,
+  status,
+}: {
+  name: string;
+  reading: string;
+  toggle?: ReactNode;
+  range: string;
+  setter: ReactNode;
+  status: ReactNode;
+}) => (
+  <Box borderTopWidth="1px" borderColor="panel.border" pt={2}>
+    <Flex align="center" gap={2} minH="20px">
+      <Text fontSize="xs" fontWeight="600">
+        {name}
+      </Text>
+      <Text fontSize="xs" ml="auto" sx={TABULAR}>
+        {reading}
+      </Text>
+      {toggle}
+    </Flex>
+    <Flex align="center" gap={2} mt={1} flexWrap="wrap">
+      <Text fontSize="0.65rem" color="text.muted" flex="1 1 80px">
+        {range && `Range ${range}`}
+      </Text>
+      <Box ml="auto">{setter}</Box>
+    </Flex>
+    {status}
+  </Box>
+);
 
 /**
  * The RHEED gun through pld-service's handset link: filament, HV, focus and
@@ -77,13 +134,19 @@ const Ramp = ({
  * and HV off, and nothing comes back on by itself.
  */
 const RheedControls = () => {
-  const call = useChamberPldCall();
   const filamentCall = useChamberPldCall();
+  const filamentSetCall = useChamberPldCall();
   const hvCall = useChamberPldCall();
+  const hvSetCall = useChamberPldCall();
   const focusCall = useChamberPldCall();
   const deflectionCall = useChamberPldCall();
   const allOffCall = useChamberPldCall();
   const stopCall = useChamberPldCall();
+  const [gunReply, setGunReply] = useReply();
+  const [filamentReply, setFilamentReply] = useReply();
+  const [hvReply, setHvReply] = useReply();
+  const [focusReply, setFocusReply] = useReply();
+  const [deflectionReply, setDeflectionReply] = useReply();
   const rheed = useChamberPldStore((s) => s.chamber)?.rheed;
 
   if (!rheed?.present) {
@@ -100,19 +163,21 @@ const RheedControls = () => {
   const hvDownS = secondsAt((rheed.hv_set_kv ?? 0) * 1000, rheed.hv_ramp_v_per_s);
   const filamentDownS = secondsAt((rheed.filament_set_ma ?? filamentFloor) - filamentFloor, rheed.filament_ramp_ma_per_s);
   // Filament off (and all off) takes HV down first, so its time includes HV's.
+  const hvFirst = rheed.filament_ramping_down && rheed.hv_on;
   const filamentEta = rheed.filament_ramping_down
-    ? rheed.hv_on && hvDownS != null && filamentDownS != null
+    ? hvFirst && hvDownS != null && filamentDownS != null
       ? hvDownS + filamentDownS
       : filamentDownS
     : secondsAt((rheed.filament_target_ma ?? 0) - (rheed.filament_set_ma ?? 0), rheed.filament_ramp_ma_per_s);
   const hvEta = rheed.hv_ramping_down
     ? hvDownS
     : secondsAt(((rheed.hv_target_kv ?? 0) - (rheed.hv_set_kv ?? 0)) * 1000, rheed.hv_ramp_v_per_s);
+  const gunError = allOffCall.error ?? stopCall.error;
 
   return (
     <Section title="RHEED gun">
       <VStack align="stretch" spacing={2}>
-        <HStack spacing={1} flexWrap="wrap">
+        <Flex align="center" gap={1} flexWrap="wrap">
           {rheed.read_only ? (
             <Badge variant="subtle" colorScheme="gray" fontSize="0.65rem">
               read-only: every op is refused
@@ -140,119 +205,177 @@ const RheedControls = () => {
           <Text fontSize="xs" color="text.muted" ml="auto">
             {emission(rheed.emission_ua)}
           </Text>
-        </HStack>
-        <HStack justify="flex-end" align="flex-start" spacing={2}>
-          <OpButton
-            call={allOffCall}
-            colorScheme="orange"
-            variant="outline"
-            title="The normal way down: HV and the filament ramped off, then focus, X and Y off. Needs no control; set points are kept."
-            op={(c) => c.rheed_all_off_gentle()}
-          >
-            All off
-          </OpButton>
-          <OpButton
-            call={stopCall}
-            colorScheme="red"
-            title="Emergency stop: filament, HV, focus, X and Y off at once, unramped. Needs no control; set points are kept."
-            op={(c) => c.rheed_all_off()}
-          >
-            Emergency off
-          </OpButton>
-        </HStack>
+        </Flex>
+        <Box>
+          <HStack justify="flex-end" spacing={2}>
+            <OpButton
+              call={allOffCall}
+              colorScheme="orange"
+              variant="outline"
+              title="The normal way down: HV and the filament ramped off, then focus, X and Y off. Needs no control; set points are kept."
+              op={(c) => c.rheed_all_off_gentle()}
+              onReply={setGunReply}
+            >
+              All off
+            </OpButton>
+            <OpButton
+              call={stopCall}
+              colorScheme="red"
+              title="Emergency stop: filament, HV, focus, X and Y off at once, unramped. Needs no control; set points are kept."
+              op={(c) => c.rheed_all_off()}
+              onReply={setGunReply}
+            >
+              Emergency off
+            </OpButton>
+          </HStack>
+          <Box mt={1}>
+            <LastGunAction />
+          </Box>
+          <Status reply={gunReply} error={gunError}>
+            {rheed.all_ramping_down && (
+              <Text fontSize="xs" color="status.warn">
+                All off in progress: focus, X and Y go off once filament and HV are down.
+              </Text>
+            )}
+          </Status>
+        </Box>
 
-        <Field label={`Filament · ${fmt(rheed.filament_readback_ma, 0, " mA")}`}>
-          <SwitchOp
-            call={filamentCall}
-            label=""
-            ariaLabel="RHEED filament"
-            checked={Boolean(rheed.filament_on)}
-            op={(c, on) =>
-              on ? c.rheed_filament_on({ ma: null }) : c.rheed_filament_off()
-            }
-          />
-        </Field>
-        <Field label={`Filament set point (${span(rheed.filament_min_ma, rheed.filament_max_ma, "mA")})`}>
-          <NumberOp
-            call={call}
-            label="Filament set point"
-            unit="mA"
-            action="Ramp"
-            step={10}
-            op={(c, ma) => c.set_rheed_filament({ ma })}
-          />
-        </Field>
-        <Ramp
-          label={rheed.filament_ramping_down && rheed.hv_on ? "Filament (HV first)" : "Filament"}
-          down={rheed.filament_ramping_down}
-          set={rheed.filament_set_ma} target={rheed.filament_target_ma} digits={0} unit="mA" eta={filamentEta} />
+        <Output
+          name="Filament"
+          reading={fmt(rheed.filament_readback_ma, 0, " mA")}
+          toggle={
+            <SwitchOp
+              call={filamentCall}
+              label=""
+              ariaLabel="RHEED filament"
+              checked={Boolean(rheed.filament_on)}
+              op={(c, on) => (on ? c.rheed_filament_on({ ma: null }) : c.rheed_filament_off())}
+              onReply={setFilamentReply}
+            />
+          }
+          range={span(rheed.filament_min_ma, rheed.filament_max_ma, "mA")}
+          setter={
+            <NumberOp
+              call={filamentSetCall}
+              label="Filament set point"
+              unit="mA"
+              action="Ramp"
+              step={10}
+              op={(c, ma) => c.set_rheed_filament({ ma })}
+              onReply={setFilamentReply}
+            />
+          }
+          status={
+            <Status reply={filamentReply} error={filamentCall.error ?? filamentSetCall.error}>
+              <Ramp
+                down={rheed.filament_ramping_down}
+                note={hvFirst ? "HV first" : undefined}
+                set={rheed.filament_set_ma}
+                target={rheed.filament_target_ma}
+                digits={0}
+                unit="mA"
+                eta={filamentEta}
+              />
+            </Status>
+          }
+        />
 
-        <Field label={`HV · ${fmt(rheed.hv_readback_kv, 2, " kV")}`}>
-          <SwitchOp
-            call={hvCall}
-            label=""
-            ariaLabel="RHEED HV"
-            checked={Boolean(rheed.hv_on)}
-            op={(c, on) => (on ? c.rheed_hv_on({ kv: null }) : c.rheed_hv_off())}
-          />
-        </Field>
-        <Field label={`HV set point (${rheed.hv_max_kv != null ? `≤ ${fmt(rheed.hv_max_kv, 0)} kV` : "kV"})`}>
-          <NumberOp
-            call={call}
-            label="HV set point"
-            unit="kV"
-            action="Ramp"
-            step={0.5}
-            op={(c, kv) => c.set_rheed_hv({ kv })}
-          />
-        </Field>
-        <Ramp
-          label="HV"
-          down={rheed.hv_ramping_down && !rheed.filament_ramping_down}
-          set={rheed.hv_set_kv} target={rheed.hv_target_kv} digits={2} unit="kV" eta={hvEta} />
-        {rheed.all_ramping_down && (
-          <Text fontSize="xs" color="status.warn">
-            All off: focus, X and Y go off once filament and HV are down.
-          </Text>
-        )}
+        <Output
+          name="HV"
+          reading={fmt(rheed.hv_readback_kv, 2, " kV")}
+          toggle={
+            <SwitchOp
+              call={hvCall}
+              label=""
+              ariaLabel="RHEED HV"
+              checked={Boolean(rheed.hv_on)}
+              op={(c, on) => (on ? c.rheed_hv_on({ kv: null }) : c.rheed_hv_off())}
+              onReply={setHvReply}
+            />
+          }
+          range={rheed.hv_max_kv != null ? `0 to ${fmt(rheed.hv_max_kv, 0)} kV` : ""}
+          setter={
+            <NumberOp
+              call={hvSetCall}
+              label="HV set point"
+              unit="kV"
+              action="Ramp"
+              step={0.5}
+              op={(c, kv) => c.set_rheed_hv({ kv })}
+              onReply={setHvReply}
+            />
+          }
+          status={
+            <Status reply={hvReply} error={hvCall.error ?? hvSetCall.error}>
+              <Ramp
+                down={rheed.hv_ramping_down && !rheed.filament_ramping_down}
+                set={rheed.hv_set_kv}
+                target={rheed.hv_target_kv}
+                digits={2}
+                unit="kV"
+                eta={hvEta}
+              />
+            </Status>
+          }
+        />
 
-        <Field label={`Focus · ${fmt(rheed.focus_readback_ma, 1, " mA")} (${span(rheed.focus_min_ma, rheed.focus_max_ma, "mA")})`}>
-          <NumberOp
-            call={focusCall}
-            label="Focus"
-            unit="mA"
-            action="Set"
-            step={1}
-            op={(c, ma) => c.set_rheed_focus({ ma })}
-          />
-        </Field>
-        {focusCall.busy && (
-          <Text fontSize="xs" color="status.warn">
-            Focus ramping at 50 mA/s…
-          </Text>
-        )}
-        <Field
-          label={`Deflection X / Y · ${fmt(rheed.x_readback_ma, 1)} / ${fmt(rheed.y_readback_ma, 1, " mA")} (X ${span(
-            rheed.x_min_ma,
-            rheed.x_max_ma,
-            ""
-          ).trim()}, Y ${span(rheed.y_min_ma, rheed.y_max_ma, "mA")})`}
-        >
-          <TwoNumberOp
-            call={deflectionCall}
-            labelA="Deflection X"
-            labelB="Deflection Y"
-            unitA="X mA"
-            unitB="Y mA"
-            action="Set"
-            op={(c, x_ma, y_ma) => c.set_rheed_deflection({ x_ma, y_ma })}
-          />
-        </Field>
-        {deflectionCall.busy && (
-          <Text fontSize="xs" color="status.warn">
-            Deflection ramping at 20 mA/s, X and Y together…
-          </Text>
-        )}
+        <Output
+          name="Focus"
+          reading={fmt(rheed.focus_readback_ma, 1, " mA")}
+          range={span(rheed.focus_min_ma, rheed.focus_max_ma, "mA")}
+          setter={
+            <NumberOp
+              call={focusCall}
+              label="Focus"
+              unit="mA"
+              action="Set"
+              step={1}
+              op={(c, ma) => c.set_rheed_focus({ ma })}
+              onReply={setFocusReply}
+            />
+          }
+          status={
+            <Status reply={focusReply} error={focusCall.error}>
+              {focusCall.busy && (
+                <Text fontSize="xs" color="status.warn">
+                  Ramping at 50 mA/s…
+                </Text>
+              )}
+            </Status>
+          }
+        />
+
+        <Output
+          name="Deflection X / Y"
+          reading={`${fmt(rheed.x_readback_ma, 1)} / ${fmt(rheed.y_readback_ma, 1, " mA")}`}
+          range={[
+            span(rheed.x_min_ma, rheed.x_max_ma, "") && `X ${span(rheed.x_min_ma, rheed.x_max_ma, "")}`,
+            span(rheed.y_min_ma, rheed.y_max_ma, "") && `Y ${span(rheed.y_min_ma, rheed.y_max_ma, "mA")}`,
+          ]
+            .filter(Boolean)
+            .join(", ")}
+          setter={
+            <TwoNumberOp
+              call={deflectionCall}
+              labelA="Deflection X"
+              labelB="Deflection Y"
+              unitA="X mA"
+              unitB="Y mA"
+              action="Set"
+              op={(c, x_ma, y_ma) => c.set_rheed_deflection({ x_ma, y_ma })}
+              onReply={setDeflectionReply}
+            />
+          }
+          status={
+            <Status reply={deflectionReply} error={deflectionCall.error}>
+              {deflectionCall.busy && (
+                <Text fontSize="xs" color="status.warn">
+                  Ramping at 20 mA/s, X and Y together…
+                </Text>
+              )}
+            </Status>
+          }
+        />
 
         {rheed.filament_open && (
           <Text fontSize="xs" color="status.error">
@@ -268,14 +391,6 @@ const RheedControls = () => {
           <Text fontSize="xs" color="status.warn" noOfLines={2} title={rheed.last_alert}>
             Last alert: {rheed.last_alert}
           </Text>
-        )}
-        {[call, filamentCall, hvCall, focusCall, deflectionCall, allOffCall, stopCall].map(
-          (c, i) =>
-            c.error && (
-              <Text key={i} fontSize="xs" color="status.error">
-                {c.error}
-              </Text>
-            )
         )}
       </VStack>
     </Section>
