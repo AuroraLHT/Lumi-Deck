@@ -26,6 +26,7 @@ import {
   fmtTorr,
   sortedEntries,
 } from "./primitives";
+import { ActivityList } from "./ActivityList";
 import RheedStatus from "./RheedStatus";
 
 const AXIS_LABELS: Record<string, string> = {
@@ -470,7 +471,7 @@ const ChamberPldMain = () => {
           <Section title="Load lock">
             <SimpleGrid minChildWidth="220px" spacingX={4} spacingY="1px">
               <Field label="Hatch closed">
-                <BoolBadge value={chamber.load_lock?.hatch_closed} />
+                <BoolBadge value={chamber.load_lock?.hatch_closed} onLabel="yes" offLabel="no" />
               </Field>
               <Field label="GV1">
                 <Text fontSize="xs">{chamber.load_lock?.gv1 ?? "—"}</Text>
@@ -488,8 +489,8 @@ const ChamberPldMain = () => {
               </Field>
               <Field label="Below SP1 / SP2">
                 <HStack spacing={1} justify="flex-end">
-                  <BoolBadge value={chamber.load_lock?.below_sp1} />
-                  <BoolBadge value={chamber.load_lock?.below_sp2} />
+                  <BoolBadge value={chamber.load_lock?.below_sp1} onLabel="yes" offLabel="no" />
+                  <BoolBadge value={chamber.load_lock?.below_sp2} onLabel="yes" offLabel="no" />
                 </HStack>
               </Field>
             </SimpleGrid>
@@ -524,6 +525,10 @@ const ChamberPldMain = () => {
           </Section>
         </Grid>
       )}
+
+      <Section title="Activity">
+        <ActivityList />
+      </Section>
 
       <Section title="Recent events">
         {events.length === 0 ? (

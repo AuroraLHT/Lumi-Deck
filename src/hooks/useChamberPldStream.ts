@@ -7,10 +7,13 @@ import useChamberPldSeriesStore, { toSeriesRow } from "../stores/chamberPldSerie
 
 const EVENTS_POLL_MS = 5000;
 const EVENTS_LIMIT = 200;
+const ACTIVITY_SEED = 200;
 
 /**
  * Feeds the chamber.pld cache: the full `PldChamberState` pushed on its `state`
- * stream, plus `recent_events`, which has no push channel and is polled. Also
+ * stream, plus `recent_events`, which has no push channel and is polled, and
+ * the op activity: seeded from `recent_activity`, then the newest ten that
+ * ride on each push, back-filled from `recent_activity` on a seq gap. Also
  * flattens each push into `chamberPldSeries`, the rolling buffer the Monitor
  * charts plot from when the chamber is running the pld driver.
  *
@@ -41,9 +44,25 @@ const useChamberPldStream = () => {
     // silently replace this handler (`LumiTransport.subscribe` keys by
     // `target:stream`), so the Monitor charts read off this same tick rather
     // than opening their own.
+    const fillActivity = (since_seq: number) =>
+      client
+        .recent_activity({ limit: ACTIVITY_SEED, since_seq })
+        .then((list) => {
+          if (!cancelled) useChamberPldStore.getState().mergeActivity(list.entries ?? []);
+        })
+        .catch((err) => {
+          if (!cancelled) console.error("chamber.pld recent_activity failed:", err);
+        });
+
     const subscriptionKey = client.onState((state) => {
       if (cancelled) return;
-      useChamberPldStore.getState().setChamber(state);
+      const store = useChamberPldStore.getState();
+      store.setChamber(state);
+      const pushed = state.activity ?? [];
+      // More happened between two pushes than one carries: fetch what was skipped.
+      const oldest = Math.min(...pushed.map((e) => e.seq ?? Infinity));
+      if (store.activitySeq > 0 && oldest > store.activitySeq + 1) fillActivity(store.activitySeq);
+      store.mergeActivity(pushed);
       useChamberPldSeriesStore.getState().appendRow(toSeriesRow(state));
     });
 
@@ -74,6 +93,9 @@ const useChamberPldStream = () => {
         });
     };
     pollEvents();
+    fillActivity(0).finally(() => {
+      if (!cancelled) useChamberPldStore.getState().setActivityLoaded();
+    });
     const eventsInterval = window.setInterval(pollEvents, EVENTS_POLL_MS);
 
     return () => {

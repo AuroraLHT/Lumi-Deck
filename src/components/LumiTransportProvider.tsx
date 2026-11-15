@@ -5,6 +5,7 @@ import useAuthStore from "../stores/auth";
 import useTransportStore from "../clients/transport";
 import useChamberLogStream from "../hooks/useChamberLogStream";
 import useChamberPldStream from "../hooks/useChamberPldStream";
+import useAgentActivityToasts from "../hooks/useAgentActivityToasts";
 import useAnalysisStreams from "../hooks/useAnalysisStreams";
 import useDetectionStream from "../hooks/useDetectionStream";
 import useMiModeStream from "../hooks/useMiModeStream";
@@ -37,6 +38,9 @@ const LumiTransportProvider = ({ children }: { children: ReactNode }) => {
   useSystemRegistryStream();
   useChamberLogStream();
   useChamberPldStream();
+  // Reads the activity the stream above keeps, so the agent's ops reach
+  // whoever is at the Deck whichever panels are open.
+  useAgentActivityToasts();
   useAnalysisStreams();
   useDetectionStream();
   useNodeStates();
