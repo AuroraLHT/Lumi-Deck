@@ -127,9 +127,9 @@ const Output = ({
  * from 0 when that output is off, and return on arrival. So each of these has
  * its own call: one in flight shows as in progress and leaves the rest usable.
  *
- * All off is the normal way down: HV, then the filament, ramped off, then
- * focus, X and Y. Emergency off is unramped: everything off at once, for a
- * fault. Neither needs control, like the laser STOP, and both keep the set
+ * All off is the normal way down: HV, then the filament, ramped off; focus,
+ * X and Y stay on. Emergency off (pld-service's "ALL OFF BRUTAL") is
+ * unramped: everything off at once, focus, X and Y too, for a fault. Neither needs control, like the laser STOP, and both keep the set
  * points. An interlock, an open filament or an over-current switches filament
  * and HV off, and nothing comes back on by itself.
  */
@@ -212,7 +212,7 @@ const RheedControls = () => {
               call={allOffCall}
               colorScheme="orange"
               variant="outline"
-              title="The normal way down: HV and the filament ramped off, then focus, X and Y off. Needs no control; set points are kept."
+              title="The normal way down: HV and the filament ramped off; focus, X and Y stay on. Needs no control; set points are kept."
               op={(c) => c.rheed_all_off_gentle()}
               onReply={setGunReply}
             >
@@ -234,7 +234,7 @@ const RheedControls = () => {
           <Status reply={gunReply} error={gunError}>
             {rheed.all_ramping_down && (
               <Text fontSize="xs" color="status.warn">
-                All off in progress: focus, X and Y go off once filament and HV are down.
+                All off in progress: HV, then the filament, ramping down.
               </Text>
             )}
           </Status>
@@ -330,6 +330,8 @@ const RheedControls = () => {
               unit="mA"
               action="Set"
               step={1}
+              min={rheed.focus_min_ma}
+              max={rheed.focus_max_ma}
               op={(c, ma) => c.set_rheed_focus({ ma })}
               onReply={setFocusReply}
             />

@@ -331,6 +331,8 @@ export const MainChamberControls = () => {
   const vacuum = useConfirmedVacuum();
   const valveCall = useChamberPldCall();
   const [valveReply, setValveReply] = useReply();
+  const [rheedReply, setRheedReply] = useReply();
+  const [otherReply, setOtherReply] = useReply();
   const chamber = useChamberPldStore((s) => s.chamber);
   const otherValves = Object.keys(chamber?.valves ?? {}).filter((n) => !KNOWN.has(n)).sort();
   const otherPumps = Object.keys(chamber?.pumps ?? {}).filter((n) => !KNOWN.has(n)).sort();
@@ -355,12 +357,14 @@ export const MainChamberControls = () => {
         </Group>
         <Group title="RHEED differential pumping">
           <PumpRows names={RHEED_PUMPING.pumps} vacuum={vacuum} />
-          <ValveRows names={RHEED_PUMPING.valves} call={valveCall} onReply={setValveReply} />
+          <ValveRows names={RHEED_PUMPING.valves} call={valveCall} onReply={setRheedReply} />
+          <ReplyText reply={rheedReply} align="left" />
         </Group>
         {(otherValves.length > 0 || otherPumps.length > 0) && (
           <Group title="Other">
             <PumpRows names={otherPumps} vacuum={vacuum} />
-            <ValveRows names={otherValves} call={valveCall} onReply={setValveReply} />
+            <ValveRows names={otherValves} call={valveCall} onReply={setOtherReply} />
+            <ReplyText reply={otherReply} align="left" />
           </Group>
         )}
         <Group title="Gas (MFC1) & pressure control">

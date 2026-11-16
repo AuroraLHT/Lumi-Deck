@@ -144,6 +144,8 @@ export const NumberOp = <T extends AnyReply>({
   action,
   op,
   step,
+  min,
+  max,
   onReply,
 }: {
   call: Call;
@@ -153,13 +155,17 @@ export const NumberOp = <T extends AnyReply>({
   action: string;
   op: (client: ChamberPldClient, value: number) => Promise<T>;
   step?: number;
+  /** Bounds the value; outside them the button stays disabled. */
+  min?: number | null;
+  max?: number | null;
   /** Takes the reply instead of showing it under the control. */
   onReply?: (reply: AnyReply | null) => void;
 }) => {
   const [value, setValue] = useState(initial);
   const [reply, setReply] = useReplyTarget(onReply);
   const n = Number(value);
-  const valid = value.trim() !== "" && Number.isFinite(n);
+  const inRange = (min == null || n >= min) && (max == null || n <= max);
+  const valid = value.trim() !== "" && Number.isFinite(n) && inRange;
   return (
     <VStack align="stretch" spacing="1px">
       <HStack spacing={1}>
@@ -168,6 +174,9 @@ export const NumberOp = <T extends AnyReply>({
           type="number"
           w="76px"
           step={step}
+          min={min ?? undefined}
+          max={max ?? undefined}
+          isInvalid={value.trim() !== "" && !inRange}
           aria-label={label}
           placeholder={unit}
           value={value}
