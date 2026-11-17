@@ -6,6 +6,7 @@ import { ExperimentDriverClient, TargetPreablation } from "../../generated/lumi"
 import useTransportStore from "../../clients/transport";
 import useDriverCall from "../../hooks/useDriverCall";
 import useExperimentDriverNodeStore from "../../stores/nodes/experimentDriver";
+import { MAX_FIRE_HZ } from "../ChamberPld/limits";
 import Section from "./Section";
 
 const TABULAR = { fontVariantNumeric: "tabular-nums" };
@@ -46,7 +47,7 @@ const Row = ({
     pulses.trim() !== "" &&
     Number.isInteger(p) &&
     p >= 0 &&
-    (hz.trim() === "" || (Number.isFinite(f) && f > 0));
+    (hz.trim() === "" || (Number.isFinite(f) && f > 0 && f <= MAX_FIRE_HZ));
 
   const save = () =>
     call
@@ -86,6 +87,8 @@ const Row = ({
               w="64px"
               aria-label={`${material} pre-ablation rate`}
               placeholder="Hz"
+              title={`At most ${MAX_FIRE_HZ} Hz`}
+              isInvalid={hz.trim() !== "" && !(Number.isFinite(f) && f > 0 && f <= MAX_FIRE_HZ)}
               value={hz}
               onChange={(e) => setHz(e.target.value)}
             />

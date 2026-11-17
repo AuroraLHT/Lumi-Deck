@@ -207,6 +207,10 @@ export const TwoNumberOp = <T extends AnyReply>({
   unitB,
   initialA = "",
   initialB = "",
+  minA,
+  maxA,
+  minB,
+  maxB,
   action,
   op,
   onReply,
@@ -218,6 +222,11 @@ export const TwoNumberOp = <T extends AnyReply>({
   unitB?: string;
   initialA?: string;
   initialB?: string;
+  /** Inclusive bounds; out of range the input is marked invalid and the button stays disabled. */
+  minA?: number | null;
+  maxA?: number | null;
+  minB?: number | null;
+  maxB?: number | null;
   action: string;
   op: (client: ChamberPldClient, a: number, b: number) => Promise<T>;
   /** Takes the reply instead of showing it under the control. */
@@ -228,7 +237,9 @@ export const TwoNumberOp = <T extends AnyReply>({
   const [reply, setReply] = useReplyTarget(onReply);
   const na = Number(a);
   const nb = Number(b);
-  const valid = a.trim() !== "" && b.trim() !== "" && Number.isFinite(na) && Number.isFinite(nb);
+  const inA = (minA == null || na >= minA) && (maxA == null || na <= maxA);
+  const inB = (minB == null || nb >= minB) && (maxB == null || nb <= maxB);
+  const valid = a.trim() !== "" && b.trim() !== "" && Number.isFinite(na) && Number.isFinite(nb) && inA && inB;
   return (
     <VStack align="stretch" spacing="1px">
       <HStack spacing={1}>
@@ -238,7 +249,9 @@ export const TwoNumberOp = <T extends AnyReply>({
           w="64px"
           aria-label={labelA}
           placeholder={unitA}
+          title={rangeTitle(minA, maxA, unitA)}
           value={a}
+          isInvalid={a.trim() !== "" && !inA}
           onChange={(e) => setA(e.target.value)}
         />
         <Input
@@ -247,7 +260,9 @@ export const TwoNumberOp = <T extends AnyReply>({
           w="64px"
           aria-label={labelB}
           placeholder={unitB}
+          title={rangeTitle(minB, maxB, unitB)}
           value={b}
+          isInvalid={b.trim() !== "" && !inB}
           onChange={(e) => setB(e.target.value)}
         />
         <Button
@@ -265,6 +280,15 @@ export const TwoNumberOp = <T extends AnyReply>({
     </VStack>
   );
 };
+
+const rangeTitle = (min?: number | null, max?: number | null, unit?: string) =>
+  min == null && max == null
+    ? undefined
+    : min == null
+    ? `At most ${max} ${unit ?? ""}`.trim()
+    : max == null
+    ? `At least ${min} ${unit ?? ""}`.trim()
+    : `${min} to ${max} ${unit ?? ""}`.trim();
 
 /** A switch that fires the op on every toggle; it reflects the last reply, not an optimistic guess. */
 export const SwitchOp = <T extends AnyReply>({

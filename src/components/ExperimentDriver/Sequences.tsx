@@ -1,8 +1,8 @@
 import { useState } from "react";
-import { Badge, Box, Button, Flex, HStack, Progress, Select, Spinner, Text, VStack } from "@chakra-ui/react";
+import { Badge, Box, Button, Checkbox, Flex, HStack, Input, Progress, Select, Spinner, Text, VStack } from "@chakra-ui/react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 
-import { ExperimentDriverClient, SequenceInfo, SequenceRun } from "../../generated/lumi";
+import { ExperimentDriverClient, RunSequence, SequenceInfo, SequenceLayer, SequenceRun } from "../../generated/lumi";
 import useTransportStore from "../../clients/transport";
 import useDriverCall from "../../hooks/useDriverCall";
 import useExperimentDriverNodeStore from "../../stores/nodes/experimentDriver";
@@ -20,6 +20,7 @@ const RUN_COLORS: Record<string, string> = {
   finished: "green",
   failed: "red",
   cancelled: "gray",
+  unknown: "red",
 };
 
 const when = (t: number | null | undefined) =>
@@ -108,6 +109,51 @@ const StepList = ({ steps, current }: { steps: Step[]; current?: number }) => {
 
 // --- The run in progress ---------------------------------------------------------
 
+/** Whose run it is: the sample and pixel it grows on (or a rehearsal), and its recording. */
+const RunSample = ({ run }: { run: SequenceRun }) => (
+  <Flex fontSize="xs" gap={2} flexWrap="wrap" align="center">
+    {run.no_sample ? (
+      <Badge variant="outline" fontSize="0.6rem" title="No substrate: no layers or growth records">
+        rehearsal
+      </Badge>
+    ) : (
+      <Text>
+        {run.sample_name ?? (run.substrate_id != null ? `substrate #${run.substrate_id}` : "no sample recorded")}
+        {run.pixel_index != null && ` · pixel ${run.pixel_index}`}
+      </Text>
+    )}
+    {run.recording_name && (
+      <Badge colorScheme="purple" variant="subtle" fontSize="0.6rem" title="run_sequence started this recording">
+        recording {run.recording_name}
+      </Badge>
+    )}
+  </Flex>
+);
+
+/** Grown so far, in order: material, pulses and rate, and the energy at the meter. */
+const Layers = ({ layers }: { layers: SequenceLayer[] }) => (
+  <VStack align="stretch" spacing={0} fontSize="xs" sx={TABULAR}>
+    <Text fontSize="0.65rem" color="text.muted">
+      Layers
+    </Text>
+    {layers.map((l, i) => (
+      <Flex key={i} gap={2}>
+        <Text color="text.muted" w="18px" textAlign="right">
+          {i + 1}
+        </Text>
+        <Text fontWeight="600" w="80px" noOfLines={1} title={l.target_material ?? l.target_id}>
+          {l.target_material ?? l.target_id}
+        </Text>
+        <Text flex={1}>
+          {l.num_pulse} pulses at {l.laser_repetition_rate} Hz
+          {l.meter_mj != null && ` · ${l.meter_mj} mJ`}
+        </Text>
+        {l.experiment_id != null && <Text color="text.muted">exp {l.experiment_id}</Text>}
+      </Flex>
+    ))}
+  </VStack>
+);
+
 /** The driver's last run: progress, the step it is on, and pause / resume / cancel while it lives. */
 const RunStatus = ({ run }: { run: SequenceRun }) => {
   const call = useDriverCall();
@@ -164,6 +210,13 @@ const RunStatus = ({ run }: { run: SequenceRun }) => {
             </HStack>
           )}
         </Flex>
+        <RunSample run={run} />
+        {state === "unknown" && (
+          <Text fontSize="xs" color="status.error" fontWeight="600">
+            Lumi lost track of this run: pld-service stopped answering or restarted. Check the chamber; a fire or move
+            may still be under way (Stop firing in the chamber panel works without control).
+          </Text>
+        )}
         <Progress value={pct} size="xs" borderRadius="sm" colorScheme={RUN_COLORS[state] ?? "gray"} isAnimated={live} />
         <Flex fontSize="xs" gap={2}>
           <Text flex={1} noOfLines={2} title={run.message}>
@@ -174,6 +227,7 @@ const RunStatus = ({ run }: { run: SequenceRun }) => {
             {run.done ?? 0}/{run.total ?? "?"} ops
           </Text>
         </Flex>
+        {(run.layers?.length ?? 0) > 0 && <Layers layers={run.layers!} />}
         {state === "pausing" && run.pause_note && (
           <Text fontSize="0.65rem" color="text.muted">
             {run.pause_note}
@@ -221,6 +275,15 @@ const SequenceRow = ({
   const [version, setVersion] = useState(versions[0].version);
   const info = versions.find((v) => v.version === version) ?? versions[0];
   const ref = { name: info.name, version: info.version, content_hash: info.content_hash };
+  const substrateId = useExperimentDriverNodeStore((s) => s.state.substrate_id);
+  const pixel = useExperimentDriverNodeStore((s) => s.state.current_pixel_index);
+  const project = useExperimentDriverNodeStore((s) => s.state.project_name);
+  const [noSample, setNoSample] = useState(false);
+  const [record, setRecord] = useState(false);
+  const [recordProject, setRecordProject] = useState<string | null>(null);
+  const [note, setNote] = useState("");
+  const recordAs = (recordProject ?? project ?? "").trim();
+  const hasSample = substrateId != null && Boolean(project);
 
   const detail = useQuery({
     queryKey: ["driver", host, "sequence", info.name, info.version],
@@ -239,7 +302,19 @@ const SequenceRow = ({
     ? "A sequence is already running"
     : locked
     ? "The driver is busy: answer the prompt or wait for the task first"
+    : !noSample && !hasSample
+    ? "No substrate and project loaded: load one, or run it as a rehearsal"
+    : record && !recordAs
+    ? "Name the recording's project"
     : undefined;
+  const request: RunSequence = {
+    ...ref,
+    no_sample: noSample,
+    record: record ? { project_name: recordAs, note: note.trim() || null } : null,
+  };
+  const where = noSample
+    ? "as a rehearsal, with no sample"
+    : `on substrate #${substrateId}${pixel != null ? `, pixel ${pixel}` : ""}`;
 
   return (
     <Box py="3px" borderBottomWidth="1px" borderColor="panel.border" _last={{ borderBottomWidth: 0 }}>
@@ -297,6 +372,49 @@ const SequenceRow = ({
               current={running && run?.name === info.name && run.version === info.version ? run.step : undefined}
             />
           )}
+          <Flex gap={3} fontSize="xs" flexWrap="wrap" align="center" rowGap={1}>
+            <Checkbox
+              size="sm"
+              isChecked={noSample}
+              onChange={(e) => setNoSample(e.target.checked)}
+              title="No substrate: no layers or growth records"
+            >
+              <Text fontSize="xs">Rehearsal (no sample)</Text>
+            </Checkbox>
+            {!noSample && (
+              <Text color={hasSample ? "text.muted" : "status.warn"}>
+                {hasSample
+                  ? `Grows on substrate #${substrateId}${pixel != null ? `, pixel ${pixel}` : ""} (${project})`
+                  : "No substrate loaded"}
+              </Text>
+            )}
+          </Flex>
+          <Flex gap={2} fontSize="xs" flexWrap="wrap" align="center" rowGap={1}>
+            <Checkbox size="sm" isChecked={record} onChange={(e) => setRecord(e.target.checked)}>
+              <Text fontSize="xs">Record this run</Text>
+            </Checkbox>
+            {record && (
+              <>
+                <Input
+                  size="xs"
+                  w="140px"
+                  aria-label="Recording project"
+                  placeholder="project"
+                  value={recordProject ?? project ?? ""}
+                  isInvalid={!recordAs}
+                  onChange={(e) => setRecordProject(e.target.value)}
+                />
+                <Input
+                  size="xs"
+                  w="160px"
+                  aria-label="Recording note"
+                  placeholder="note (optional)"
+                  value={note}
+                  onChange={(e) => setNote(e.target.value)}
+                />
+              </>
+            )}
+          </Flex>
           <HStack spacing={2}>
             {!info.approved_at && (
               <ConfirmButton
@@ -321,8 +439,8 @@ const SequenceRow = ({
               title={runBlock}
               confirmLabel={`Run ${info.name} v${info.version} (${info.num_operations} operations${
                 info.fires ? ", fires the laser" : ""
-              })? pld-service refuses other operations while it runs.`}
-              onConfirm={() => call.run((c) => c.run_sequence(ref)).then(() => undefined)}
+              }) ${where}${record ? `, recorded to ${recordAs}` : ""}? pld-service refuses other operations while it runs.`}
+              onConfirm={() => call.run((c) => c.run_sequence(request)).then(() => undefined)}
             >
               Run
             </ConfirmButton>

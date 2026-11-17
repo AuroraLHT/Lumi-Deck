@@ -8,6 +8,7 @@ import HeaterControls from "./HeaterControls";
 import LaserControls from "./LaserControls";
 import MotionControls from "./MotionControls";
 import RheedControls from "./RheedControls";
+import SequenceNotice from "./SequenceNotice";
 import SessionControls from "./SessionControls";
 import { LoadLockControls, MainChamberControls } from "./VacuumControls";
 
@@ -81,6 +82,8 @@ const ChamberPldControls = () => {
           Operator or admin access is needed to use these controls.
         </Alert>
       )}
+
+      {!legacy && <SequenceNotice />}
 
       <SessionControls />
 

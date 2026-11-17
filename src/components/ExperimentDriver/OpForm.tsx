@@ -100,6 +100,9 @@ const FieldInput = ({
         step={field.type === "integer" ? 1 : field.step ?? "any"}
         aria-label={field.label}
         placeholder={field.optional ? "optional" : undefined}
+        min={field.min}
+        max={field.max}
+        title={field.max != null ? `At most ${field.max}${field.unit ? ` ${field.unit}` : ""}` : undefined}
         value={String(value)}
         onChange={(e) => onChange(e.target.value)}
       />
@@ -116,6 +119,7 @@ const FieldInput = ({
     <VStack align="stretch" spacing="1px">
       <Text fontSize="0.65rem" color="text.muted">
         {field.label}
+        {field.max != null && field.unit ? ` (≤ ${field.max} ${field.unit})` : ""}
       </Text>
       {control}
     </VStack>

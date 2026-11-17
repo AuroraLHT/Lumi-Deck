@@ -363,6 +363,10 @@ const RheedControls = () => {
               labelB="Deflection Y"
               unitA="X mA"
               unitB="Y mA"
+              minA={rheed.x_min_ma}
+              maxA={rheed.x_max_ma}
+              minB={rheed.y_min_ma}
+              maxB={rheed.y_max_ma}
               action="Set"
               op={(c, x_ma, y_ma) => c.set_rheed_deflection({ x_ma, y_ma })}
               onReply={setDeflectionReply}

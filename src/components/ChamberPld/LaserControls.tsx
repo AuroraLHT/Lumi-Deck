@@ -4,6 +4,7 @@ import useChamberPldCall from "../../hooks/useChamberPldCall";
 import useChamberPldStore from "../../stores/chamberPld";
 import useExperimentDriverNodeStore from "../../stores/nodes/experimentDriver";
 import StopDepositionButton from "../ExperimentDriver/StopDepositionButton";
+import { MAX_FIRE_HZ } from "./limits";
 import { Field, Section } from "./primitives";
 import { ConfirmOpButton, NumberOp, OpButton, SelectOp, SwitchOp, TwoNumberOp } from "./controlPrimitives";
 
@@ -43,13 +44,16 @@ const LaserControls = () => {
             op={(c, away) => c.set_sample_shutter({ in_front: !away })}
           />
         </Field>
-        <Field label="Fire (pulses, rate Hz)">
+        <Field label={`Fire (pulses, rate up to ${MAX_FIRE_HZ} Hz)`}>
           <TwoNumberOp
             call={call}
             labelA="Pulses"
             labelB="Rate"
             unitA="pulses"
             unitB="Hz"
+            minA={1}
+            minB={0.1}
+            maxB={MAX_FIRE_HZ}
             action="Fire"
             op={(c, pulses, rate_hz) => c.fire_laser({ pulses, rate_hz, wait: false })}
           />

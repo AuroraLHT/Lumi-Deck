@@ -28,6 +28,7 @@ import {
   TurnOffHeatingLaser,
 } from "../../generated/lumi";
 import useExperimentDriverStore from "../../stores/experimentDriver";
+import { MAX_FIRE_HZ } from "../ChamberPld/limits";
 import { AUTO_ALIGN_KIND } from "./maskAlign";
 
 export type OpCategory =
@@ -105,6 +106,9 @@ export interface FieldSpec {
   type: "number" | "integer" | "text" | "boolean" | "select" | "targets" | "numberList" | "steps";
   unit?: string;
   step?: number;
+  /** Inclusive bounds for number and integer fields; outside them the field is invalid. */
+  min?: number;
+  max?: number;
   /** Blank leaves the field out of the request, so the backend default applies. */
   optional?: boolean;
   /** Prefilled with the backend's own default where it has one. */
@@ -161,7 +165,7 @@ export const OP_REGISTRY: OpSpec[] = [
     fields: [
       { key: "target_id", label: "Target", type: "targets" },
       { key: "num_pulse", label: "Pulses", type: "integer", optional: true },
-      { key: "frequency", label: "Rep rate", type: "number", unit: "Hz", initial: "10" },
+      { key: "frequency", label: "Rep rate", type: "number", unit: "Hz", initial: "10", max: MAX_FIRE_HZ },
       { key: "move_mask_to_block_position", label: "Mask to block position", type: "boolean", initial: true },
       dryrun,
     ],
@@ -177,7 +181,7 @@ export const OP_REGISTRY: OpSpec[] = [
     fields: [
       { key: "target_id", label: "Target", type: "targets" },
       { key: "num_pulse", label: "Pulses", type: "integer" },
-      { key: "laser_repetition_rate", label: "Rep rate", type: "number", unit: "Hz" },
+      { key: "laser_repetition_rate", label: "Rep rate", type: "number", unit: "Hz", max: MAX_FIRE_HZ },
       dryrun,
     ],
     run: (c, p) => c.perform_deposition(p as unknown as PerformDeposition),

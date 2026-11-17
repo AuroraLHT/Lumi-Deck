@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { Fragment, useMemo } from "react";
 import {
   Alert,
   AlertIcon,
@@ -49,7 +49,8 @@ const Emissivity = ({ value }: { value: number | null | undefined }) =>
  * The substrate's growth.db experiments. Temperature is only comparable
  * between experiments at the same pyrometer emissivity (0.65 before
  * experiment 23, 0.262 since), so it sits next to the temperature and a mix
- * is called out.
+ * is called out. A sequence run's layers are grouped under the sequence
+ * version that grew them.
  */
 const Experiments = ({ substrateId, pixelIndex }: { substrateId: number; pixelIndex: number | null }) => {
   const experiments = useSubstrateExperiments(substrateId);
@@ -83,27 +84,52 @@ const Experiments = ({ substrateId, pixelIndex }: { substrateId: number; pixelIn
             </Tr>
           </Thead>
           <Tbody>
-            {rows.map((e) => (
-              <Tr
-                key={e.experiment_id}
-                fontWeight={pixelIndex != null && e.is_pixel && e.pixel_location === pixelIndex ? "600" : undefined}
-              >
-                <Td isNumeric>{e.experiment_id}</Td>
-                <Td isNumeric>{e.is_pixel ? num(e.pixel_location) : "--"}</Td>
-                <Td>{e.target_material ?? "--"}</Td>
-                <Td isNumeric>{num(e.temperature)}</Td>
-                <Td isNumeric>
-                  <Emissivity value={e.pyrometer_emissivity} />
-                </Td>
-                <Td isNumeric>{num(e.pressure)}</Td>
-                <Td isNumeric>{num(e.num_pulse)}</Td>
-                <Td isNumeric title={e.laser_source_energy != null ? `source ${num(e.laser_source_energy, 1)} mJ` : undefined}>
-                  {num(e.laser_power)}
-                </Td>
-                <Td isNumeric>{num(e.laser_meter_ratio, 3)}</Td>
-                <Td>{formatTime(e.created_at)}</Td>
-              </Tr>
-            ))}
+            {rows.map((e, i) => {
+              const run = e.sequence_run_id ?? null;
+              const startsRun = run != null && rows[i - 1]?.sequence_run_id !== run;
+              const layers = run == null ? 0 : rows.filter((r) => r.sequence_run_id === run).length;
+              return (
+                <Fragment key={e.experiment_id}>
+                  {startsRun && (
+                    <Tr bg="panel.header">
+                      <Td colSpan={10} fontSize="xs" py={1}>
+                        <Text as="span" fontWeight="600">
+                          Sequence {e.sequence_name ?? "?"} v{e.sequence_version ?? "?"}
+                        </Text>
+                        <Text as="span" color="text.muted" title={e.sequence_hash ?? undefined}>
+                          {" "}
+                          · run {run.slice(0, 8)} · {layers} layer{layers === 1 ? "" : "s"}
+                          {e.sequence_hash ? ` · ${e.sequence_hash.slice(0, 12)}` : ""}
+                        </Text>
+                      </Td>
+                    </Tr>
+                  )}
+                  <Tr
+                    fontWeight={pixelIndex != null && e.is_pixel && e.pixel_location === pixelIndex ? "600" : undefined}
+                    borderLeftWidth={run != null ? "3px" : undefined}
+                    borderLeftColor={run != null ? "blue.300" : undefined}
+                  >
+                    <Td isNumeric>{e.experiment_id}</Td>
+                    <Td isNumeric>{e.is_pixel ? num(e.pixel_location) : "--"}</Td>
+                    <Td>{e.target_material ?? "--"}</Td>
+                    <Td isNumeric>{num(e.temperature)}</Td>
+                    <Td isNumeric>
+                      <Emissivity value={e.pyrometer_emissivity} />
+                    </Td>
+                    <Td isNumeric>{num(e.pressure)}</Td>
+                    <Td isNumeric>{num(e.num_pulse)}</Td>
+                    <Td
+                      isNumeric
+                      title={e.laser_source_energy != null ? `source ${num(e.laser_source_energy, 1)} mJ` : undefined}
+                    >
+                      {num(e.laser_power)}
+                    </Td>
+                    <Td isNumeric>{num(e.laser_meter_ratio, 3)}</Td>
+                    <Td>{formatTime(e.created_at)}</Td>
+                  </Tr>
+                </Fragment>
+              );
+            })}
           </Tbody>
         </Table>
       </TableContainer>

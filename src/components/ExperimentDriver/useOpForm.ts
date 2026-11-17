@@ -60,7 +60,7 @@ const buildPayload = (op: OpSpec, values: Values, steps: StepRow[]) => {
     }
     if (f.type === "number" || f.type === "integer") {
       const n = parseNumber(raw, f.type === "integer");
-      if (n == null) invalid.push(f.label);
+      if (n == null || (f.min != null && n < f.min) || (f.max != null && n > f.max)) invalid.push(f.label);
       else payload[f.key] = n;
     } else if (f.type === "numberList") {
       const parts = raw.split(",").map((p) => parseNumber(p, false));
