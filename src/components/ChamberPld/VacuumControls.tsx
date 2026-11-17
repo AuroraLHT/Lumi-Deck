@@ -164,7 +164,9 @@ const useConfirmedVacuum = () => {
   const call = useChamberPldCall();
   const [reply, setReply] = useReply();
   const [pending, setPending] = useState<Pending | null>(null);
-  const chamber = useChamberPldStore((s) => s.chamber);
+  // Live while a confirmation is open; otherwise no subscription, so the
+  // sections using this don't re-render on every state push.
+  const chamber = useChamberPldStore((s) => (pending ? s.chamber : null));
   const cancelRef = useRef<HTMLButtonElement>(null);
 
   const confirm = () => {
@@ -208,6 +210,18 @@ const useConfirmedVacuum = () => {
   );
 
   return { call, reply, setReply, ask: setPending, dialog };
+};
+
+/** A gauge pair, read on its own so only this line re-renders as pressures move. */
+const GaugePair = ({ main, ion }: { main: "cdg10" | "tcg31"; ion: "ig1" | "ig3" }) => {
+  const value = useChamberPldStore((s) => s.chamber?.pressures?.[main]);
+  const ionOn = useChamberPldStore((s) => s.chamber?.pressures?.[`${ion}_on`]);
+  const ionValue = useChamberPldStore((s) => s.chamber?.pressures?.[ion]);
+  return (
+    <Text fontSize="xs" sx={{ fontVariantNumeric: "tabular-nums" }}>
+      {fmtTorr(value)} / {ionOn ? fmtTorr(ionValue) : "off"}
+    </Text>
+  );
 };
 
 /** A sub-heading inside a chamber's section. */
@@ -333,18 +347,17 @@ export const MainChamberControls = () => {
   const [valveReply, setValveReply] = useReply();
   const [rheedReply, setRheedReply] = useReply();
   const [otherReply, setOtherReply] = useReply();
-  const chamber = useChamberPldStore((s) => s.chamber);
-  const otherValves = Object.keys(chamber?.valves ?? {}).filter((n) => !KNOWN.has(n)).sort();
-  const otherPumps = Object.keys(chamber?.pumps ?? {}).filter((n) => !KNOWN.has(n)).sort();
+  const valveMap = useChamberPldStore((s) => s.chamber?.valves);
+  const pumpMap = useChamberPldStore((s) => s.chamber?.pumps);
+  const otherValves = Object.keys(valveMap ?? {}).filter((n) => !KNOWN.has(n)).sort();
+  const otherPumps = Object.keys(pumpMap ?? {}).filter((n) => !KNOWN.has(n)).sort();
 
   return (
     <Section title="Main chamber">
       {vacuum.dialog}
       <VStack align="stretch" spacing={2}>
         <Field label="CDG10 / IG1">
-          <Text fontSize="xs" sx={{ fontVariantNumeric: "tabular-nums" }}>
-            {fmtTorr(chamber?.pressures?.cdg10)} / {chamber?.pressures?.ig1_on ? fmtTorr(chamber?.pressures?.ig1) : "off"}
-          </Text>
+          <GaugePair main="cdg10" ion="ig1" />
         </Field>
         <Group title="Pumps">
           <PumpRows names={MAIN.pumps} vacuum={vacuum} />
@@ -385,17 +398,14 @@ export const LoadLockControls = () => {
   const vacuum = useConfirmedVacuum();
   const valveCall = useChamberPldCall();
   const [valveReply, setValveReply] = useReply();
-  const chamber = useChamberPldStore((s) => s.chamber);
-  const ll = chamber?.load_lock;
+  const ll = useChamberPldStore((s) => s.chamber?.load_lock);
 
   return (
     <Section title="Load lock">
       {vacuum.dialog}
       <VStack align="stretch" spacing={2}>
         <Field label="TCG31 / IG3">
-          <Text fontSize="xs" sx={{ fontVariantNumeric: "tabular-nums" }}>
-            {fmtTorr(chamber?.pressures?.tcg31)} / {chamber?.pressures?.ig3_on ? fmtTorr(chamber?.pressures?.ig3) : "off"}
-          </Text>
+          <GaugePair main="tcg31" ion="ig3" />
         </Field>
         <Field label="Hatch closed">
           <BoolBadge value={ll?.hatch_closed} onLabel="yes" offLabel="no" />

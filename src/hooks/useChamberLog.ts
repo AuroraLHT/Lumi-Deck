@@ -6,9 +6,15 @@ export type { Log, Logs };
  * Reads the chamber log cache. The rows are put there by `useChamberLogStream`,
  * which owns the single `chamber.log` subscription over the shared transport.
  */
-const useLog = () => {
-  const logs = useChamberLogStore((s) => s.logs);
-  const recentLog = useChamberLogStore((s) => s.recentLog);
+const NO_LOGS: Logs = [];
+
+/**
+ * `enabled` false subscribes to nothing, so a chart plotting the chamber.pld
+ * stream instead doesn't re-render on every chamber.log message.
+ */
+const useLog = (enabled = true) => {
+  const logs = useChamberLogStore((s) => (enabled ? s.logs : NO_LOGS));
+  const recentLog = useChamberLogStore((s) => (enabled ? s.recentLog : null));
   return { recentLog, logs };
 };
 

@@ -1,3 +1,4 @@
+import { memo } from "react";
 import {
   Alert,
   AlertIcon,
@@ -40,6 +41,41 @@ const timeLabel = (epochSeconds: number) =>
   new Date(epochSeconds * 1000).toLocaleTimeString();
 
 /**
+ * pld-service's own event log, newest first. Its own component, memoized and
+ * reading the store itself, so the chamber's state pushes (twice a second)
+ * don't re-render 200 rows that only change when the 5 s events poll does.
+ */
+const RecentEvents = memo(() => {
+  const events = useChamberPldStore((s) => s.events);
+  return (
+    <>
+      {events.length === 0 ? (
+        <Text fontSize="xs" color="text.muted">
+          No events yet
+        </Text>
+      ) : (
+        <VStack align="stretch" spacing="2px" maxH="160px" overflowY="auto">
+          {events.map((e, i) => (
+            <HStack key={i} spacing={2} fontSize="xs">
+              <Text color="text.muted" flexShrink={0}>
+                {e.time != null ? timeLabel(e.time) : "—"}
+              </Text>
+              <Badge variant="subtle" fontSize="0.6rem" flexShrink={0}>
+                {e.kind ?? "event"}
+              </Badge>
+              <Box flex={1} minW={0}>
+                <TruncatedText text={e.message} />
+              </Box>
+            </HStack>
+          ))}
+        </VStack>
+      )}
+    </>
+  );
+});
+RecentEvents.displayName = "RecentEvents";
+
+/**
  * The PLD chamber, as read from `chamber.pld`: pressures, heater, motion,
  * valves, gas, the excimer, pumps and the load lock.
  *
@@ -56,7 +92,6 @@ const ChamberPldMain = () => {
   const host = useAppStore((s) => s.selectedHost);
   const node = useChamberPldNodeStore((s) => s.state);
   const chamber = useChamberPldStore((s) => s.chamber);
-  const events = useChamberPldStore((s) => s.events);
 
   if (!host) {
     return (
@@ -531,27 +566,7 @@ const ChamberPldMain = () => {
       </Section>
 
       <Section title="Recent events">
-        {events.length === 0 ? (
-          <Text fontSize="xs" color="text.muted">
-            No events yet
-          </Text>
-        ) : (
-          <VStack align="stretch" spacing="2px" maxH="160px" overflowY="auto">
-            {events.map((e, i) => (
-              <HStack key={i} spacing={2} fontSize="xs">
-                <Text color="text.muted" flexShrink={0}>
-                  {e.time != null ? timeLabel(e.time) : "—"}
-                </Text>
-                <Badge variant="subtle" fontSize="0.6rem" flexShrink={0}>
-                  {e.kind ?? "event"}
-                </Badge>
-                <Box flex={1} minW={0}>
-                  <TruncatedText text={e.message} />
-                </Box>
-              </HStack>
-            ))}
-          </VStack>
-        )}
+        <RecentEvents />
       </Section>
     </VStack>
   );

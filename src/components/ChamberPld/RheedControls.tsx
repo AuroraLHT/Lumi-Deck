@@ -147,7 +147,7 @@ const RheedControls = () => {
   const [hvReply, setHvReply] = useReply();
   const [focusReply, setFocusReply] = useReply();
   const [deflectionReply, setDeflectionReply] = useReply();
-  const rheed = useChamberPldStore((s) => s.chamber)?.rheed;
+  const rheed = useChamberPldStore((s) => s.chamber?.rheed);
 
   if (!rheed?.present) {
     return (

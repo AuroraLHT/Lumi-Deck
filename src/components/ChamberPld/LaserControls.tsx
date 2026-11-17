@@ -28,9 +28,9 @@ const MODE_OPTIONS = [
  */
 const LaserControls = () => {
   const call = useChamberPldCall();
-  const chamber = useChamberPldStore((s) => s.chamber);
-  const laser = chamber?.laser;
-  const excimer = chamber?.excimer;
+  const laser = useChamberPldStore((s) => s.chamber?.laser);
+  const excimer = useChamberPldStore((s) => s.chamber?.excimer);
+  const shutterAway = useChamberPldStore((s) => Boolean(s.chamber?.sample_shutter_away));
   const task = useExperimentDriverNodeStore((s) => s.state.current_task);
 
   return (
@@ -40,7 +40,7 @@ const LaserControls = () => {
           <SwitchOp
             call={call}
             label=""
-            checked={Boolean(chamber?.sample_shutter_away)}
+            checked={shutterAway}
             op={(c, away) => c.set_sample_shutter({ in_front: !away })}
           />
         </Field>

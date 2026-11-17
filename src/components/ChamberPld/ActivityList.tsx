@@ -1,3 +1,4 @@
+import { memo } from "react";
 import { Badge, Box, Flex, Spinner, Text, VStack } from "@chakra-ui/react";
 
 import { PldActivity } from "../../generated/lumi";
@@ -33,7 +34,7 @@ const OutcomeText = ({ entry }: { entry: PldActivity }) =>
   );
 
 /** One op: when, who, what, and how it ended; a refusal's reason under it. */
-const ActivityRow = ({ entry }: { entry: PldActivity }) => (
+const ActivityRow = memo(({ entry }: { entry: PldActivity }) => (
   <Box py="3px" borderBottomWidth="1px" borderColor="panel.border" _last={{ borderBottomWidth: 0 }}>
     <Flex align="center" gap={2} fontSize="xs" minW={0}>
       <Text color="text.muted" flexShrink={0} sx={TABULAR}>
@@ -51,7 +52,8 @@ const ActivityRow = ({ entry }: { entry: PldActivity }) => (
       </Text>
     )}
   </Box>
-);
+));
+ActivityRow.displayName = "ActivityRow";
 
 /**
  * Every chamber.pld op the chamber node handled, newest first: who asked
@@ -59,7 +61,7 @@ const ActivityRow = ({ entry }: { entry: PldActivity }) => (
  * pld-gui and other direct pld-service clients do not pass through the node,
  * so they show only in Recent events.
  */
-export const ActivityList = () => {
+export const ActivityList = memo(() => {
   const activity = useChamberPldStore((s) => s.activity);
   if (!activity.length) {
     return (
@@ -75,7 +77,8 @@ export const ActivityList = () => {
       ))}
     </VStack>
   );
-};
+});
+ActivityList.displayName = "ActivityList";
 
 /** The newest RHEED gun op, whoever sent it, for the line under the gun's buttons. */
 export const LastGunAction = () => {

@@ -15,7 +15,7 @@ import { NumberOp, OpButton, SwitchOp, TwoNumberOp } from "./controlPrimitives";
  */
 const HeaterControls = () => {
   const call = useChamberPldCall();
-  const heater = useChamberPldStore((s) => s.chamber)?.heater;
+  const heater = useChamberPldStore((s) => s.chamber?.heater);
 
   return (
     <Section title="Heater">

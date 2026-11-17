@@ -25,7 +25,7 @@ import { LoadLockControls, MainChamberControls } from "./VacuumControls";
 const ChamberPldControls = () => {
   const host = useAppStore((s) => s.selectedHost);
   const node = useChamberPldNodeStore((s) => s.state);
-  const chamber = useChamberPldStore((s) => s.chamber);
+  const hasChamber = useChamberPldStore((s) => s.chamber != null);
   const canOperate = useCanOperate();
 
   if (!host) {
@@ -87,7 +87,7 @@ const ChamberPldControls = () => {
 
       <SessionControls />
 
-      {!chamber ? (
+      {!hasChamber ? (
         <Center minH="120px">
           <Text fontSize="sm" color="text.muted">
             Waiting for chamber state…

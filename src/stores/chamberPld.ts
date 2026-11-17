@@ -1,3 +1,4 @@
+import { replaceEqualDeep } from "@tanstack/react-query";
 import { create } from "zustand";
 
 import { PldActivity, PldChamberState, PldEvent } from "../generated/lumi";
@@ -29,6 +30,10 @@ interface ChamberPldState {
   reset: () => void;
 }
 
+/** An entry only changes when its op ends: running clears and the answer arrives. */
+const sameEntry = (a: PldActivity | undefined, b: PldActivity) =>
+  a != null && a.running === b.running && a.ok === b.ok && a.message === b.message && a.duration_s === b.duration_s;
+
 const useChamberPldStore = create<ChamberPldState>((set) => ({
   chamber: null,
   events: [],
@@ -36,7 +41,9 @@ const useChamberPldStore = create<ChamberPldState>((set) => ({
   activitySeq: 0,
   activityLoaded: false,
 
-  setChamber: (chamber) => set({ chamber }),
+  // Each push is fresh JSON; keep every part that did not change the same
+  // object, so a selector like `s.chamber?.valves` only fires when valves do.
+  setChamber: (chamber) => set((s) => ({ chamber: replaceEqualDeep(s.chamber, chamber) })),
 
   // The service hands back oldest-first, capped; keep newest-first for display
   // and cap again client-side so a long-open tab does not grow this forever.
@@ -47,6 +54,9 @@ const useChamberPldStore = create<ChamberPldState>((set) => ({
     set((s) => {
       if (!entries.length) return s;
       const bySeq = new Map(s.activity.map((e) => [e.seq, e]));
+      // Every push repeats the newest ten; most of the time none of them changed,
+      // and a fresh array would re-render every list that shows them.
+      if (entries.every((e) => e.seq == null || sameEntry(bySeq.get(e.seq), e))) return s;
       for (const e of entries) if (e.seq != null) bySeq.set(e.seq, e);
       const activity = [...bySeq.values()].sort((a, b) => (b.seq ?? 0) - (a.seq ?? 0)).slice(0, MAX_ACTIVITY);
       return { activity, activitySeq: Math.max(s.activitySeq, activity[0]?.seq ?? 0) };

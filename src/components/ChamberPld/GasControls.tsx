@@ -74,7 +74,7 @@ const SetPressureRow = ({ call }: { call: Call }) => {
  */
 const GasFields = () => {
   const call = useChamberPldCall();
-  const gas = useChamberPldStore((s) => s.chamber)?.gas;
+  const gas = useChamberPldStore((s) => s.chamber?.gas);
 
   return (
       <VStack align="stretch" spacing={2}>

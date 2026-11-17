@@ -1,4 +1,4 @@
-import { ReactNode } from "react";
+import { ReactNode, useState } from "react";
 import {
   Badge,
   Box,
@@ -81,6 +81,9 @@ export const TruncatedText = ({
   text: string | null | undefined;
   fontSize?: string;
 }) => {
+  // A Popover (and its Portal) per row is costly in long lists re-rendered
+  // every state push; until it is first opened this is plain text.
+  const [armed, setArmed] = useState(false);
   if (!text) {
     return (
       <Text fontSize={fontSize} color="text.muted">
@@ -88,8 +91,15 @@ export const TruncatedText = ({
       </Text>
     );
   }
+  if (!armed) {
+    return (
+      <Text fontSize={fontSize} noOfLines={1} cursor="pointer" title={text} onClick={() => setArmed(true)}>
+        {text}
+      </Text>
+    );
+  }
   return (
-    <Popover placement="top-end" isLazy>
+    <Popover placement="top-end" isLazy defaultIsOpen>
       <PopoverTrigger>
         <Text fontSize={fontSize} noOfLines={1} cursor="pointer" title={text}>
           {text}

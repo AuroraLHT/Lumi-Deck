@@ -31,7 +31,7 @@ const RealTimePressure = () => {
 
   const driver = useChamberPldNodeStore((s) => s.state.driver);
   const pldRows = useChamberPldSeriesStore((s) => s.rows);
-  const { logs } = useLog();
+  const { logs } = useLog(driver !== "pld");
 
   let data: Serie[] = [
     { id: "TG Main", data: [{ x: new Date(), y: 0 }] },

@@ -20,8 +20,7 @@ const AXIS_OPTIONS = [
  */
 const MotionControls = () => {
   const call = useChamberPldCall();
-  const chamber = useChamberPldStore((s) => s.chamber);
-  const motion = chamber?.motion;
+  const motion = useChamberPldStore((s) => s.chamber?.motion);
 
   return (
     <Section title="Motion">
