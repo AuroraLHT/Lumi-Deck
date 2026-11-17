@@ -347,7 +347,12 @@ export const OP_REGISTRY: OpSpec[] = [
     id: "move_mask_to_position",
     label: "Move mask",
     category: "Motion",
-    fields: [{ key: "position", label: "Position", type: "number", unit: "mm", step: 0.1 }],
+    hint: "Speed and ACC/DEC apply to this move only (pld-service caps them at 8.33 mm/s and 0.833 mm/s per ms); blank uses its default.",
+    fields: [
+      { key: "position", label: "Position", type: "number", unit: "mm", step: 0.1 },
+      { key: "speed_mm_s", label: "Speed", type: "number", unit: "mm/s", step: 0.5, optional: true },
+      { key: "accel_mm_s_per_ms", label: "ACC/DEC", type: "number", unit: "mm/s/ms", step: 0.05, optional: true },
+    ],
     run: (c, p) => c.move_mask_to_position(p as unknown as MoveMask),
   },
   {

@@ -6,7 +6,7 @@ import useDriverCall from "../../hooks/useDriverCall";
 import ConfirmButton from "../Controller/ConfirmButton";
 
 /**
- * Ends the running perform_deposition/perform_preablation task and stops the
+ * Ends the running perform_deposition/perform_preablation/fire_laser_test task and stops the
  * laser in one op (experiment.driver.stop_deposition) -- the shutter, mask,
  * target spin and logging are left exactly as they are; a stopped
  * pre-ablation leaves the mask at its block position. Shown wherever the
@@ -14,8 +14,14 @@ import ConfirmButton from "../Controller/ConfirmButton";
  * panel's low-level STOP, which only stops the laser and does not touch the
  * driver's own task.
  */
+const WHAT: Record<string, string> = {
+  perform_preablation: "pre-ablation",
+  fire_laser_test: "laser test firing",
+};
+
 const StopDepositionButton = ({ task }: { task: CurrentTask }) => {
   const call = useDriverCall();
+  const what = WHAT[task.kind] ?? "deposition";
   const [result, setResult] = useState<{ laser: string } | null>(null);
 
   return (
@@ -24,14 +30,12 @@ const StopDepositionButton = ({ task }: { task: CurrentTask }) => {
         size="xs"
         colorScheme="red"
         isDisabled={!call.canOperate}
-        confirmLabel={`Stop this ${
-          task.kind === "perform_preablation" ? "pre-ablation" : "deposition"
-        } now? Pulses already fired are kept.`}
+        confirmLabel={`Stop this ${what} now? Pulses already fired are kept.`}
         onConfirm={() =>
           call.run((c) => c.stop_deposition({ reason: "operator stop" })).then((r) => setResult(r ?? null))
         }
       >
-        Stop deposition
+        {task.kind === "fire_laser_test" ? "Stop firing" : "Stop deposition"}
       </ConfirmButton>
       {result && (
         <Text fontSize="0.65rem" color="text.muted">

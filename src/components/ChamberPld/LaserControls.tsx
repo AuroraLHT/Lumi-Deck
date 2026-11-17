@@ -7,7 +7,7 @@ import StopDepositionButton from "../ExperimentDriver/StopDepositionButton";
 import { Field, Section } from "./primitives";
 import { ConfirmOpButton, NumberOp, OpButton, SelectOp, SwitchOp, TwoNumberOp } from "./controlPrimitives";
 
-const STOPPABLE_TASKS = new Set(["perform_deposition", "perform_preablation"]);
+const STOPPABLE_TASKS = new Set(["perform_deposition", "perform_preablation", "fire_laser_test"]);
 
 const MODE_OPTIONS = [
   { value: "hv", label: "HV" },
@@ -78,7 +78,7 @@ const LaserControls = () => {
           </ConfirmOpButton>
         </Field>
         {task && STOPPABLE_TASKS.has(task.kind) && (
-          <Field label="Driver is running a deposition">
+          <Field label={task.kind === "fire_laser_test" ? "Driver is firing the laser test" : "Driver is running a deposition"}>
             <StopDepositionButton task={task} />
           </Field>
         )}

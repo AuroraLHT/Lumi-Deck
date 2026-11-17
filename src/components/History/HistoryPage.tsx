@@ -211,7 +211,13 @@ const HistoryPage = () => {
               </TabList>
               <TabPanels flex={1} minH={0} overflowY="auto">
                 <TabPanel>
-                  <SampleOverview sampleId={sample.sample_id} layers={detail.data?.layers ?? []} notes={sample.notes} />
+                  <SampleOverview
+                    sampleId={sample.sample_id}
+                    substrateId={sample.substrate_id}
+                    pixelIndex={sample.pixel_index ?? null}
+                    layers={detail.data?.layers ?? []}
+                    notes={sample.notes}
+                  />
                 </TabPanel>
                 <TabPanel>
                   <MeasurementsTab

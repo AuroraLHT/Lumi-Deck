@@ -8,6 +8,7 @@ import useFiducialMarkers from "../../hooks/useFiducialMarkers";
 import useFiducialRoleControl from "../../hooks/useFiducialRoleControl";
 import useExperimentDriverStore from "../../stores/experimentDriver";
 import useFiducialUIStore from "../../stores/fiducialUI";
+import { LaserTestPrompt } from "./LaserTest";
 import { MASK_CENTER_ROLE } from "./maskAlign";
 
 type Call = ReturnType<typeof useDriverCall>;
@@ -310,6 +311,7 @@ const TITLES: Record<string, string> = {
   rheed_gain: "Tune RHEED gain",
   pixel_check: "Pixel check",
   laser_power: "Laser pulse energy",
+  laser_test: "Daily laser test",
 };
 
 /**
@@ -339,6 +341,9 @@ const PendingConfirmationCard = ({ pending }: { pending: PendingConfirmation }) 
       break;
     case "laser_power":
       body = <LaserPowerPrompt call={call} />;
+      break;
+    case "laser_test":
+      body = <LaserTestPrompt call={call} />;
       break;
     default:
       body = <GenericPrompt pending={pending} call={call} />;

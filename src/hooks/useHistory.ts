@@ -121,6 +121,15 @@ export const useSampleSteps = (sampleId: number | null) =>
     { enabled: sampleId !== null }
   );
 
+/** The growth.db experiments on a substrate: the recipes, with the conditions each was run at. */
+export const useSubstrateExperiments = (substrateId: number | null) =>
+  useHistoryQuery(
+    "experiment",
+    ["experiments", substrateId],
+    (t) => driver(t).list_experiments({ substrate_id: substrateId!, limit: 200, order: "asc" }),
+    { enabled: substrateId !== null }
+  );
+
 export const useSampleMeasurements = (sampleId: number | null) =>
   useHistoryQuery(
     "experiment",

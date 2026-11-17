@@ -5,13 +5,15 @@ import useAppStore from "../../stores/app";
 import useExperimentDriverStore from "../../stores/experimentDriver";
 import useExperimentDriverNodeStore from "../../stores/nodes/experimentDriver";
 import CancelTaskButton from "./CancelTaskButton";
+import { LaserTestSection } from "./LaserTest";
+import PreablationSection from "./Preablation";
 import OperationConsole from "./OperationConsole";
 import PendingConfirmationCard from "./PendingConfirmationCard";
 import StopDepositionButton from "./StopDepositionButton";
 import { AUTO_ALIGN_KIND } from "./maskAlign";
 
 /** Stopped with the laser too; any other task is cancelled. */
-const ABLATING_TASKS = new Set(["perform_deposition", "perform_preablation"]);
+const ABLATING_TASKS = new Set(["perform_deposition", "perform_preablation", "fire_laser_test"]);
 
 const TASK_LABELS: Record<string, string> = {
   [AUTO_ALIGN_KIND]: "Mask auto-align",
@@ -20,6 +22,7 @@ const TASK_LABELS: Record<string, string> = {
   perform_preablation: "Pre-ablation",
   perform_deposition: "Deposition",
   anneal: "Anneal",
+  fire_laser_test: "Laser test firing",
 };
 
 const taskLabel = (kind: string | null) =>
@@ -137,6 +140,9 @@ const ExperimentDriverMain = () => {
       )}
 
       <OperationConsole locked={locked} />
+
+      <LaserTestSection locked={locked} />
+      <PreablationSection />
 
       {recent.length > 0 && (
         <VStack align="stretch" spacing={1}>
