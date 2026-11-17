@@ -7,6 +7,7 @@ import useExperimentDriverNodeStore from "../../stores/nodes/experimentDriver";
 import CancelTaskButton from "./CancelTaskButton";
 import { LaserTestSection } from "./LaserTest";
 import PreablationSection from "./Preablation";
+import SequencesSection from "./Sequences";
 import OperationConsole from "./OperationConsole";
 import PendingConfirmationCard from "./PendingConfirmationCard";
 import StopDepositionButton from "./StopDepositionButton";
@@ -23,6 +24,7 @@ const TASK_LABELS: Record<string, string> = {
   perform_deposition: "Deposition",
   anneal: "Anneal",
   fire_laser_test: "Laser test firing",
+  run_sequence: "Sequence",
 };
 
 const taskLabel = (kind: string | null) =>
@@ -140,6 +142,8 @@ const ExperimentDriverMain = () => {
       )}
 
       <OperationConsole locked={locked} />
+
+      <SequencesSection locked={locked} />
 
       <LaserTestSection locked={locked} />
       <PreablationSection />

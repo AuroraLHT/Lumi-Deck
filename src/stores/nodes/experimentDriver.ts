@@ -1,7 +1,7 @@
 import { create } from "zustand";
 import { immer } from "zustand/middleware/immer";
 
-import { CurrentTask, PendingConfirmation } from "../../generated/lumi";
+import { CurrentTask, PendingConfirmation, SequenceRun } from "../../generated/lumi";
 import { Node, NodeState } from "./base";
 
 /**
@@ -36,6 +36,8 @@ export interface ExperimentDriverNodeState extends NodeState {
   /** The pulse energy (mJ) last checked with begin_set_laser_power, and what the meter read. */
   laser_power_set: number | null;
   laser_power_real: number | null;
+  /** The last sequence run, live or ended, or null if none ran since the node started. */
+  sequence: SequenceRun | null;
 }
 
 // `Node`, not `StreamNode`: the driver's `pending` channel is PUBSUB, like
@@ -60,6 +62,7 @@ const useExperimentDriverNodeStore = create<ExperimentDriverNode>()(
       center_mask_pos: null,
       laser_power_set: null,
       laser_power_real: null,
+      sequence: null,
     },
     setState: (newState) =>
       set((state) => {
