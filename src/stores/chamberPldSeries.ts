@@ -53,6 +53,34 @@ export const toSeriesRow = (state: PldChamberState): PldSeriesRow => ({
   laser_rate_hz: state.laser?.status === "firing" ? state.laser?.rate_hz ?? null : null,
 });
 
+/**
+ * The rows a chart with a `windowMs` window actually draws, thinned to about
+ * `maxPoints` -- one per time bucket, so the kept rows do not shift from one push
+ * to the next. A chart is a few hundred pixels wide; mapping all 3600 rows into
+ * points on every push is what made a long-open dashboard slow down.
+ */
+export const windowRows = (rows: PldSeriesRow[], windowMs: number, maxPoints = 400): PldSeriesRow[] => {
+  if (rows.length < 2) return rows;
+  const cutoff = rows[rows.length - 1].time - windowMs / 1000;
+  let start = rows.length;
+  while (start > 0 && rows[start - 1].time > cutoff) start--;
+  // Same fallback as filterByTimeWindow: a single point draws no line.
+  if (rows.length - start < 2) return rows.slice(-2);
+
+  const bucket = windowMs / 1000 / maxPoints;
+  const out: PldSeriesRow[] = [];
+  let last = NaN;
+  for (let i = start; i < rows.length; i++) {
+    const b = Math.floor(rows[i].time / bucket);
+    if (b !== last) {
+      out.push(rows[i]);
+      last = b;
+    }
+  }
+  if (out[out.length - 1] !== rows[rows.length - 1]) out.push(rows[rows.length - 1]);
+  return out;
+};
+
 interface ChamberPldSeriesState {
   rows: PldSeriesRow[];
   appendRow: (row: PldSeriesRow) => void;

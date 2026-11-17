@@ -1,9 +1,9 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import RealTimeLineChart from "../../Plotting/RealTimeLineChart";
 import { Serie } from "@nivo/line";
 import useLog from "../../../hooks/useChamberLog";
 import useChamberPldNodeStore from "../../../stores/nodes/chamberPld";
-import useChamberPldSeriesStore from "../../../stores/chamberPldSeries";
+import useChamberPldSeriesStore, { windowRows } from "../../../stores/chamberPldSeries";
 import MediumContainer from "../../Plotting/MediumContainer";
 import PlottingToolbar from "../../Plotting/ToolBar";
 import RTVToolBarMenu, { RangeValue } from "../../Plotting/RTVToolBarMenu";
@@ -24,7 +24,8 @@ const RealTimePulseLaser = () => {
   const [windowSize, setWindowSize] = useState(10 * 60 * 1000);
 
   const driver = useChamberPldNodeStore((s) => s.state.driver);
-  const pldRows = useChamberPldSeriesStore((s) => s.rows);
+  const allRows = useChamberPldSeriesStore((s) => s.rows);
+  const pldRows = useMemo(() => windowRows(allRows, windowSize), [allRows, windowSize]);
   const { logs } = useLog(driver !== "pld");
 
   let data: Serie[] = [
