@@ -6,6 +6,7 @@ import {
   EndStorage,
   ExperimentDriverClient,
   FinishCurrentPixel,
+  MoveMask,
   MoveTo,
   PerformDeposition,
   PerformPreablation,
@@ -156,9 +157,10 @@ export const OP_REGISTRY: OpSpec[] = [
     startsTask: true,
     label: "Pre-ablation",
     category: "Task",
+    hint: "Pulses left blank: the amount stored for the target's material.",
     fields: [
       { key: "target_id", label: "Target", type: "targets" },
-      { key: "num_pulse", label: "Pulses", type: "integer", initial: "1000" },
+      { key: "num_pulse", label: "Pulses", type: "integer", optional: true },
       { key: "frequency", label: "Rep rate", type: "number", unit: "Hz", initial: "10" },
       { key: "move_mask_to_block_position", label: "Mask to block position", type: "boolean", initial: true },
       dryrun,
@@ -332,7 +334,7 @@ export const OP_REGISTRY: OpSpec[] = [
     id: "begin_set_laser_power",
     label: "Laser energy check",
     category: "Excimer",
-    hint: "Closes the shutter, turns the carousel to Clear, then asks for the pulse energy read off the meter at the exit port.",
+    hint: "Under pld-service: sets energy mode at the wanted energy over today's laser test ratio, and is refused without a laser test today. Under the legacy driver: closes the shutter, turns the carousel to Clear, then asks for the pulse energy read off the meter at the exit port.",
     opensPrompt: true,
     fields: [
       { key: "laser_power", label: "Laser pulse energy", type: "number", unit: "mJ" },
@@ -346,7 +348,7 @@ export const OP_REGISTRY: OpSpec[] = [
     label: "Move mask",
     category: "Motion",
     fields: [{ key: "position", label: "Position", type: "number", unit: "mm", step: 0.1 }],
-    run: (c, p) => c.move_mask_to_position(p as unknown as MoveTo),
+    run: (c, p) => c.move_mask_to_position(p as unknown as MoveMask),
   },
   {
     id: "move_rheed_to_position",
