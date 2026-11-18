@@ -6,8 +6,8 @@ import useExperimentDriverNodeStore from "../../stores/nodes/experimentDriver";
 /**
  * What a sequence means for the controls below. pld-service's own state
  * covers sequences any client started; the driver's run adds the sample it
- * grows on. Running, pld-service refuses every op here except Stop firing and
- * the RHEED all-offs. Paused, ops go through, and Lumi records what changed
+ * grows on. Running, pld-service refuses every op here except Stop firing,
+ * STOP motors (which cancels the run) and the RHEED all-offs. Paused, ops go through, and Lumi records what changed
  * between the pause and the resume, so a move here ends up in the run's
  * record. "unknown" is Lumi having lost track of a run.
  */
@@ -41,7 +41,7 @@ const SequenceNotice = () => {
       <Alert status="info" borderRadius="md" fontSize="xs" py={2}>
         <AlertIcon />
         <Text>
-          {name} is running{step}: pld-service refuses the controls below except Stop firing and the RHEED all-offs.
+          {name} is running{step}: pld-service refuses the controls below except Stop firing, STOP motors (which cancels the run) and the RHEED all-offs.
           Pause or cancel it in the Experiment Driver.
         </Text>
       </Alert>

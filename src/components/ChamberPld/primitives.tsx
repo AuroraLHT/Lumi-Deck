@@ -174,6 +174,7 @@ const AXIS_COLOR: Record<string, string> = {
   MOVING: "blue",
   HOMING: "orange",
   SETTLING: "purple",
+  STOPPED: "red",
 };
 
 export const AxisBadge = ({ status }: { status: string }) => (

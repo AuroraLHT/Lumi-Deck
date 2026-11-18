@@ -1,9 +1,9 @@
-import { HStack, Text, VStack } from "@chakra-ui/react";
+import { Badge, HStack, Text, VStack } from "@chakra-ui/react";
 
 import useChamberPldCall from "../../hooks/useChamberPldCall";
 import useChamberPldStore from "../../stores/chamberPld";
 import { Field, Section } from "./primitives";
-import { NumberOp, OpButton, SelectOp, SwitchOp } from "./controlPrimitives";
+import { ConfirmOpButton, NumberOp, OpButton, ReplyText, SelectOp, SwitchOp, useReply } from "./controlPrimitives";
 
 const TARGET_OPTIONS = ["A", "B", "C", "D", "E", "F", "Clear"].map((t) => ({ value: t, label: t }));
 const AXIS_OPTIONS = [
@@ -17,14 +17,56 @@ const AXIS_OPTIONS = [
  * they serve, in VacuumControls.) Moves are
  * sent with `wait: false` -- a waited move can block for up to ten minutes,
  * and the chamber state stream reports the result as it happens anyway.
+ *
+ * STOP motors is PLD Controller's master Motor Stop: every axis halts, spin and
+ * twist go off, a pulse train is stopped and a running sequence is cancelled.
+ * Like STOP firing it needs no control, so it is a confirm button. Until Reset
+ * motors (which needs control), pld-service refuses moves, homing, spin, twist
+ * and fires; the axes that were moving lose their home reference. Their
+ * replies are long, so they go full width under the row rather than under
+ * the buttons.
  */
 const MotionControls = () => {
   const call = useChamberPldCall();
   const motion = useChamberPldStore((s) => s.chamber?.motion);
+  const [stopReply, setStopReply] = useReply();
 
   return (
     <Section title="Motion">
       <VStack align="stretch" spacing={2}>
+        <Field label="STOP motors">
+          <HStack spacing={1} justify="flex-end" align="flex-start">
+            {motion?.motors_stopped && (
+              <Badge colorScheme="red" variant="subtle" fontSize="0.65rem" mt="3px">
+                latched
+              </Badge>
+            )}
+            <ConfirmOpButton
+              call={call}
+              colorScheme="red"
+              confirmLabel="Stop every motor now? A pulse train and a running sequence stop too; moves are refused until Reset motors, and an axis stopped mid-move must be homed."
+              op={(c) => c.stop_motors()}
+              onReply={setStopReply}
+            >
+              STOP
+            </ConfirmOpButton>
+            <OpButton
+              call={call}
+              isDisabled={!motion?.motors_stopped}
+              title="Clear the motor stop (needs control). Spin and twist stay off."
+              op={(c) => c.reset_motors()}
+              onReply={setStopReply}
+            >
+              Reset motors
+            </OpButton>
+          </HStack>
+        </Field>
+        <ReplyText reply={stopReply} />
+        {(motion?.homing_needed ?? []).length > 0 && (
+          <Text fontSize="xs" color="status.warn">
+            Home before relying on the position: {motion!.homing_needed!.join(", ")} (stopped mid-move)
+          </Text>
+        )}
         <Field label="Target">
           <SelectOp
             call={call}

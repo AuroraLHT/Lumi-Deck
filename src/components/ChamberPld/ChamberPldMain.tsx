@@ -312,7 +312,25 @@ const MotionSection = memo(({ motion }: { motion?: PldMotion }) => (
       <Field label="Motor free">
         <BoolBadge value={motion?.motor_free} />
       </Field>
+      <Field label="Motor stop">
+        {motion?.motors_stopped ? (
+          <Tooltip label="Moves, homing, spin, twist and fires are refused until the motors are reset">
+            <Badge colorScheme="red" variant="subtle" fontSize="0.65rem">
+              latched
+            </Badge>
+          </Tooltip>
+        ) : (
+          <Text fontSize="xs" color="text.muted">
+            —
+          </Text>
+        )}
+      </Field>
     </SimpleGrid>
+    {(motion?.homing_needed ?? []).length > 0 && (
+      <Text fontSize="xs" color="status.warn" mt={1}>
+        Home before relying on the position: {motion!.homing_needed!.join(", ")} (stopped mid-move)
+      </Text>
+    )}
     <VStack align="stretch" spacing="1px" mt={2}>
       {sortedEntries(motion?.axes).map(
         ([axis, status]) => (
