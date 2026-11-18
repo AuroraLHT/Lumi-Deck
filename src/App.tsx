@@ -2,6 +2,7 @@ import { Box } from "@chakra-ui/react";
 import { Outlet } from "react-router-dom";
 
 import LumiTransportProvider from "./components/LumiTransportProvider";
+import ConnectionBanner from "./components/Shell/ConnectionBanner";
 import Navbar from "./components/Shell/Navbar";
 import useSettingsSync from "./hooks/useSettingsSync";
 
@@ -22,6 +23,7 @@ function App() {
 
       <LumiTransportProvider>
         <Box px={{ base: 2, md: 3 }} py={3}>
+          <ConnectionBanner />
           <Outlet />
         </Box>
       </LumiTransportProvider>

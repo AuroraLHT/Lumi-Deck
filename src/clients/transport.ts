@@ -32,6 +32,12 @@ interface TransportState {
   transport: LumiTransport | null;
   status: TransportStatus;
   host: string;
+  /**
+   * Attempts in a row that failed to open (or dropped) since the last open
+   * socket. A browser reports a refused certificate as a bare 1006, the same as
+   * an unreachable server, so this count is all the UI has to go on.
+   */
+  failures: number;
 
   connect: (host: string) => void;
   disconnect: () => void;
@@ -59,6 +65,7 @@ const useTransportStore = create<TransportState>((set, get) => {
       RECONNECT_MAX_MS
     );
     reconnectAttempts += 1;
+    set({ failures: reconnectAttempts });
     reconnectTimer = setTimeout(() => open(host, myEpoch), delay);
   };
 
@@ -75,15 +82,24 @@ const useTransportStore = create<TransportState>((set, get) => {
     // it private, so reach the raw socket to observe the close code. Reading the
     // private field is deliberate; the generated client must not be edited.
     const ws = (t as unknown as { ws: WebSocket }).ws;
+    // A socket that fails to open both rejects `connected` and fires "close";
+    // count it once, or the backoff (and `failures`) doubles per attempt.
+    let failed = false;
+    const fail = () => {
+      if (failed || myEpoch !== epoch) return;
+      failed = true;
+      set({ status: "closed", transport: null });
+      scheduleReconnect(host, myEpoch);
+    };
     ws.addEventListener("close", (event) => {
       if (myEpoch !== epoch) return; // stale socket
       if (event.code === WS_UNAUTHORIZED) {
+        failed = true;
         set({ status: "unauthorized", transport: null });
         useAuthStore.getState().logout();
         return;
       }
-      set({ status: "closed", transport: null });
-      scheduleReconnect(host, myEpoch);
+      fail();
     });
 
     connected
@@ -93,25 +109,23 @@ const useTransportStore = create<TransportState>((set, get) => {
           return;
         }
         reconnectAttempts = 0;
-        set({ transport: t, status: "open" });
+        set({ transport: t, status: "open", failures: 0 });
       })
-      .catch(() => {
-        if (myEpoch !== epoch) return;
-        set({ status: "closed", transport: null });
-        scheduleReconnect(host, myEpoch);
-      });
+      .catch(fail);
   };
 
   return {
     transport: null,
     status: "idle",
     host: "",
+    failures: 0,
 
     connect: (host) => {
       clearReconnect();
       reconnectAttempts = 0;
       epoch += 1;
       get().transport?.close();
+      set({ failures: 0 });
       open(host, epoch);
     },
 
@@ -119,7 +133,7 @@ const useTransportStore = create<TransportState>((set, get) => {
       clearReconnect();
       epoch += 1; // invalidate any in-flight socket and its reconnect
       get().transport?.close();
-      set({ transport: null, status: "idle" });
+      set({ transport: null, status: "idle", failures: 0 });
     },
   };
 });
