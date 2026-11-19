@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import { RheedVideoClient } from "../generated/lumi";
 import useTransportStore from "../clients/transport";
@@ -32,6 +32,18 @@ const LIVE_EDGE_TARGET_LAG_S = 0.3;
 const BUFFER_BEHIND_S = 30;
 const TRIM_SLACK_S = 15;
 
+// A broken player is rebuilt after this delay, doubling per failure up to the
+// cap, and back to the start once fragments are playing again.
+const REBUILD_FIRST_MS = 1000;
+const REBUILD_MAX_MS = 10000;
+
+// Fragments still arriving while a playing video's playhead stands still for
+// this long means the decoder has wedged. Bad media (a new encoder's fragments
+// after the old init segment, a corrupt fragment) does this silently: no error
+// event, the picture just freezes.
+const STALL_S = 5;
+const STALL_CHECK_MS = 1000;
+
 /**
  * Drives the RHEED `<video>` off the refactored backend's `rheed.video`
  * capability over the shared LumiTransport, replacing the old dedicated
@@ -48,11 +60,24 @@ const TRIM_SLACK_S = 15;
  * back up. Nothing is sent while it is down: a call to an absent node holds the
  * socket for its whole timeout (see `useDetectionStream`), and a start that
  * timed out during a node restart was never retried, leaving the panel blank.
+ *
+ * Rebuilds itself, with backoff, when the player breaks without either of
+ * those changing: no init segment (`initial_fragments` failed or timed out --
+ * appending live fragments without one only errors the source buffer), a
+ * source buffer or `<video>` error, a failed start, or a playhead that stands
+ * still while fragments keep coming (see STALL_S; e.g. the node restarted
+ * before its registry entry ever went down, so the old player was fed a new
+ * encoder's fragments -- the fragment meta can't tell us, its `fragment_idx`
+ * is null on the live stream). Each of these used to
+ * leave the panel blank until a page refresh -- typically right after sign-in
+ * or a server restart, when calls are slow or the encoder is new.
  */
 const useRheedVideo = (videoRef: React.RefObject<HTMLVideoElement>) => {
   const transport = useTransportStore((s) => s.transport);
   const rheedNodeUp = useRheedNodeStore((s) => s.state.is_available);
   const [isReady, setIsReady] = useState(false);
+  const [attempt, setAttempt] = useState(0);
+  const rebuildDelayRef = useRef(REBUILD_FIRST_MS);
 
   useEffect(() => {
     const video = videoRef.current;
@@ -70,6 +95,18 @@ const useRheedVideo = (videoRef: React.RefObject<HTMLVideoElement>) => {
     // objects -- a stale `updateend` could then append into the new run's buffer.
     let sourceBuffer: SourceBuffer | null = null;
     let queue: BufferSource[] = [];
+    let lastFragmentAt = 0;
+    let rebuildTimer: ReturnType<typeof setTimeout> | undefined;
+
+    /** Gives up on this run and starts a fresh one after the backoff delay. */
+    const rebuild = (why: string) => {
+      if (cancelled || rebuildTimer) return;
+      const delay = rebuildDelayRef.current;
+      rebuildDelayRef.current = Math.min(delay * 2, REBUILD_MAX_MS);
+      console.warn(`RheedVideo rebuilding in ${delay} ms: ${why}`);
+      setIsReady(false);
+      rebuildTimer = setTimeout(() => setAttempt((a) => a + 1), delay);
+    };
 
     const mediaSource = new MediaSource();
     const objectUrl = URL.createObjectURL(mediaSource);
@@ -143,13 +180,21 @@ const useRheedVideo = (videoRef: React.RefObject<HTMLVideoElement>) => {
     };
 
     const onUpdateEnd = () => {
+      // Media is going in, so the player works: the next failure starts the
+      // backoff over.
+      rebuildDelayRef.current = REBUILD_FIRST_MS;
       followLiveEdge();
       if (trimBuffer()) return; // resume appending once the removal settles
       pump();
     };
 
-    const onSourceBufferError = (event: Event) =>
+    const onSourceBufferError = (event: Event) => {
       console.error("RheedVideo source buffer error:", event);
+      rebuild("source buffer error");
+    };
+
+    const onVideoError = () => rebuild(`video error ${video.error?.code ?? ""} ${video.error?.message ?? ""}`.trim());
+    video.addEventListener("error", onVideoError);
 
     const onSourceOpen = async () => {
       if (cancelled) return;
@@ -169,17 +214,23 @@ const useRheedVideo = (videoRef: React.RefObject<HTMLVideoElement>) => {
         // init segment.
         const initial = await client.initial_fragments();
         if (cancelled) return;
-        if (initial.payload.length > 0) {
-          queue.push(initial.payload);
+        if (initial.payload.length === 0) {
+          rebuild("no initial fragments yet");
+          return;
         }
+        queue.push(initial.payload);
       } catch (err) {
-        if (!cancelled) console.error("RheedVideo initial_fragments failed:", err);
+        if (cancelled) return;
+        console.error("RheedVideo initial_fragments failed:", err);
+        rebuild("initial_fragments failed");
+        return;
       }
 
       // Live media fragments. Subscribe before start so we do not miss the first
       // fragments the node emits.
       subscriptionKey = client.onFragment((_meta, payload) => {
         if (cancelled) return;
+        lastFragmentAt = performance.now();
         queue.push(payload);
         pump();
       });
@@ -188,7 +239,9 @@ const useRheedVideo = (videoRef: React.RefObject<HTMLVideoElement>) => {
       // Controller toggle); start is idempotent on the backend. Never stop on
       // unmount -- the stream is server-wide and shared with other viewers.
       client.startStreaming().catch((err) => {
-        if (!cancelled) console.error("RheedVideo startStreaming failed:", err);
+        if (cancelled) return;
+        console.error("RheedVideo startStreaming failed:", err);
+        rebuild("startStreaming failed");
       });
 
       if (!cancelled) setIsReady(true);
@@ -197,8 +250,26 @@ const useRheedVideo = (videoRef: React.RefObject<HTMLVideoElement>) => {
 
     mediaSource.addEventListener("sourceopen", onSourceOpen);
 
+    // A user pause, a hidden tab or a stream that stopped sending are not
+    // stalls; only a playing video starved of progress while media arrives is.
+    let lastTime = -1;
+    let stillSince = performance.now();
+    const stallTimer = setInterval(() => {
+      const now = performance.now();
+      const feeding = now - lastFragmentAt < 2 * STALL_CHECK_MS;
+      if (video.currentTime !== lastTime || video.paused || document.hidden || !feeding) {
+        lastTime = video.currentTime;
+        stillSince = now;
+        return;
+      }
+      if (now - stillSince > STALL_S * 1000) rebuild(`playhead stuck at ${lastTime.toFixed(1)} s while fragments arrive`);
+    }, STALL_CHECK_MS);
+
     return () => {
       cancelled = true;
+      clearTimeout(rebuildTimer);
+      clearInterval(stallTimer);
+      video.removeEventListener("error", onVideoError);
       setIsReady(false);
       if (subscriptionKey) client.unsubscribe(subscriptionKey);
       queue = [];
@@ -213,7 +284,7 @@ const useRheedVideo = (videoRef: React.RefObject<HTMLVideoElement>) => {
       URL.revokeObjectURL(objectUrl);
       if (video.src === objectUrl) video.removeAttribute("src");
     };
-  }, [transport, videoRef, rheedNodeUp]);
+  }, [transport, videoRef, rheedNodeUp, attempt]);
 
   return { isReady };
 };
