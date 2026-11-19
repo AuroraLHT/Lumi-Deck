@@ -387,6 +387,13 @@ const BypassSection = memo(({ bypass }: { bypass?: PldBypass }) => {
             </Badge>
           )}
         </Field>
+        {bypass.motion_enabled === false && (
+          <Field label="Motor movement">
+            <Badge colorScheme="orange" variant="subtle" fontSize="0.65rem">
+              disabled
+            </Badge>
+          </Field>
+        )}
         <Field label="Close / open switch">
           <HStack spacing={1} justify="flex-end">
             <BoolBadge value={bypass.close_switch} onLabel="closed" offLabel="—" />

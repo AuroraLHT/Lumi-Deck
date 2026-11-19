@@ -148,6 +148,8 @@ export const NumberOp = <T extends AnyReply>({
   max,
   integer,
   clearAfterSend,
+  isDisabled,
+  title,
   onReply,
 }: {
   call: Call;
@@ -156,6 +158,9 @@ export const NumberOp = <T extends AnyReply>({
   initial?: string;
   action: string;
   op: (client: ChamberPldClient, value: number) => Promise<T>;
+  /** Disables the field and its button (e.g. the device refuses the op right now). */
+  isDisabled?: boolean;
+  title?: string;
   step?: number;
   /** Bounds the value; outside them the button stays disabled. */
   min?: number | null;
@@ -187,6 +192,7 @@ export const NumberOp = <T extends AnyReply>({
           min={min ?? undefined}
           max={max ?? undefined}
           isInvalid={value.trim() !== "" && !inRange}
+          isDisabled={isDisabled}
           aria-label={label}
           placeholder={unit}
           value={value}
@@ -196,8 +202,8 @@ export const NumberOp = <T extends AnyReply>({
           size="xs"
           minW="48px"
           isLoading={call.busy}
-          isDisabled={!call.canOperate || !valid}
-          title={operatorTitle(call)}
+          isDisabled={!call.canOperate || !valid || isDisabled}
+          title={operatorTitle(call, title)}
           onClick={() => {
             if (clearAfterSend) setValue("");
             call.run((c) => op(c, n)).then(setReply);
