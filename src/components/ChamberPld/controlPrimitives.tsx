@@ -146,6 +146,8 @@ export const NumberOp = <T extends AnyReply>({
   step,
   min,
   max,
+  integer,
+  clearAfterSend,
   onReply,
 }: {
   call: Call;
@@ -158,13 +160,21 @@ export const NumberOp = <T extends AnyReply>({
   /** Bounds the value; outside them the button stays disabled. */
   min?: number | null;
   max?: number | null;
+  /** Whole numbers only (e.g. motor steps); anything else keeps the button disabled. */
+  integer?: boolean;
+  /**
+   * Empty the field once the op is sent -- for relative moves, where a second
+   * click (or a double click) would move as far again rather than repeat a
+   * harmless absolute target.
+   */
+  clearAfterSend?: boolean;
   /** Takes the reply instead of showing it under the control. */
   onReply?: (reply: AnyReply | null) => void;
 }) => {
   const [value, setValue] = useState(initial);
   const [reply, setReply] = useReplyTarget(onReply);
   const n = Number(value);
-  const inRange = (min == null || n >= min) && (max == null || n <= max);
+  const inRange = (min == null || n >= min) && (max == null || n <= max) && (!integer || Number.isInteger(n));
   const valid = value.trim() !== "" && Number.isFinite(n) && inRange;
   return (
     <VStack align="stretch" spacing="1px">
@@ -188,7 +198,10 @@ export const NumberOp = <T extends AnyReply>({
           isLoading={call.busy}
           isDisabled={!call.canOperate || !valid}
           title={operatorTitle(call)}
-          onClick={() => call.run((c) => op(c, n)).then(setReply)}
+          onClick={() => {
+            if (clearAfterSend) setValue("");
+            call.run((c) => op(c, n)).then(setReply);
+          }}
         >
           {action}
         </Button>

@@ -28,6 +28,7 @@ import {
   sortedEntries,
 } from "./primitives";
 import {
+  PldBypass,
   PldExcimer,
   PldGas,
   PldHeater,
@@ -344,6 +345,86 @@ const MotionSection = memo(({ motion }: { motion?: PldMotion }) => (
 ));
 MotionSection.displayName = "MotionSection";
 
+const BYPASS_STATE_COLOR: Record<string, string> = {
+  IDLE: "gray",
+  MOVE: "blue",
+  SEEK_OPEN: "orange",
+  SEEK_CLOSE: "orange",
+  SETTLE: "purple",
+};
+
+/**
+ * The bypass-valve stepper; only rendered when pld-service has a bypass board.
+ * `open_fraction` is the service's own position / open_position -- null until
+ * the valve is homed and the open switch position is known, so the panel never
+ * guesses the travel or which end closes.
+ */
+const BypassSection = memo(({ bypass }: { bypass?: PldBypass }) => {
+  if (!bypass?.present) return null;
+  return (
+    <Section title="Bypass valve">
+      <SimpleGrid minChildWidth="220px" spacingX={4} spacingY="1px">
+        <Field label="State">
+          <Badge variant="subtle" colorScheme={BYPASS_STATE_COLOR[bypass.state ?? ""] ?? "gray"} fontSize="0.65rem">
+            {(bypass.state || "—").toLowerCase().replace("_", " ")}
+          </Badge>
+        </Field>
+        <Field label="Open">
+          <Text fontSize="xs">{bypass.open_fraction == null ? "—" : `${(bypass.open_fraction * 100).toFixed(0)} %`}</Text>
+        </Field>
+        <Field label="Position">
+          <Text fontSize="xs">
+            {bypass.position == null ? "—" : `${Math.round(bypass.position)} steps`}
+            {bypass.open_position != null && ` / open at ${bypass.open_position}`}
+          </Text>
+        </Field>
+        <Field label="Homed">
+          {bypass.homed ? (
+            <BoolBadge value onLabel="homed" />
+          ) : (
+            <Badge colorScheme="orange" variant="subtle" fontSize="0.65rem">
+              not homed
+            </Badge>
+          )}
+        </Field>
+        <Field label="Close / open switch">
+          <HStack spacing={1} justify="flex-end">
+            <BoolBadge value={bypass.close_switch} onLabel="closed" offLabel="—" />
+            <BoolBadge value={bypass.open_switch} onLabel="open" offLabel="—" />
+          </HStack>
+        </Field>
+        <Field label="Speed">
+          <Text fontSize="xs">
+            {fmt(bypass.rpm, 1, " rpm")}
+            {bypass.max_rpm != null && ` (max ${bypass.max_rpm})`}
+          </Text>
+        </Field>
+        <Field label="Coils">
+          <BoolBadge value={bypass.energized} onLabel="energized" offLabel="off" />
+        </Field>
+        <Field label="Board">
+          <HStack spacing={1} justify="flex-end">
+            <Text fontSize="xs">
+              {bypass.port || "—"}
+              {bypass.firmware && ` · fw ${bypass.firmware}`}
+            </Text>
+            <BoolBadge value={bypass.connected} onLabel="connected" offLabel="no link" />
+          </HStack>
+        </Field>
+        <Field label={`Last move end (${bypass.moves_ended ?? 0})`}>
+          <TruncatedText text={bypass.last_end} />
+        </Field>
+      </SimpleGrid>
+      {bypass.error && (
+        <Text fontSize="xs" color="status.error" mt={1}>
+          {bypass.error}
+        </Text>
+      )}
+    </Section>
+  );
+});
+BypassSection.displayName = "BypassSection";
+
 const ValvesSection = memo(({ valves }: { valves?: Record<string, boolean> }) => (
   <Section title="Valves">
     <SimpleGrid minChildWidth="220px" spacingX={4} spacingY="1px">
@@ -633,6 +714,7 @@ const ChamberPldMain = () => {
           <HeaterSection heater={chamber.heater} limits={chamber.limits} />
           <MotionSection motion={chamber.motion} />
           <ValvesSection valves={chamber.valves} />
+          <BypassSection bypass={chamber.bypass} />
           <GasSection gas={chamber.gas} />
           <LaserSection laser={chamber.laser} />
           <ExcimerSection excimer={chamber.excimer} />

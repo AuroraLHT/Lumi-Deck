@@ -4,6 +4,7 @@ import useAppStore from "../../stores/app";
 import useChamberPldNodeStore from "../../stores/nodes/chamberPld";
 import useChamberPldStore from "../../stores/chamberPld";
 import { useCanOperate } from "../../hooks/useChamberPldCall";
+import BypassControls from "./BypassControls";
 import HeaterControls from "./HeaterControls";
 import LaserControls from "./LaserControls";
 import MotionControls from "./MotionControls";
@@ -98,6 +99,7 @@ const ChamberPldControls = () => {
           <MainChamberControls />
           <LoadLockControls />
           <MotionControls />
+          <BypassControls />
           <HeaterControls />
           <LaserControls />
           <RheedControls />
