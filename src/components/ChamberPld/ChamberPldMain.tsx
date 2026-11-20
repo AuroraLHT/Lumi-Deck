@@ -151,7 +151,19 @@ const Overview = memo(({ node, session }: { node: ChamberPldNodeState; session?:
         <BoolBadge value={session?.plc_session} onLabel="open" offLabel="closed" />
       </Field>
       <Field label="Watchdog">
-        <BoolBadge value={session?.watchdog} />
+        <HStack spacing={1} justify="flex-end">
+          <BoolBadge value={session?.watchdog} />
+          {session?.valves_locked && (
+            <Badge
+              colorScheme="red"
+              variant="subtle"
+              fontSize="0.65rem"
+              title="The PLC watchdog tripped (DM30146 bit 8 off): opening MV10, MV11, MV20 and MV21 is refused until PLD Controller's start-up clears it."
+            >
+              valves locked
+            </Badge>
+          )}
+        </HStack>
       </Field>
     </SimpleGrid>
   </Section>
