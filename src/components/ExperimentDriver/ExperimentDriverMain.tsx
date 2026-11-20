@@ -4,10 +4,17 @@ import { Badge, Center, HStack, Spinner, Text, Tooltip, VStack } from "@chakra-u
 import useAppStore from "../../stores/app";
 import useExperimentDriverStore from "../../stores/experimentDriver";
 import useExperimentDriverNodeStore from "../../stores/nodes/experimentDriver";
-import CalibrationActions from "./CalibrationActions";
-import MaskAutoAlign from "./MaskAutoAlign";
+import CancelTaskButton from "./CancelTaskButton";
+import { LaserTestSection } from "./LaserTest";
+import PreablationSection from "./Preablation";
+import SequencesSection from "./Sequences";
+import OperationConsole from "./OperationConsole";
 import PendingConfirmationCard from "./PendingConfirmationCard";
+import StopDepositionButton from "./StopDepositionButton";
 import { AUTO_ALIGN_KIND } from "./maskAlign";
+
+/** Stopped with the laser too; any other task is cancelled. */
+const ABLATING_TASKS = new Set(["perform_deposition", "perform_preablation", "fire_laser_test"]);
 
 const TASK_LABELS: Record<string, string> = {
   [AUTO_ALIGN_KIND]: "Mask auto-align",
@@ -16,6 +23,8 @@ const TASK_LABELS: Record<string, string> = {
   perform_preablation: "Pre-ablation",
   perform_deposition: "Deposition",
   anneal: "Anneal",
+  fire_laser_test: "Laser test firing",
+  run_sequence: "Sequence",
 };
 
 const taskLabel = (kind: string | null) =>
@@ -122,29 +131,46 @@ const ExperimentDriverMain = () => {
           <Text color="text.muted">
             running <Elapsed startedAt={task.started_at} />
           </Text>
+          <HStack ml="auto">
+            {ABLATING_TASKS.has(task.kind) ? (
+              <StopDepositionButton task={task} />
+            ) : (
+              <CancelTaskButton task={task} label={taskLabel(task.kind)} />
+            )}
+          </HStack>
         </HStack>
       )}
 
-      <MaskAutoAlign locked={locked} />
-      <CalibrationActions locked={locked} />
+      <OperationConsole locked={locked} />
+
+      <SequencesSection locked={locked} />
+
+      <LaserTestSection locked={locked} />
+      <PreablationSection />
 
       {recent.length > 0 && (
         <VStack align="stretch" spacing={1}>
           <Text fontSize="xs" fontWeight="600" color="text.secondary">
             Recent tasks
           </Text>
-          {recent.map((r, i) => (
-            <HStack key={`${r.finishedAt}-${i}`} spacing={2} fontSize="xs">
-              <Badge colorScheme={r.ok ? "green" : "red"}>{r.ok ? "ok" : "failed"}</Badge>
-              <Text>{taskLabel(r.kind)}</Text>
-              <Text color="text.muted">{new Date(r.finishedAt).toLocaleTimeString()}</Text>
-              {r.error && (
-                <Text color="status.error" noOfLines={1} title={r.error}>
-                  {r.error}
-                </Text>
-              )}
-            </HStack>
-          ))}
+          {recent.map((r, i) => {
+            // An operator stop (cancel_task, stop_deposition) is not a failure.
+            const stopped = !r.ok && r.data.aborted === true;
+            return (
+              <HStack key={`${r.finishedAt}-${i}`} spacing={2} fontSize="xs">
+                <Badge colorScheme={r.ok ? "green" : stopped ? "gray" : "red"}>
+                  {r.ok ? "ok" : stopped ? "stopped" : "failed"}
+                </Badge>
+                <Text>{taskLabel(r.kind)}</Text>
+                <Text color="text.muted">{new Date(r.finishedAt).toLocaleTimeString()}</Text>
+                {r.error && (
+                  <Text color={stopped ? "text.muted" : "status.error"} noOfLines={1} title={r.error}>
+                    {r.error}
+                  </Text>
+                )}
+              </HStack>
+            );
+          })}
         </VStack>
       )}
     </VStack>

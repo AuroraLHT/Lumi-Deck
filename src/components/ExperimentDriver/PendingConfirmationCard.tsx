@@ -8,6 +8,7 @@ import useFiducialMarkers from "../../hooks/useFiducialMarkers";
 import useFiducialRoleControl from "../../hooks/useFiducialRoleControl";
 import useExperimentDriverStore from "../../stores/experimentDriver";
 import useFiducialUIStore from "../../stores/fiducialUI";
+import { LaserTestPrompt } from "./LaserTest";
 import { MASK_CENTER_ROLE } from "./maskAlign";
 
 type Call = ReturnType<typeof useDriverCall>;
@@ -281,8 +282,8 @@ const PixelCheckPrompt = ({ call }: { call: Call }) => {
 
 const LaserPowerPrompt = ({ call }: { call: Call }) => (
   <NumberPrompt
-    label="Measured laser power"
-    unit="W"
+    label="Measured pulse energy"
+    unit="mJ"
     action="Confirm reading"
     call={call}
     onSubmit={(measured_power) => call.run((c) => c.confirm_laser_power({ measured_power }))}
@@ -309,7 +310,8 @@ const TITLES: Record<string, string> = {
   mask_center_check: "Is the mask centered?",
   rheed_gain: "Tune RHEED gain",
   pixel_check: "Pixel check",
-  laser_power: "Laser power",
+  laser_power: "Laser pulse energy",
+  laser_test: "Daily laser test",
 };
 
 /**
@@ -339,6 +341,9 @@ const PendingConfirmationCard = ({ pending }: { pending: PendingConfirmation }) 
       break;
     case "laser_power":
       body = <LaserPowerPrompt call={call} />;
+      break;
+    case "laser_test":
+      body = <LaserTestPrompt call={call} />;
       break;
     default:
       body = <GenericPrompt pending={pending} call={call} />;

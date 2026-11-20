@@ -4,6 +4,7 @@ import { ChamberMiModeClient } from "../generated/lumi";
 import useTransportStore from "../clients/transport";
 import useMiModeStore from "../stores/miMode";
 import useMIModeNodeStore from "../stores/nodes/miMode";
+import useChamberPldNodeStore from "../stores/nodes/chamberPld";
 
 /**
  * Feeds the MI-mode execution history from the chamber's `mi_mode` capability.
@@ -32,6 +33,9 @@ const useMiModeStream = () => {
   const transport = useTransportStore((s) => s.transport);
   const host = useTransportStore((s) => s.host);
   const miModeNodeUp = useMIModeNodeStore((s) => s.state.is_available);
+  // Under pld-service MI mode is the legacy fallback and the node refuses
+  // list_execution, so there is nothing to seed.
+  const pldDriven = useChamberPldNodeStore((s) => s.state.driver === "pld");
   const trackedHost = useRef<string | null>(null);
 
   useEffect(() => {
@@ -55,21 +59,22 @@ const useMiModeStream = () => {
 
     // Seed with whatever the node is still holding -- queued and running only,
     // since it drops an execution the moment it finishes.
-    client
-      .list_execution()
-      .then((list) => {
-        if (cancelled) return;
-        useMiModeStore.getState().seedExecutions(list.executions ?? []);
-      })
-      .catch((err) => {
-        if (!cancelled) console.warn("MI mode list_execution failed:", err);
-      });
+    if (!pldDriven)
+      client
+        .list_execution()
+        .then((list) => {
+          if (cancelled) return;
+          useMiModeStore.getState().seedExecutions(list.executions ?? []);
+        })
+        .catch((err) => {
+          if (!cancelled) console.warn("MI mode list_execution failed:", err);
+        });
 
     return () => {
       cancelled = true;
       client.unsubscribe(subscriptionKey);
     };
-  }, [transport, host, miModeNodeUp]);
+  }, [transport, host, miModeNodeUp, pldDriven]);
 };
 
 export default useMiModeStream;

@@ -1,0 +1,109 @@
+import { useEffect, useRef } from "react";
+
+import { ChamberPldClient } from "../generated/lumi";
+import useTransportStore from "../clients/transport";
+import useChamberPldStore from "../stores/chamberPld";
+import useChamberPldSeriesStore, { toSeriesRow } from "../stores/chamberPldSeries";
+
+const EVENTS_POLL_MS = 5000;
+const EVENTS_LIMIT = 200;
+const ACTIVITY_SEED = 200;
+
+/**
+ * Feeds the chamber.pld cache: the full `PldChamberState` pushed on its `state`
+ * stream, plus `recent_events`, which has no push channel and is polled, and
+ * the op activity: seeded from `recent_activity`, then the newest ten that
+ * ride on each push, back-filled from `recent_activity` on a seq gap. Also
+ * flattens each push into `chamberPldSeries`, the rolling buffer the Monitor
+ * charts plot from when the chamber is running the pld driver.
+ *
+ * Mounted exactly once, by `LumiTransportProvider`, for the same reason as
+ * `useChamberLogStream`: `LumiTransport.subscribe` keys handlers by
+ * `target:stream`, so a second subscriber would replace the first, and the
+ * cache should keep filling while the panel is closed.
+ */
+const useChamberPldStream = () => {
+  const transport = useTransportStore((s) => s.transport);
+  const host = useTransportStore((s) => s.host);
+  const trackedHost = useRef<string | null>(null);
+
+  useEffect(() => {
+    if (!transport) return;
+
+    if (trackedHost.current !== null && trackedHost.current !== host) {
+      useChamberPldStore.getState().reset();
+      useChamberPldSeriesStore.getState().reset();
+    }
+    trackedHost.current = host;
+
+    let cancelled = false;
+    const client = new ChamberPldClient(transport);
+
+    // Subscribe before seeding so a push landing mid-request is not missed.
+    // Both stores are fed from this one push -- a second subscriber would
+    // silently replace this handler (`LumiTransport.subscribe` keys by
+    // `target:stream`), so the Monitor charts read off this same tick rather
+    // than opening their own.
+    const fillActivity = (since_seq: number) =>
+      client
+        .recent_activity({ limit: ACTIVITY_SEED, since_seq })
+        .then((list) => {
+          if (!cancelled) useChamberPldStore.getState().mergeActivity(list.entries ?? []);
+        })
+        .catch((err) => {
+          if (!cancelled) console.error("chamber.pld recent_activity failed:", err);
+        });
+
+    const subscriptionKey = client.onState((state) => {
+      if (cancelled) return;
+      const store = useChamberPldStore.getState();
+      store.setChamber(state);
+      const pushed = state.activity ?? [];
+      // More happened between two pushes than one carries: fetch what was skipped.
+      const oldest = Math.min(...pushed.map((e) => e.seq ?? Infinity));
+      if (store.activitySeq > 0 && oldest > store.activitySeq + 1) fillActivity(store.activitySeq);
+      store.mergeActivity(pushed);
+      useChamberPldSeriesStore.getState().appendRow(toSeriesRow(state));
+    });
+
+    client
+      .chamber_state()
+      .then((state) => {
+        if (!cancelled) useChamberPldStore.getState().setChamber(state);
+      })
+      .catch((err) => {
+        if (!cancelled) console.error("chamber.pld chamber_state failed:", err);
+      });
+
+    // The capability's stream may already be running (another session, or the
+    // Controller toggle); start is idempotent on the backend. Never stop on
+    // unmount -- the stream is server-wide and shared with other viewers.
+    client.startStreaming().catch((err) => {
+      if (!cancelled) console.error("chamber.pld startStreaming failed:", err);
+    });
+
+    const pollEvents = () => {
+      client
+        .recent_events({ limit: EVENTS_LIMIT })
+        .then((batch) => {
+          if (!cancelled) useChamberPldStore.getState().setEvents(batch.events ?? []);
+        })
+        .catch((err) => {
+          if (!cancelled) console.error("chamber.pld recent_events failed:", err);
+        });
+    };
+    pollEvents();
+    fillActivity(0).finally(() => {
+      if (!cancelled) useChamberPldStore.getState().setActivityLoaded();
+    });
+    const eventsInterval = window.setInterval(pollEvents, EVENTS_POLL_MS);
+
+    return () => {
+      cancelled = true;
+      window.clearInterval(eventsInterval);
+      client.unsubscribe(subscriptionKey);
+    };
+  }, [transport, host]);
+};
+
+export default useChamberPldStream;

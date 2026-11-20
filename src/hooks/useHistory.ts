@@ -8,6 +8,7 @@ import {
   LogWindowQuery,
   LumiTransport,
   MeasurementFileInfo,
+  RecordingInfo,
   RecordingIntegrationQuery,
   RecordingJpegQuery,
   StorageArchiveClient,
@@ -42,6 +43,11 @@ const useNodeUp = (node: Node) => {
 /** Settled for good: a finished recording, or a log window in the past. */
 const FOREVER = Infinity;
 const LISTS = 30_000;
+/**
+ * A recording still being written (v2 files can be read while they grow) is
+ * re-read this often, so the viewer follows it; a finished one never is.
+ */
+const LIVE_MS = 5000;
 /** Frames and files nobody is looking at are kept this long, then their blobs freed. */
 const BLOB_GC_MS = 2 * 60_000;
 
@@ -54,7 +60,14 @@ const useHistoryQuery = <T>(
     staleTime = LISTS,
     gcTime,
     keepPrevious = false,
-  }: { enabled?: boolean; staleTime?: number; gcTime?: number; keepPrevious?: boolean } = {}
+    refetchInterval,
+  }: {
+    enabled?: boolean;
+    staleTime?: number;
+    gcTime?: number;
+    keepPrevious?: boolean;
+    refetchInterval?: number | false | ((query: { state: { data: T | undefined } }) => number | false);
+  } = {}
 ) => {
   const transport = useTransportStore((s) => s.transport);
   const host = useTransportStore((s) => s.host);
@@ -67,6 +80,7 @@ const useHistoryQuery = <T>(
     staleTime,
     ...(gcTime !== undefined ? { gcTime } : {}),
     ...(keepPrevious ? { placeholderData: keepPreviousData } : {}),
+    ...(refetchInterval !== undefined ? { refetchInterval } : {}),
     retry: 1,
   });
   return { ...query, nodeUp: up };
@@ -105,6 +119,15 @@ export const useSampleSteps = (sampleId: number | null) =>
     ["steps", sampleId],
     (t) => driver(t).sample_history({ sample_id: sampleId!, limit: STEP_PAGE, order: "asc" }),
     { enabled: sampleId !== null }
+  );
+
+/** The growth.db experiments on a substrate: the recipes, with the conditions each was run at. */
+export const useSubstrateExperiments = (substrateId: number | null) =>
+  useHistoryQuery(
+    "experiment",
+    ["experiments", substrateId],
+    (t) => driver(t).list_experiments({ substrate_id: substrateId!, limit: 200, order: "asc" }),
+    { enabled: substrateId !== null }
   );
 
 export const useSampleMeasurements = (sampleId: number | null) =>
@@ -169,20 +192,70 @@ export const useFileFetcher = () => {
   );
 };
 
+/** Every file in the archive, newest first -- recordings no sample journal names included. */
+export const useRecordings = (search: string) =>
+  useHistoryQuery(
+    "storage",
+    ["recordings", search],
+    (t) => archive(t).list_recordings({ search: search || null, limit: 1000 }),
+    { refetchInterval: (q) => (q.state.data?.recordings?.some((r) => r.recording) ? LIVE_MS : false) }
+  );
+
+/** Re-read while the file is still being written; settled for good after. */
+const followLive = (live: boolean) =>
+  live ? { staleTime: 0, refetchInterval: LIVE_MS } : { staleTime: FOREVER };
+
 export const useRecordingInfo = (name: string | null) =>
   useHistoryQuery(
     "storage",
     ["recording", name],
     (t) => archive(t).recording_info({ name: name! }),
-    { enabled: name !== null, staleTime: FOREVER }
+    {
+      enabled: name !== null,
+      staleTime: FOREVER,
+      // Polls only while the file says it is recording, then never again.
+      refetchInterval: (q: { state: { data: RecordingInfo | undefined } }) =>
+        q.state.data?.recording ? LIVE_MS : false,
+    }
   );
 
-export const useRecordingIntegration = (name: string | null, query?: Partial<RecordingIntegrationQuery>) =>
+export const useRecordingIntegration = (
+  name: string | null,
+  query?: Partial<RecordingIntegrationQuery>,
+  live = false
+) =>
   useHistoryQuery(
     "storage",
     ["integration", name, query],
     (t) => archive(t).recording_integration({ name: name!, ...query }),
-    { enabled: name !== null, staleTime: FOREVER }
+    { enabled: name !== null, ...followLive(live) }
+  );
+
+/** Tasks, chamber events, camera and box changes, notes. Empty for a v1 file. */
+export const useRecordingEvents = (name: string | null, live = false) =>
+  useHistoryQuery(
+    "storage",
+    ["events", name],
+    (t) => archive(t).recording_events({ name: name!, limit: 5000 }),
+    { enabled: name !== null, ...followLive(live) }
+  );
+
+/** Box counts and class scores per detection, thinned for a chart. */
+export const useRecordingDetections = (name: string | null, live = false) =>
+  useHistoryQuery(
+    "storage",
+    ["detections", name],
+    (t) => archive(t).recording_detections({ name: name!, max_points: 2000 }),
+    { enabled: name !== null, ...followLive(live) }
+  );
+
+/** One detection's boxes and crop, to draw on the frame it belongs to. */
+export const useRecordingDetection = (name: string | null, index: number | null) =>
+  useHistoryQuery(
+    "storage",
+    ["detection", name, index],
+    (t) => archive(t).recording_detection({ name: name!, index: index! }),
+    { enabled: name !== null && index !== null, staleTime: FOREVER, keepPrevious: true }
   );
 
 export interface RecordedFrame {

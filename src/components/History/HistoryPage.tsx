@@ -2,6 +2,8 @@ import { useCallback } from "react";
 import {
   Badge,
   Box,
+  Button,
+  ButtonGroup,
   Flex,
   HStack,
   Heading,
@@ -12,6 +14,7 @@ import {
   TabPanels,
   Tabs,
   Text,
+  VStack,
 } from "@chakra-ui/react";
 import { useSearchParams } from "react-router-dom";
 
@@ -20,7 +23,8 @@ import SampleList, { SampleFilter } from "./SampleList";
 import SampleOverview from "./SampleOverview";
 import MeasurementsTab from "./MeasurementsTab";
 import ProcessTimeline from "./ProcessTimeline";
-import RecordingViewer from "./RecordingViewer";
+import RecordingViewer, { RecordingBody } from "./RecordingViewer";
+import RecordingList from "./RecordingList";
 import ChamberLogHistory from "./ChamberLogHistory";
 import { formatTime, STATE_SCHEME } from "./history";
 
@@ -45,10 +49,16 @@ const panelStyle = {
  *
  * Everything the page shows is in the URL (`?sample=23&tab=rheed`), so a view
  * can be linked and the back button walks the samples looked at.
+ *
+ * `?view=recordings` browses the storage archive by file instead: every
+ * recording, whether or not a sample's journal names it, and the one being
+ * recorded now (`&recording=<name>`).
  */
 const HistoryPage = () => {
   const [params, setParams] = useSearchParams();
 
+  const byRecording = params.get("view") === "recordings";
+  const recordingName = params.get("recording");
   const sampleId = numberParam(params.get("sample"));
   const tab = Math.max(0, TABS.indexOf(params.get("tab") as (typeof TABS)[number]));
   const filter: SampleFilter = {
@@ -98,16 +108,55 @@ const HistoryPage = () => {
         flexShrink={0}
         h={{ base: "320px", lg: "100%" }}
       >
-        <SampleList
-          filter={filter}
-          onFilter={onFilter}
-          selected={sampleId}
-          onSelect={(id) => update({ sample: id })}
-        />
+        <VStack align="stretch" spacing={2} h="100%" minH={0}>
+          <ButtonGroup size="xs" isAttached variant="outline" w="100%">
+            <Button
+              flex={1}
+              isActive={!byRecording}
+              onClick={() => update({ view: null }, true)}
+              aria-pressed={!byRecording}
+            >
+              Samples
+            </Button>
+            <Button
+              flex={1}
+              isActive={byRecording}
+              onClick={() => update({ view: "recordings" }, true)}
+              aria-pressed={byRecording}
+            >
+              Recordings
+            </Button>
+          </ButtonGroup>
+          <Box flex={1} minH={0}>
+            {byRecording ? (
+              <RecordingList selected={recordingName} onSelect={(name) => update({ recording: name })} />
+            ) : (
+              <SampleList
+                filter={filter}
+                onFilter={onFilter}
+                selected={sampleId}
+                onSelect={(id) => update({ sample: id })}
+              />
+            )}
+          </Box>
+        </VStack>
       </Box>
 
       <Box {...panelStyle} flex={1} minW={0} minH={0} display="flex" flexDirection="column">
-        {sampleId === null ? (
+        {byRecording ? (
+          recordingName === null ? (
+            <Flex flex={1} align="center" justify="center" p={8}>
+              <Text color="text.muted">Pick a recording to play it back.</Text>
+            </Flex>
+          ) : (
+            <Box px={4} py={3} flex={1} minH={0} overflowY="auto">
+              <Heading size="md" mb={2} wordBreak="break-all">
+                {recordingName}
+              </Heading>
+              <RecordingBody key={recordingName} name={recordingName} />
+            </Box>
+          )
+        ) : sampleId === null ? (
           <Flex flex={1} align="center" justify="center" p={8}>
             <Text color="text.muted">Pick a sample to see how it was grown.</Text>
           </Flex>
@@ -162,7 +211,13 @@ const HistoryPage = () => {
               </TabList>
               <TabPanels flex={1} minH={0} overflowY="auto">
                 <TabPanel>
-                  <SampleOverview sampleId={sample.sample_id} layers={detail.data?.layers ?? []} notes={sample.notes} />
+                  <SampleOverview
+                    sampleId={sample.sample_id}
+                    substrateId={sample.substrate_id}
+                    pixelIndex={sample.pixel_index ?? null}
+                    layers={detail.data?.layers ?? []}
+                    notes={sample.notes}
+                  />
                 </TabPanel>
                 <TabPanel>
                   <MeasurementsTab

@@ -1,4 +1,4 @@
-import React from "react";
+import React, { memo, useMemo } from "react";
 import { Box } from "@chakra-ui/react";
 import { ResponsiveLineCanvas } from "@nivo/line";
 import { Serie } from "@nivo/line";
@@ -59,13 +59,17 @@ const RealTimeLineChart: React.FC<Props> = ({ chartData, xaxisName, yaxisName, x
   //         -windowSize)
   //     }));
 
-  const windowedChartData = chartData.map(serie => ({
-    ...serie,
-    data: filterByTimeWindow({
-      windowSize: windowSize,
-      data: [...serie.data] as Array<{ x: Date; y: number }>
-    })
-  }));
+  const windowedChartData = useMemo(
+    () =>
+      chartData.map((serie) => ({
+        ...serie,
+        data: filterByTimeWindow({
+          windowSize: windowSize,
+          data: serie.data as Array<{ x: Date; y: number }>,
+        }),
+      })),
+    [chartData, windowSize]
+  );
 
   // console.log("windowedChartData", windowedChartData);
 
@@ -177,4 +181,5 @@ const RealTimeLineChart: React.FC<Props> = ({ chartData, xaxisName, yaxisName, x
   );
 };
 
-export default RealTimeLineChart;
+// Re-renders only when its props change, not with every render of the panel around it.
+export default memo(RealTimeLineChart);

@@ -7,6 +7,7 @@ import {
   IntegratorState,
   MIModeState,
   NodeRecord,
+  PldState,
   RheedSimState,
   STFTState,
   StorageState,
@@ -15,6 +16,7 @@ import useSystemRegistry from "./useSystemRegistry";
 import useRHEEDNodeStore from "../stores/nodes/rheed";
 import useRHEEDCameraNodeStore from "../stores/nodes/rheedCamera";
 import useChamberLogNodeStore from "../stores/nodes/chamberLog";
+import useChamberPldNodeStore from "../stores/nodes/chamberPld";
 import useDetectorNodeStore from "../stores/nodes/detector";
 import useSTFTNodeStore from "../stores/nodes/stft";
 import useIntegratorNodeStore from "../stores/nodes/integrator";
@@ -56,6 +58,7 @@ const useNodeStates = () => {
   const setIntegratorNodeState = useIntegratorNodeStore((s) => s.setState);
   const setStorageNodeState = useStorageNodeStore((s) => s.setState);
   const setMIModeNodeState = useMIModeNodeStore((s) => s.setState);
+  const setChamberPldNodeState = useChamberPldNodeStore((s) => s.setState);
   const setFiducialNodeState = useFiducialNodeStore((s) => s.setState);
   const setExperimentDriverNodeState = useExperimentDriverNodeStore((s) => s.setState);
   const setSimulationNodeState = useSimulationNodeStore((s) => s.setState);
@@ -116,6 +119,24 @@ const useNodeStates = () => {
 
     setChamberLogNodeState(common(chamber, "log"));
     setDetectorNodeState(common(detection, "detection"));
+
+    // The readout (which driver, who holds control, ...) rides the heartbeat;
+    // the rich chamber state (pressures, heater, motion, ...) is the `state`
+    // stream `useChamberPldStream` feeds into `stores/chamberPld.ts`.
+    const pld = capabilityState(chamber, "pld") as PldState | undefined;
+    setChamberPldNodeState({
+      ...common(chamber, "pld"),
+      driver: pld?.driver ?? null,
+      address: pld?.address ?? null,
+      connected: Boolean(pld?.connected),
+      backend: pld?.backend ?? null,
+      controller: pld?.controller ?? null,
+      holds_control: Boolean(pld?.holds_control),
+      read_only: Boolean(pld?.read_only),
+      laser_control: pld?.laser_control ?? null,
+      log_file: pld?.log_file ?? null,
+      error: pld?.error ?? null,
+    });
 
     // Marker ids ride the heartbeat the same way registered_bboxes does -- see
     // `useFiducialMarkers` for the fetch this id list triggers. Roles ride it
@@ -182,6 +203,7 @@ const useNodeStates = () => {
     setIntegratorNodeState,
     setStorageNodeState,
     setMIModeNodeState,
+    setChamberPldNodeState,
     setExperimentDriverNodeState,
     setFiducialNodeState,
     setSimulationNodeState,
