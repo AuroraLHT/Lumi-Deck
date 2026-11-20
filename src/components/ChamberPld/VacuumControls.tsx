@@ -273,28 +273,59 @@ const PumpRows = ({ names, vacuum }: { names: string[]; vacuum: ReturnType<typeo
   );
 };
 
-/** Valve switches; open/close goes straight to the service, which vets it. */
+/**
+ * The main valves the PLC locks when its watchdog trips (DM30146 bit 8 off).
+ * Only with pld-service --plc-watchdog; while locked, opening them is refused.
+ */
+const WATCHDOG_LOCKED = new Set(["MV10", "MV11", "MV20", "MV21"]);
+const LOCKED_TITLE = "The PLC watchdog tripped: opening this valve is refused until PLD Controller's start-up clears it. Closing still works.";
+
+/** Shown in a valve group while the watchdog lock holds any of its valves. */
+const ValvesLockedNote = ({ names }: { names: string[] }) => {
+  const locked = useChamberPldStore((s) => Boolean(s.chamber?.session?.valves_locked));
+  const held = names.filter((n) => WATCHDOG_LOCKED.has(n));
+  if (!locked || held.length === 0) return null;
+  return (
+    <Text fontSize="xs" color="status.warn">
+      Valves locked by the PLC watchdog (DM30146 bit 8): {held.join(", ")} can't be opened until PLD Controller's
+      start-up clears it.
+    </Text>
+  );
+};
+
+/**
+ * Valve switches; open/close goes straight to the service, which vets it.
+ * While the watchdog lock holds, a closed MV10/MV11/MV20/MV21 is greyed out;
+ * an open one stays live so it can still be closed.
+ */
 const ValveRows = ({ names, call, onReply }: { names: string[]; call: Call; onReply: (r: AnyReply | null) => void }) => {
   const valves = useChamberPldStore((s) => s.chamber?.valves);
+  const locked = useChamberPldStore((s) => Boolean(s.chamber?.session?.valves_locked));
   return (
     <>
+      <ValvesLockedNote names={names} />
       {names
         .filter((n) => valves?.[n] != null)
-        .map((name) => (
-          <Flex key={name} align="center" gap={2} minH="20px">
-            <RowName name={name} note={VALVE_NOTES[name]} />
-            <Box ml="auto">
-              <SwitchOp
-                call={call}
-                label=""
-                ariaLabel={name}
-                checked={Boolean(valves?.[name])}
-                op={(c, open) => c.set_valve({ valve: name, open, wait: false })}
-                onReply={onReply}
-              />
-            </Box>
-          </Flex>
-        ))}
+        .map((name) => {
+          const openRefused = locked && WATCHDOG_LOCKED.has(name) && !valves?.[name];
+          return (
+            <Flex key={name} align="center" gap={2} minH="20px">
+              <RowName name={name} note={VALVE_NOTES[name]} />
+              <Box ml="auto">
+                <SwitchOp
+                  call={call}
+                  label=""
+                  ariaLabel={name}
+                  checked={Boolean(valves?.[name])}
+                  isDisabled={openRefused}
+                  title={openRefused ? LOCKED_TITLE : undefined}
+                  op={(c, open) => c.set_valve({ valve: name, open, wait: false })}
+                  onReply={onReply}
+                />
+              </Box>
+            </Flex>
+          );
+        })}
     </>
   );
 };

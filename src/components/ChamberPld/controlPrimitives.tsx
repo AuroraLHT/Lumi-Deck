@@ -316,6 +316,8 @@ export const SwitchOp = <T extends AnyReply>({
   checked,
   op,
   ariaLabel,
+  isDisabled,
+  title,
   onReply,
 }: {
   call: Call;
@@ -324,6 +326,8 @@ export const SwitchOp = <T extends AnyReply>({
   op: (client: ChamberPldClient, on: boolean) => Promise<T>;
   /** Names the switch when `label` is empty because a Field beside it says what it is. */
   ariaLabel?: string;
+  isDisabled?: boolean;
+  title?: string;
   /** Takes the reply instead of showing it under the control. */
   onReply?: (reply: AnyReply | null) => void;
 }) => {
@@ -340,8 +344,8 @@ export const SwitchOp = <T extends AnyReply>({
           size="sm"
           aria-label={ariaLabel || label || undefined}
           isChecked={checked}
-          isDisabled={!call.canOperate || call.busy}
-          title={operatorTitle(call)}
+          isDisabled={!call.canOperate || call.busy || isDisabled}
+          title={operatorTitle(call, title)}
           onChange={(e) => call.run((c) => op(c, e.target.checked)).then(setReply)}
         />
       </HStack>
