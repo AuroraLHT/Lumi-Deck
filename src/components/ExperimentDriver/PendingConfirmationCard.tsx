@@ -8,6 +8,7 @@ import useFiducialMarkers from "../../hooks/useFiducialMarkers";
 import useFiducialRoleControl from "../../hooks/useFiducialRoleControl";
 import useExperimentDriverStore from "../../stores/experimentDriver";
 import useFiducialUIStore from "../../stores/fiducialUI";
+import ConfirmButton from "../Controller/ConfirmButton";
 import { LaserTestPrompt } from "./LaserTest";
 import { MASK_CENTER_ROLE } from "./maskAlign";
 
@@ -239,6 +240,114 @@ const RheedGainPrompt = ({ call }: { call: Call }) => (
   </VStack>
 );
 
+const EMISSION_HEADER = "filament mA | emission uA";
+
+/**
+ * The emission search's prompt text, split into what it says and the
+ * filament-vs-emission table it ends with (Lumi's `emission_table`, one
+ * "filament | emission" row per step tried). The prompt carries no structured
+ * steps, and the search may have been started by the agent, so the rows come
+ * from the text; if the format ever changes, the text shows as it is.
+ */
+const parseEmission = (message: string) => {
+  const at = message.indexOf(EMISSION_HEADER);
+  if (at < 0) return { intro: message, steps: [] };
+  const steps = message
+    .slice(at + EMISSION_HEADER.length)
+    .split("\n")
+    .map((line) => line.match(/^\s*([\d.]+)\s*\|\s*(\S+)\s*$/))
+    .filter((m): m is RegExpMatchArray => m != null)
+    .map((m) => ({ filamentMa: Number(m[1]), emission: m[2] }));
+  return { intro: message.slice(0, at).trim(), steps };
+};
+
+/**
+ * `rheed_emission`: RHEED gun on stopped after filament and HV for a person to
+ * say when the emission has saturated. Up raises the filament one step (50 mA)
+ * and reads the emission again; Stop here ends the search at that step (going
+ * back down to it if it was earlier), then sets focus and deflection.
+ *
+ * There is no plain Dismiss: it would close the prompt and leave the filament
+ * and HV on with the search unfinished. RHEED off is the way out instead.
+ */
+const RheedEmissionPrompt = ({ pending, call }: { pending: PendingConfirmation; call: Call }) => {
+  const { intro, steps } = parseEmission(pending.message);
+  const last = steps.length - 1;
+  return (
+    <VStack align="stretch" spacing={2}>
+      <Text fontSize="xs">{intro}</Text>
+      {steps.length > 0 ? (
+        <Box borderWidth="1px" borderColor="panel.border" borderRadius="md" px={2} py={1}>
+          <HStack fontSize="xs" color="text.muted" spacing={2}>
+            <Text w="80px">Filament mA</Text>
+            <Text w="80px">Emission µA</Text>
+          </HStack>
+          {steps.map((step, i) => (
+            <HStack key={step.filamentMa} fontSize="xs" spacing={2} minH="24px" sx={{ fontVariantNumeric: "tabular-nums" }}>
+              <Text w="80px">{step.filamentMa}</Text>
+              <Text w="80px">{step.emission}</Text>
+              <Button
+                size="xs"
+                ml="auto"
+                variant={i === last ? "solid" : "outline"}
+                colorScheme="green"
+                isLoading={call.busy}
+                isDisabled={!call.canOperate}
+                title={
+                  i === last
+                    ? "End the search here, then set focus and deflection."
+                    : `Take the filament back to ${step.filamentMa} mA, end the search there, then set focus and deflection.`
+                }
+                onClick={() => call.run((c) => c.finish_rheed_on({ filament_ma: step.filamentMa }))}
+              >
+                Stop here
+              </Button>
+            </HStack>
+          ))}
+        </Box>
+      ) : (
+        <Text fontSize="xs" whiteSpace="pre-wrap">
+          {pending.message.slice(intro.length)}
+        </Text>
+      )}
+      <HStack spacing={2} flexWrap="wrap" rowGap={2}>
+        <Button
+          size="xs"
+          colorScheme="blue"
+          isLoading={call.busy}
+          isDisabled={!call.canOperate}
+          title="Raise the filament one step (50 mA) and read the emission after it settles."
+          onClick={() => call.run((c) => c.rheed_emission_step_up())}
+        >
+          Up 50 mA
+        </Button>
+        {steps.length === 0 && (
+          <Button
+            size="xs"
+            colorScheme="green"
+            isLoading={call.busy}
+            isDisabled={!call.canOperate}
+            title="End the search where the filament is now, then set focus and deflection."
+            onClick={() => call.run((c) => c.finish_rheed_on({}))}
+          >
+            Stop here
+          </Button>
+        )}
+        <ConfirmButton
+          size="xs"
+          variant="ghost"
+          colorScheme="red"
+          isDisabled={!call.canOperate || call.busy}
+          confirmLabel="Ramp HV and the filament off and end the search? About two minutes from full."
+          onConfirm={() => call.run((c) => c.rheed_off()).then(() => undefined)}
+        >
+          Abort: RHEED off
+        </ConfirmButton>
+      </HStack>
+    </VStack>
+  );
+};
+
 const PixelCheckPrompt = ({ call }: { call: Call }) => {
   const status = useExperimentDriverStore((s) => s.pixelStatus);
   const setStatus = useExperimentDriverStore((s) => s.setPixelStatus);
@@ -309,6 +418,7 @@ const TITLES: Record<string, string> = {
   mask_center_alignment: "Manual mask-center alignment",
   mask_center_check: "Is the mask centered?",
   rheed_gain: "Tune RHEED gain",
+  rheed_emission: "RHEED emission: up or stop?",
   pixel_check: "Pixel check",
   laser_power: "Laser pulse energy",
   laser_test: "Daily laser test",
@@ -335,6 +445,9 @@ const PendingConfirmationCard = ({ pending }: { pending: PendingConfirmation }) 
       break;
     case "rheed_gain":
       body = <RheedGainPrompt call={call} />;
+      break;
+    case "rheed_emission":
+      body = <RheedEmissionPrompt pending={pending} call={call} />;
       break;
     case "pixel_check":
       body = <PixelCheckPrompt call={call} />;
@@ -365,15 +478,17 @@ const PendingConfirmationCard = ({ pending }: { pending: PendingConfirmation }) 
             {TITLES[pending.kind] ?? `Waiting: ${pending.kind}`}
           </Text>
         </HStack>
-        <Text fontSize="xs">{pending.message}</Text>
+        {/* rheed_emission splits its message around the step table itself. */}
+        {pending.kind !== "rheed_emission" && <Text fontSize="xs">{pending.message}</Text>}
         {body}
         {/* The generic `confirm` clears any gate. Offered for the operator
           * flows so one started by mistake can be backed out of without
           * answering it -- "align by hand" would otherwise force a position
           * into the calibration. Not for `fiducial_role`, whose own cancel
-          * button is this same call, and not for unknown kinds, whose only
-          * button already is. */}
-        {pending.kind in TITLES && pending.kind !== "fiducial_role" && (
+          * button is this same call, not for `rheed_emission`, where it
+          * would leave the gun half on (its way out is RHEED off), and not
+          * for unknown kinds, whose only button already is. */}
+        {pending.kind in TITLES && pending.kind !== "fiducial_role" && pending.kind !== "rheed_emission" && (
           <HStack>
             <Button
               size="xs"

@@ -13,6 +13,7 @@ import {
   PixelIndex,
   RegisterSubstrate,
   ResumeSubstrate,
+  RheedOn,
   SampleAngle,
   SetMfcControl,
   SetLaserEnergy,
@@ -35,6 +36,7 @@ export type OpCategory =
   | "Task"
   | "Heating laser"
   | "Excimer"
+  | "RHEED gun"
   | "Motion"
   | "Gas & pressure"
   | "Target"
@@ -45,6 +47,7 @@ export const OP_CATEGORIES: OpCategory[] = [
   "Task",
   "Heating laser",
   "Excimer",
+  "RHEED gun",
   "Motion",
   "Gas & pressure",
   "Target",
@@ -89,6 +92,7 @@ export const CATEGORY_READINGS: Record<OpCategory, Reading[]> = {
   Task: ["target", "shutter", "mask", "excimerEnergy"],
   "Heating laser": ["temperature", "heatingLaser", "pid"],
   Excimer: ["excimer", "excimerEnergy", "excimerHv", "confirmedPower"],
+  "RHEED gun": ["rheedGun"],
   Motion: ["mask", "rheedGun", "sampleAngle", "pixel", "motorFree"],
   "Gas & pressure": ["pressure", "cdg", "mfc", "pressureControl", "pressureSetpoint"],
   Target: ["target", "spin", "twist", "autoSpin", "autoTwist", "motorFree"],
@@ -346,6 +350,51 @@ export const OP_REGISTRY: OpSpec[] = [
     ],
     run: (c, p) => c.begin_set_laser_power(p as unknown as BeginSetLaserPower),
   },
+  // --- RHEED gun -------------------------------------------------------------
+  {
+    id: "rheed_on",
+    label: "RHEED gun on",
+    category: "RHEED gun",
+    hint: "Filament on, HV on, then the emission search: the filament goes up in 50 mA steps until the emission saturates, then focus and deflection. Asked by a person (the lab's default), each step waits for you to say Up or Stop on the prompt. Blank fields use the lab's values; focus and deflection depend on the alignment. About 2-4 minutes from off.",
+    // With a person deciding, it stops on a `rheed_emission` prompt.
+    opensPrompt: true,
+    fields: [
+      { key: "hv_kv", label: "HV", type: "number", unit: "kV", step: 0.5, min: 0, optional: true },
+      { key: "filament_start_ma", label: "Filament from", type: "number", unit: "mA", step: 50, min: 0, optional: true },
+      { key: "filament_max_ma", label: "Filament at most", type: "number", unit: "mA", step: 50, min: 0, optional: true },
+      { key: "focus_ma", label: "Focus", type: "number", unit: "mA", min: 0, optional: true },
+      { key: "deflection_x_ma", label: "Deflection X", type: "number", unit: "mA", optional: true },
+      { key: "deflection_y_ma", label: "Deflection Y", type: "number", unit: "mA", optional: true },
+      {
+        key: "by_person",
+        label: "Saturation decided by",
+        type: "select",
+        optional: true,
+        initial: "",
+        options: [
+          { value: "", label: "the lab's setting" },
+          { value: "person", label: "a person, step by step" },
+          { value: "rule", label: "the first-two-digits rule" },
+        ],
+      },
+    ],
+    run: (c, p) => {
+      const { by_person, ...rest } = p;
+      const req: RheedOn = { ...(rest as RheedOn) };
+      if (by_person === "person") req.by_person = true;
+      else if (by_person === "rule") req.by_person = false;
+      return c.rheed_on(req);
+    },
+  },
+  {
+    id: "rheed_off",
+    label: "RHEED gun off",
+    category: "RHEED gun",
+    hint: "HV and filament ramped off (gentle all off), about two minutes from full. Also ends an open emission search.",
+    fields: [],
+    run: (c) => c.rheed_off(),
+  },
+
   // --- Motion ----------------------------------------------------------------
   {
     id: "move_mask_to_position",
