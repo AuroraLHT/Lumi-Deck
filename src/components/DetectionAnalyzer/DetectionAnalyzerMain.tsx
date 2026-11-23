@@ -11,7 +11,7 @@ import {
 import { ChevronDownIcon, ChevronRightIcon } from "@chakra-ui/icons";
 import { useState } from "react";
 
-import useLiveAnalysisStore, { SelectedDetection } from "../../stores/liveAnalysis";
+import useLiveAnalysisStore, { SelectedDetection, useAgentBoxLabels } from "../../stores/liveAnalysis";
 import IntegratorVisualizer from "./IntegratorVisualizer";
 import STFTVisualizer from "./STFTVisualizer";
 import BBoxEditor from "./BBoxEditor";
@@ -107,6 +107,8 @@ const DetectionAnalyzerMain = () => {
   // Collapsed by default: the charts are what the panel is for, and eight
   // read-only numbers were pushing them below the fold.
   const [isDetailsOpen, setIsDetailsOpen] = useState(false);
+  const agentLabels = useAgentBoxLabels();
+  const agentLabel = focusedDetectionID ? agentLabels[focusedDetectionID] : undefined;
 
   return (
     <VStack align="stretch" spacing={2} minW={0}>
@@ -125,7 +127,7 @@ const DetectionAnalyzerMain = () => {
           >
             <Flex align="baseline" gap={2} minW={0}>
               <Text fontSize="xs" fontWeight="700" flexShrink={0}>
-                {`Box ${focusedDetection.name}`}
+                {`Box ${focusedDetection.name}${agentLabel ? ` · ${agentLabel}` : ""}`}
               </Text>
               <Text
                 fontSize="xs"

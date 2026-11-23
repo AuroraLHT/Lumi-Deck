@@ -1,8 +1,10 @@
 // store.ts
+import { useMemo } from "react";
 import { create } from "zustand";
 import { DetectionBBox } from "../entities/detector";
 import { immer } from "zustand/middleware/immer";
 import type { RegisteredBox } from "../hooks/useRegisteredBoxes";
+import useExperimentDriverNodeStore from "./nodes/experimentDriver";
 
 /**
  * Boxes from this id up are an agent's (experiment.driver.add_rheed_box), not
@@ -11,6 +13,26 @@ import type { RegisteredBox } from "../hooks/useRegisteredBoxes";
  */
 export const AGENT_BBOX_MIN = 1000;
 export const isAgentBoxId = (id: string | number) => Number(id) >= AGENT_BBOX_MIN;
+
+/**
+ * The agent boxes' labels by bbox id, from the experiment driver's
+ * `rheed_boxes`. A box the driver no longer knows (it restarted while the box
+ * stayed on the integrator) has none.
+ *
+ * Selected as one string, not the object: the driver's heartbeat rebuilds
+ * `rheed_boxes` every 2s, and an object dep would re-render every consumer
+ * that often for the same labels.
+ */
+export const useAgentBoxLabels = (): Record<string, string> => {
+  const key = useExperimentDriverNodeStore((s) =>
+    JSON.stringify(
+      Object.entries(s.state.rheed_boxes)
+        .filter(([, box]) => box.label)
+        .map(([id, box]) => [id, box.label])
+    )
+  );
+  return useMemo(() => Object.fromEntries(JSON.parse(key) as [string, string][]), [key]);
+};
 
 export interface SelectedDetection extends DetectionBBox {
   id: string;
