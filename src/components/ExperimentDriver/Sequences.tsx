@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useCallback, useLayoutEffect, useRef, useState } from "react";
 import { Badge, Box, Button, Checkbox, Flex, HStack, Input, Progress, Select, Spinner, Text, VStack } from "@chakra-ui/react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 
@@ -74,36 +74,89 @@ const describeStep = (step: Step): string => {
   }
 };
 
-/** Numbered as the run's `step` counts them (1-based), indented inside loops. */
+/**
+ * Numbered as the run's `step` counts them (1-based), indented inside loops.
+ *
+ * Framed on its own background, because it scrolls: without the frame the
+ * list ran into the run options below it, and a reader could not tell whether
+ * they had seen the last step. While more steps are below, the list's bottom
+ * edge fades out and a "⋯" sits under it; neither means the last step is in
+ * view. Its line is always reserved, so scrolling
+ * to the end never shifts the buttons under it.
+ */
 const StepList = ({ steps, current }: { steps: Step[]; current?: number }) => {
+  const scroller = useRef<HTMLDivElement>(null);
+  const [moreBelow, setMoreBelow] = useState(false);
+  const measure = useCallback(() => {
+    const el = scroller.current;
+    if (el) setMoreBelow(el.scrollTop + el.clientHeight < el.scrollHeight - 2);
+  }, []);
+  useLayoutEffect(measure, [measure, steps.length]);
+
   let depth = 0;
   return (
-    <VStack align="stretch" spacing={0} maxH="240px" overflowY="auto" fontSize="xs" sx={TABULAR}>
-      {steps.map((step, i) => {
-        const op = Object.keys(step).find((k) => k !== "label");
-        if (op === "loop_end") depth = Math.max(0, depth - 1);
-        const indent = depth;
-        if (op === "loop_start") depth += 1;
-        const here = current === i + 1;
-        const risky = op === "fire_laser" || op === "meter_energy";
-        return (
-          <Flex key={i} gap={2} py="1px" bg={here ? "blue.50" : undefined} _dark={here ? { bg: "blue.900" } : undefined}>
-            <Text color="text.muted" w="24px" textAlign="right" flexShrink={0}>
-              {i + 1}
-            </Text>
-            <Text pl={`${indent * 14}px`} flex={1} color={risky ? "status.warn" : undefined}>
-              {describeStep(step)}
-              {typeof step.label === "string" && step.label && (
-                <Text as="span" color="text.muted">
-                  {" "}
-                  · {step.label}
+    <Box bg="panel.header" borderWidth="1px" borderColor="panel.border" borderRadius="md" p={1}>
+      <Box position="relative">
+        <VStack
+          ref={scroller}
+          onScroll={measure}
+          align="stretch"
+          spacing={0}
+          maxH="240px"
+          overflowY="auto"
+          fontSize="xs"
+          sx={TABULAR}
+        >
+          {steps.map((step, i) => {
+            const op = Object.keys(step).find((k) => k !== "label");
+            if (op === "loop_end") depth = Math.max(0, depth - 1);
+            const indent = depth;
+            if (op === "loop_start") depth += 1;
+            const here = current === i + 1;
+            const risky = op === "fire_laser" || op === "meter_energy";
+            return (
+              <Flex key={i} gap={2} py="1px" bg={here ? "blue.50" : undefined} _dark={here ? { bg: "blue.900" } : undefined}>
+                <Text color="text.muted" w="24px" textAlign="right" flexShrink={0}>
+                  {i + 1}
                 </Text>
-              )}
-            </Text>
-          </Flex>
-        );
-      })}
-    </VStack>
+                <Text pl={`${indent * 14}px`} flex={1} color={risky ? "status.warn" : undefined}>
+                  {describeStep(step)}
+                  {typeof step.label === "string" && step.label && (
+                    <Text as="span" color="text.muted">
+                      {" "}
+                      · {step.label}
+                    </Text>
+                  )}
+                </Text>
+              </Flex>
+            );
+          })}
+        </VStack>
+        {moreBelow && (
+          <Box
+            position="absolute"
+            left={0}
+            right={0}
+            bottom={0}
+            h="28px"
+            pointerEvents="none"
+            bgGradient="linear(to-b, transparent, panel.header)"
+          />
+        )}
+      </Box>
+      <Text
+        fontSize="xs"
+        lineHeight="12px"
+        h="12px"
+        color="text.secondary"
+        fontWeight="700"
+        textAlign="center"
+        title={moreBelow ? "More steps below: scroll the list" : undefined}
+        aria-label={moreBelow ? "More steps below" : "End of the steps"}
+      >
+        {moreBelow ? "⋯" : ""}
+      </Text>
+    </Box>
   );
 };
 
