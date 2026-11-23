@@ -355,7 +355,7 @@ export const OP_REGISTRY: OpSpec[] = [
     id: "rheed_on",
     label: "RHEED gun on",
     category: "RHEED gun",
-    hint: "Filament on, HV on, then the emission search: the filament goes up in 50 mA steps until the emission saturates, then focus and deflection. Asked by a person (the lab's default), each step waits for you to say Up or Stop on the prompt. Blank fields use the lab's values; focus and deflection depend on the alignment. About 2-4 minutes from off.",
+    hint: "Filament on, HV on, then the emission search: the filament goes up in 50 mA steps until the beam saturates, then focus and deflection. The agent decides by default; a person decides with Up or Stop here on the search card. Blank fields use the lab's values; focus and deflection depend on the alignment. About 2-4 minutes from off.",
     // With a person deciding, it stops on a `rheed_emission` prompt.
     opensPrompt: true,
     fields: [
@@ -366,25 +366,20 @@ export const OP_REGISTRY: OpSpec[] = [
       { key: "deflection_x_ma", label: "Deflection X", type: "number", unit: "mA", optional: true },
       { key: "deflection_y_ma", label: "Deflection Y", type: "number", unit: "mA", optional: true },
       {
-        key: "by_person",
+        key: "judge",
         label: "Saturation decided by",
         type: "select",
         optional: true,
         initial: "",
         options: [
           { value: "", label: "the lab's setting" },
+          { value: "agent", label: "the agent" },
           { value: "person", label: "a person, step by step" },
           { value: "rule", label: "the first-two-digits rule" },
         ],
       },
     ],
-    run: (c, p) => {
-      const { by_person, ...rest } = p;
-      const req: RheedOn = { ...(rest as RheedOn) };
-      if (by_person === "person") req.by_person = true;
-      else if (by_person === "rule") req.by_person = false;
-      return c.rheed_on(req);
-    },
+    run: (c, p) => c.rheed_on(p as RheedOn),
   },
   {
     id: "rheed_off",

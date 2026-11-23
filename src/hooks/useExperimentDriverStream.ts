@@ -30,6 +30,7 @@ export const projectDriverState = (
   laser_power_set: s?.laser_power_set ?? null,
   laser_power_real: s?.laser_power_real ?? null,
   sequence: s?.sequence ?? null,
+  rheed_search: s?.rheed_search ?? null,
 });
 
 /**
@@ -48,8 +49,9 @@ export const refreshDriverState = async (transport: LumiTransport) => {
  * handler per `target:stream`, and a task's result is broadcast once and
  * never queryable, so it has to be caught while the panel is closed too.
  *
- * Each event is a full snapshot of the gate and the running task (None means
- * none, not "unchanged"), so it is applied as-is. A finishing task's event
+ * Each event is a full snapshot of the gate, the running task and the open
+ * RHEED emission search (None means none, not "unchanged"), so it is applied
+ * as-is. A finishing task's event
  * also carries its `task_result` and, in `finished_task`, which op it was --
  * the result is kept in `stores/experimentDriver.ts`.
  *
@@ -80,6 +82,7 @@ const useExperimentDriverStream = () => {
       useExperimentDriverNodeStore.getState().setState({
         pending_confirmation: event.pending_confirmation ?? null,
         current_task: event.current_task ?? null,
+        rheed_search: event.rheed_search ?? null,
       });
       const result = event.task_result;
       if (result) {
