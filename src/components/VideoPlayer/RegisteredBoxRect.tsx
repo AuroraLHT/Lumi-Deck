@@ -19,6 +19,9 @@ interface RegisteredBoxRectProps {
   bbox: number[];
   isFocused: boolean;
   isRunningSTFT: boolean;
+  /** An agent's box: drawn orange, with its label when known. */
+  isAgent?: boolean;
+  label?: string;
   cropSetup: { sx: number; sy: number; ex: number; ey: number } | null;
   frameWidth: number;
   frameHeight: number;
@@ -30,6 +33,8 @@ const RegisteredBoxRect = ({
   bbox,
   isFocused,
   isRunningSTFT,
+  isAgent,
+  label,
   cropSetup,
   frameWidth,
   frameHeight,
@@ -38,7 +43,7 @@ const RegisteredBoxRect = ({
   const { relativeX, relativeY, relativeWidth, relativeHeight } =
     getRelativeBbox(correctBbox(bbox, cropSetup), frameWidth, frameHeight);
 
-  const stroke = isFocused ? "#63b3ed" : isRunningSTFT ? "#9f7aea" : "#48bb78";
+  const stroke = isFocused ? "#63b3ed" : isAgent ? "#ed8936" : isRunningSTFT ? "#9f7aea" : "#48bb78";
 
   return (
     <g onClick={() => onSelect(id)} style={{ cursor: "pointer" }}>
@@ -66,7 +71,7 @@ const RegisteredBoxRect = ({
         pointerEvents="none"
         style={{ userSelect: "none" }}
       >
-        {id}
+        {label ? `${id} ${label}` : id}
       </text>
     </g>
   );

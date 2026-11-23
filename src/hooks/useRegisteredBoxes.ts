@@ -6,6 +6,7 @@ import useIntegratorNodeStore from "../stores/nodes/integrator";
 import useSTFTNodeStore from "../stores/nodes/stft";
 import useLiveAnalysisStore from "../stores/liveAnalysis";
 import useRegisteredBoxesStore from "../stores/registeredBoxes";
+import { isAgentBoxId } from "../stores/liveAnalysis";
 
 /**
  * A box as the *backend* has it: registered on the node, shared by every client,
@@ -23,6 +24,8 @@ export interface RegisteredBox {
   isIntegrating: boolean;
   /** The STFT calculator is running over that series. */
   isRunningSTFT: boolean;
+  /** An agent's box (experiment.driver.add_rheed_box): read-only in the Deck. */
+  isAgent: boolean;
 }
 
 const toCorners = (bbox: BBox): number[] => [
@@ -149,6 +152,7 @@ export const useRegisteredBoxes = () => {
         corners: toCorners(bbox),
         isIntegrating: true,
         isRunningSTFT: stft.has(bboxId),
+        isAgent: isAgentBoxId(bboxId),
       });
     }
     boxes.sort((a, b) => a.bboxId - b.bboxId);

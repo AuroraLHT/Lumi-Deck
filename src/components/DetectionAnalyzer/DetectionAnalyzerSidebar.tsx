@@ -29,6 +29,11 @@ const describeBox = (detection: SelectedDetection) => {
     detection.isRunningOscillation ? "oscillation" : null,
     detection.isRunningSTFT ? "STFT" : null,
   ].filter(Boolean);
+  if (detection.isAgent) {
+    return `Box ${detection.name} — drawn by an agent, read-only here — ${geometry}${
+      running.length ? ` — running ${running.join(" + ")}` : ""
+    }`;
+  }
   const state = detection.isRegistered
     ? running.length
       ? `running ${running.join(" + ")}`
@@ -173,6 +178,16 @@ const DetectionAnalyzerSidebar = () => {
                         aria-label="Running STFT"
                       />
                     )}
+                    {detection.isAgent && (
+                      <Badge
+                        colorScheme="orange"
+                        fontSize="8px"
+                        px={1}
+                        textTransform="none"
+                      >
+                        agent
+                      </Badge>
+                    )}
                     {!detection.isRegistered && (
                       <Badge
                         colorScheme="gray"
@@ -185,22 +200,25 @@ const DetectionAnalyzerSidebar = () => {
                     )}
                   </Flex>
 
-                  <IconButton
-                    size="xs"
-                    color="red.400"
-                    aria-label={`Remove box ${detection.name}`}
-                    icon={<CloseIcon boxSize={2} />}
-                    minW="18px"
-                    h="18px"
-                    flexShrink={0}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      removeSelectedDetection(detection.id);
-                      sendIntegratorRequest("remove", detection);
-                      sendSTFTRequest("remove", detection);
-                    }}
-                    variant="ghost"
-                  />
+                  {/* An agent's box is the agent's to remove (remove_rheed_box). */}
+                  {!detection.isAgent && (
+                    <IconButton
+                      size="xs"
+                      color="red.400"
+                      aria-label={`Remove box ${detection.name}`}
+                      icon={<CloseIcon boxSize={2} />}
+                      minW="18px"
+                      h="18px"
+                      flexShrink={0}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        removeSelectedDetection(detection.id);
+                        sendIntegratorRequest("remove", detection);
+                        sendSTFTRequest("remove", detection);
+                      }}
+                      variant="ghost"
+                    />
+                  )}
                 </Flex>
               </ListItem>
             </Tooltip>

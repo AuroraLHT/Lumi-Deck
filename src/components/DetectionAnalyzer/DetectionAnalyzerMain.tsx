@@ -23,6 +23,7 @@ interface AnalysisToggleProps {
   isChecked: boolean;
   colorScheme: string;
   onChange: (checked: boolean) => void;
+  isDisabled?: boolean;
 }
 
 /**
@@ -40,6 +41,7 @@ const AnalysisToggle = ({
   isChecked,
   colorScheme,
   onChange,
+  isDisabled,
 }: AnalysisToggleProps) => (
   // Not `as="label"`: Chakra's Switch renders its own <label>, and nesting one
   // label inside another is invalid HTML that makes a single click toggle twice
@@ -80,6 +82,7 @@ const AnalysisToggle = ({
       colorScheme={colorScheme}
       isChecked={isChecked}
       onChange={(e) => onChange(e.target.checked)}
+      isDisabled={isDisabled}
       flexShrink={0}
     />
   </Flex>
@@ -136,7 +139,13 @@ const DetectionAnalyzerMain = () => {
           </Button>
 
           <Collapse in={isDetailsOpen} animateOpacity>
-            <BBoxEditor detection={focusedDetection} />
+            {focusedDetection.isAgent ? (
+              <Text fontSize="xs" color="text.secondary" px={1}>
+                Drawn by an agent: read-only here. The agent removes it (remove_rheed_box).
+              </Text>
+            ) : (
+              <BBoxEditor detection={focusedDetection} />
+            )}
           </Collapse>
 
           <SimpleGrid minChildWidth="130px" spacing={2}>
@@ -145,6 +154,7 @@ const DetectionAnalyzerMain = () => {
               label="Oscillation"
               colorScheme="green"
               isChecked={focusedDetection.isRunningOscillation}
+              isDisabled={focusedDetection.isAgent}
               onChange={(checked) => {
                 sendIntegratorRequest(
                   checked ? "register" : "remove",
@@ -158,6 +168,7 @@ const DetectionAnalyzerMain = () => {
               label="Short-time FT"
               colorScheme="blue"
               isChecked={focusedDetection.isRunningSTFT}
+              isDisabled={focusedDetection.isAgent}
               onChange={(checked) => {
                 sendSTFTRequest(
                   checked ? "register" : "remove",

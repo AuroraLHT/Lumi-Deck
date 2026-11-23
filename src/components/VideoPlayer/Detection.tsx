@@ -91,6 +91,7 @@ const Detection = () => {
           bbox={box.corners}
           isFocused={box.id === focusedDetectionID}
           isRunningSTFT={box.isRunningSTFT}
+          isAgent={box.isAgent}
           cropSetup={cropSetup}
           frameHeight={rheedNodeState.frame_dims[0]}
           frameWidth={rheedNodeState.frame_dims[1]}
