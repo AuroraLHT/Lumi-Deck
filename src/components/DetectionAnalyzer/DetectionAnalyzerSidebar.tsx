@@ -11,7 +11,7 @@ import {
 } from "@chakra-ui/react";
 import { CloseIcon, RepeatIcon } from "@chakra-ui/icons";
 // Assuming you have a hook to connect to your store
-import useLiveAnalysisStore, { SelectedDetection } from "../../stores/liveAnalysis";
+import useLiveAnalysisStore, { SelectedDetection, useAgentBoxLabels } from "../../stores/liveAnalysis";
 import styles from "./DetectionAnalyzer.module.css";
 import useAnalyzerControl from "../../hooks/useAnalyzerControl";
 import useTransportStore from "../../clients/transport";
@@ -20,7 +20,7 @@ import useRegisteredBoxes, {
 } from "../../hooks/useRegisteredBoxes";
 
 /** Everything the row cannot show, for the tooltip that replaced the long name. */
-const describeBox = (detection: SelectedDetection) => {
+const describeBox = (detection: SelectedDetection, label?: string) => {
   const [x1, y1, x2, y2] = detection.bbox;
   const geometry = `x ${Math.round(x1)}, y ${Math.round(y1)} · ${Math.round(
     x2 - x1
@@ -29,6 +29,11 @@ const describeBox = (detection: SelectedDetection) => {
     detection.isRunningOscillation ? "oscillation" : null,
     detection.isRunningSTFT ? "STFT" : null,
   ].filter(Boolean);
+  if (detection.isAgent) {
+    return `Box ${detection.name}${label ? ` (${label})` : ""} — drawn by an agent, read-only here — ${geometry}${
+      running.length ? ` — running ${running.join(" + ")}` : ""
+    }`;
+  }
   const state = detection.isRegistered
     ? running.length
       ? `running ${running.join(" + ")}`
@@ -65,6 +70,7 @@ const DetectionAnalyzerSidebar = () => {
   const { sendIntegratorRequest, sendSTFTRequest } = useAnalyzerControl();
   const transport = useTransportStore((s) => s.transport);
   const { boxes, isLoading, error, isSyncing } = useRegisteredBoxes();
+  const agentLabels = useAgentBoxLabels();
 
   const detections = Object.values(selectedDetections);
 
@@ -118,7 +124,7 @@ const DetectionAnalyzerSidebar = () => {
           return (
             <Tooltip
               key={detection.id}
-              label={describeBox(detection)}
+              label={describeBox(detection, agentLabels[detection.id])}
               placement="right"
               openDelay={300}
             >
@@ -173,6 +179,16 @@ const DetectionAnalyzerSidebar = () => {
                         aria-label="Running STFT"
                       />
                     )}
+                    {detection.isAgent && (
+                      <Badge
+                        colorScheme="orange"
+                        fontSize="8px"
+                        px={1}
+                        textTransform="none"
+                      >
+                        agent
+                      </Badge>
+                    )}
                     {!detection.isRegistered && (
                       <Badge
                         colorScheme="gray"
@@ -185,22 +201,25 @@ const DetectionAnalyzerSidebar = () => {
                     )}
                   </Flex>
 
-                  <IconButton
-                    size="xs"
-                    color="red.400"
-                    aria-label={`Remove box ${detection.name}`}
-                    icon={<CloseIcon boxSize={2} />}
-                    minW="18px"
-                    h="18px"
-                    flexShrink={0}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      removeSelectedDetection(detection.id);
-                      sendIntegratorRequest("remove", detection);
-                      sendSTFTRequest("remove", detection);
-                    }}
-                    variant="ghost"
-                  />
+                  {/* An agent's box is the agent's to remove (remove_rheed_box). */}
+                  {!detection.isAgent && (
+                    <IconButton
+                      size="xs"
+                      color="red.400"
+                      aria-label={`Remove box ${detection.name}`}
+                      icon={<CloseIcon boxSize={2} />}
+                      minW="18px"
+                      h="18px"
+                      flexShrink={0}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        removeSelectedDetection(detection.id);
+                        sendIntegratorRequest("remove", detection);
+                        sendSTFTRequest("remove", detection);
+                      }}
+                      variant="ghost"
+                    />
+                  )}
                 </Flex>
               </ListItem>
             </Tooltip>

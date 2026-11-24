@@ -1,8 +1,8 @@
 import { useEffect, useRef } from "react";
 
-import { ExperimentDriverClient, ExperimentState, LumiTransport } from "../generated/lumi";
+import { ExperimentDriverClient, ExperimentState, FinishedTask, LumiTransport } from "../generated/lumi";
 import useTransportStore from "../clients/transport";
-import useExperimentDriverStore from "../stores/experimentDriver";
+import useExperimentDriverStore, { DriverTaskResult } from "../stores/experimentDriver";
 import useExperimentDriverNodeStore, {
   ExperimentDriverNodeState,
 } from "../stores/nodes/experimentDriver";
@@ -31,7 +31,35 @@ export const projectDriverState = (
   laser_power_real: s?.laser_power_real ?? null,
   sequence: s?.sequence ?? null,
   rheed_search: s?.rheed_search ?? null,
+  rheed_boxes: s?.rheed_boxes ?? {},
 });
+
+/** A task's result, from the event that ended it or from the driver's `last_task`. */
+const toResult = (
+  result: Record<string, unknown>,
+  task: { kind: string; id: string } | null | undefined,
+  finishedAt: number
+): DriverTaskResult => {
+  const ok = result.ok === true;
+  return {
+    kind: task?.kind ?? null,
+    taskId: task?.id ?? null,
+    finishedAt,
+    ok,
+    error: ok ? null : String(result.error ?? "task failed"),
+    data: result,
+  };
+};
+
+/**
+ * The driver's last finished task, kept unless the stream already caught it:
+ * after a reload (or an event missed while disconnected) it is the only way
+ * back to that outcome. `finished_at` is the node's `time.time()`, in seconds.
+ */
+const seedLastTask = (last: FinishedTask | null | undefined) => {
+  if (!last) return;
+  useExperimentDriverStore.getState().seedResult(toResult(last.result, last.task, last.finished_at * 1000));
+};
 
 /**
  * Pull the driver's state now instead of waiting up to 2s for the heartbeat.
@@ -41,6 +69,7 @@ export const projectDriverState = (
 export const refreshDriverState = async (transport: LumiTransport) => {
   const state = await new ExperimentDriverClient(transport).getState();
   useExperimentDriverNodeStore.getState().setState(projectDriverState(state));
+  seedLastTask(state.last_task);
 };
 
 /**
@@ -49,8 +78,8 @@ export const refreshDriverState = async (transport: LumiTransport) => {
  * handler per `target:stream`, and a task's result is broadcast once and
  * never queryable, so it has to be caught while the panel is closed too.
  *
- * Each event is a full snapshot of the gate, the running task and the open
- * RHEED emission search (None means none, not "unchanged"), so it is applied
+ * Each event is a full snapshot of the gate, the running task, the open
+ * RHEED emission search and the agents' RHEED boxes (None means none, not "unchanged"), so it is applied
  * as-is. A finishing task's event
  * also carries its `task_result` and, in `finished_task`, which op it was --
  * the result is kept in `stores/experimentDriver.ts`.
@@ -83,18 +112,11 @@ const useExperimentDriverStream = () => {
         pending_confirmation: event.pending_confirmation ?? null,
         current_task: event.current_task ?? null,
         rheed_search: event.rheed_search ?? null,
+        rheed_boxes: event.rheed_boxes ?? {},
       });
       const result = event.task_result;
       if (result) {
-        const ok = result.ok === true;
-        useExperimentDriverStore.getState().addResult({
-          kind: event.finished_task?.kind ?? null,
-          taskId: event.finished_task?.id ?? null,
-          finishedAt: Date.now(),
-          ok,
-          error: ok ? null : String(result.error ?? "task failed"),
-          data: result,
-        });
+        useExperimentDriverStore.getState().addResult(toResult(result, event.finished_task, Date.now()));
       }
     });
 

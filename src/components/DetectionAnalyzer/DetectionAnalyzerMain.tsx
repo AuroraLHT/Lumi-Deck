@@ -11,7 +11,7 @@ import {
 import { ChevronDownIcon, ChevronRightIcon } from "@chakra-ui/icons";
 import { useState } from "react";
 
-import useLiveAnalysisStore, { SelectedDetection } from "../../stores/liveAnalysis";
+import useLiveAnalysisStore, { SelectedDetection, useAgentBoxLabels } from "../../stores/liveAnalysis";
 import IntegratorVisualizer from "./IntegratorVisualizer";
 import STFTVisualizer from "./STFTVisualizer";
 import BBoxEditor from "./BBoxEditor";
@@ -23,6 +23,7 @@ interface AnalysisToggleProps {
   isChecked: boolean;
   colorScheme: string;
   onChange: (checked: boolean) => void;
+  isDisabled?: boolean;
 }
 
 /**
@@ -40,6 +41,7 @@ const AnalysisToggle = ({
   isChecked,
   colorScheme,
   onChange,
+  isDisabled,
 }: AnalysisToggleProps) => (
   // Not `as="label"`: Chakra's Switch renders its own <label>, and nesting one
   // label inside another is invalid HTML that makes a single click toggle twice
@@ -80,6 +82,7 @@ const AnalysisToggle = ({
       colorScheme={colorScheme}
       isChecked={isChecked}
       onChange={(e) => onChange(e.target.checked)}
+      isDisabled={isDisabled}
       flexShrink={0}
     />
   </Flex>
@@ -104,6 +107,8 @@ const DetectionAnalyzerMain = () => {
   // Collapsed by default: the charts are what the panel is for, and eight
   // read-only numbers were pushing them below the fold.
   const [isDetailsOpen, setIsDetailsOpen] = useState(false);
+  const agentLabels = useAgentBoxLabels();
+  const agentLabel = focusedDetectionID ? agentLabels[focusedDetectionID] : undefined;
 
   return (
     <VStack align="stretch" spacing={2} minW={0}>
@@ -122,7 +127,7 @@ const DetectionAnalyzerMain = () => {
           >
             <Flex align="baseline" gap={2} minW={0}>
               <Text fontSize="xs" fontWeight="700" flexShrink={0}>
-                {`Box ${focusedDetection.name}`}
+                {`Box ${focusedDetection.name}${agentLabel ? ` · ${agentLabel}` : ""}`}
               </Text>
               <Text
                 fontSize="xs"
@@ -136,7 +141,13 @@ const DetectionAnalyzerMain = () => {
           </Button>
 
           <Collapse in={isDetailsOpen} animateOpacity>
-            <BBoxEditor detection={focusedDetection} />
+            {focusedDetection.isAgent ? (
+              <Text fontSize="xs" color="text.secondary" px={1}>
+                Drawn by an agent: read-only here. The agent removes it (remove_rheed_box).
+              </Text>
+            ) : (
+              <BBoxEditor detection={focusedDetection} />
+            )}
           </Collapse>
 
           <SimpleGrid minChildWidth="130px" spacing={2}>
@@ -145,6 +156,7 @@ const DetectionAnalyzerMain = () => {
               label="Oscillation"
               colorScheme="green"
               isChecked={focusedDetection.isRunningOscillation}
+              isDisabled={focusedDetection.isAgent}
               onChange={(checked) => {
                 sendIntegratorRequest(
                   checked ? "register" : "remove",
@@ -158,6 +170,7 @@ const DetectionAnalyzerMain = () => {
               label="Short-time FT"
               colorScheme="blue"
               isChecked={focusedDetection.isRunningSTFT}
+              isDisabled={focusedDetection.isAgent}
               onChange={(checked) => {
                 sendSTFTRequest(
                   checked ? "register" : "remove",

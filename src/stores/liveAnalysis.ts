@@ -1,8 +1,38 @@
 // store.ts
+import { useMemo } from "react";
 import { create } from "zustand";
 import { DetectionBBox } from "../entities/detector";
 import { immer } from "zustand/middleware/immer";
 import type { RegisteredBox } from "../hooks/useRegisteredBoxes";
+import useExperimentDriverNodeStore from "./nodes/experimentDriver";
+
+/**
+ * Boxes from this id up are an agent's (experiment.driver.add_rheed_box), not
+ * an operator's. The Deck shows them read-only and never hands out an id in
+ * this range, so it can neither move nor overwrite one.
+ */
+export const AGENT_BBOX_MIN = 1000;
+export const isAgentBoxId = (id: string | number) => Number(id) >= AGENT_BBOX_MIN;
+
+/**
+ * The agent boxes' labels by bbox id, from the experiment driver's
+ * `rheed_boxes`. A box the driver no longer knows (it restarted while the box
+ * stayed on the integrator) has none.
+ *
+ * Selected as one string, not the object: the driver's heartbeat rebuilds
+ * `rheed_boxes` every 2s, and an object dep would re-render every consumer
+ * that often for the same labels.
+ */
+export const useAgentBoxLabels = (): Record<string, string> => {
+  const key = useExperimentDriverNodeStore((s) =>
+    JSON.stringify(
+      Object.entries(s.state.rheed_boxes)
+        .filter(([, box]) => box.label)
+        .map(([id, box]) => [id, box.label])
+    )
+  );
+  return useMemo(() => Object.fromEntries(JSON.parse(key) as [string, string][]), [key]);
+};
 
 export interface SelectedDetection extends DetectionBBox {
   id: string;
@@ -22,6 +52,8 @@ export interface SelectedDetection extends DetectionBBox {
    * reload.
    */
   isRegistered: boolean;
+  /** Drawn by an agent (id >= AGENT_BBOX_MIN): read-only here. */
+  isAgent: boolean;
 }
 
 interface LiveAnalysisState {
@@ -88,6 +120,7 @@ const useLiveAnalysisStore = create(
           isRunningSTFT: false,
           isRunningOscillation: false,
           isRegistered: false,
+          isAgent: false,
         };
       }),
 
@@ -128,7 +161,7 @@ const useLiveAnalysisStore = create(
 
     beginRedraw: (id: string) =>
       set((state) => {
-        if (!(id in state.selectedDetection)) return;
+        if (!(id in state.selectedDetection) || state.selectedDetection[id].isAgent) return;
         state.redrawTargetID = id;
         // The overlay highlights the focused box, so focusing it is what makes
         // "which one am I about to move?" answerable on the video itself.
@@ -143,7 +176,7 @@ const useLiveAnalysisStore = create(
     setDetectionBBox: (id: string, bbox: number[]) =>
       set((state) => {
         const detection = state.selectedDetection[id];
-        if (!detection) return;
+        if (!detection || detection.isAgent) return;
         detection.bbox = bbox;
         if (state.redrawTargetID === id) state.redrawTargetID = null;
       }),
@@ -164,6 +197,15 @@ const useLiveAnalysisStore = create(
 
         for (const box of boxes) {
           const existing = state.selectedDetection[box.id];
+          if (existing && box.isAgent) {
+            // An agent's box is the node's alone: nothing local to keep.
+            existing.bbox = box.corners;
+            existing.isAgent = true;
+            existing.isRegistered = true;
+            existing.isRunningOscillation = box.isIntegrating;
+            existing.isRunningSTFT = box.isRunningSTFT;
+            continue;
+          }
           if (existing) {
             // The name is the user's, and the geometry is whichever of the two
             // is more precise -- the user drew floats, `toBBox` rounded them to
@@ -183,6 +225,7 @@ const useLiveAnalysisStore = create(
             score: 1,
             id: box.id,
             name: box.id,
+            isAgent: box.isAgent,
             isRegistered: true,
             isRunningOscillation: box.isIntegrating,
             isRunningSTFT: box.isRunningSTFT,
@@ -191,6 +234,14 @@ const useLiveAnalysisStore = create(
 
         for (const [id, detection] of Object.entries(state.selectedDetection)) {
           if (registered.has(id)) continue;
+          // An agent's box that left the registry is gone, not "local": this
+          // page could never re-register it.
+          if (detection.isAgent) {
+            delete state.selectedDetection[id];
+            if (state.focusedDetectionID === id) state.focusedDetectionID = null;
+            if (state.redrawTargetID === id) state.redrawTargetID = null;
+            continue;
+          }
           // Either never registered, or another client removed it. Both mean no
           // analysis is running, whatever this page last set the toggles to.
           detection.isRegistered = false;
@@ -201,9 +252,11 @@ const useLiveAnalysisStore = create(
         // Ids are shared with the node: the frontend's detection id *is* the
         // bbox id. Handing out an id the node already uses would silently
         // overwrite someone else's box on the next register, so the counter has
-        // to clear the highest id in use.
+        // to clear the highest id in use -- among the operators' boxes only:
+        // agent ids start at AGENT_BBOX_MIN and count up, so clearing one
+        // would hand out the agent's next id.
         const highest = boxes.reduce(
-          (max, box) => Math.max(max, box.bboxId),
+          (max, box) => (box.isAgent ? max : Math.max(max, box.bboxId)),
           -1
         );
         if (state.detectionNextID <= highest) {

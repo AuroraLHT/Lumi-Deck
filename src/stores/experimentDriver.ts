@@ -7,7 +7,7 @@ export interface DriverTaskResult {
   /** The op that produced it (`auto_align_center_mask`, `anneal`, ...), from the event's `finished_task`. */
   kind: string | null;
   taskId: string | null;
-  /** `Date.now()` when the result arrived. */
+  /** `Date.now()` when the result arrived, or the driver's `last_task.finished_at` for a seeded one. */
   finishedAt: number;
   ok: boolean;
   /** Set when `ok` is false: the backend's `"<ExceptionType>: <message>"`. */
@@ -22,10 +22,11 @@ const MAX_RESULTS = 20;
 /**
  * What the experiment driver says only once.
  *
- * A task's result is never queryable: it arrives on the `pending` channel as
- * the task ends, and `getState()` afterwards just shows no task. So it has to
- * be caught and kept by a subscriber that is always mounted
- * (`useExperimentDriverStream`) -- the same reason `stores/miMode.ts` exists.
+ * A task's result arrives on the `pending` channel as the task ends, and only
+ * the latest one is queryable afterwards (`getState().last_task`). So the
+ * history has to be caught and kept by a subscriber that is always mounted
+ * (`useExperimentDriverStream`) -- the same reason `stores/miMode.ts` exists;
+ * `last_task` only fills in the latest after a reload or a missed event.
  *
  * `pixelStatus` is here for a similar reason: the per-pixel check's position
  * comes back as the *reply* to `begin_check_rheed_pixels` /
@@ -38,6 +39,12 @@ interface ExperimentDriverState {
   pixelStatus: PixelCheckStatus | null;
 
   addResult: (result: DriverTaskResult) => void;
+  /**
+   * Adds a result unless one with its task id is already kept -- for the
+   * driver's `last_task`, which every `getState()` repeats until the next
+   * task finishes.
+   */
+  seedResult: (result: DriverTaskResult) => void;
   setPixelStatus: (status: PixelCheckStatus | null) => void;
   reset: () => void;
 }
@@ -48,6 +55,17 @@ const useExperimentDriverStore = create<ExperimentDriverState>((set) => ({
 
   addResult: (result) =>
     set((state) => ({ results: [...state.results, result].slice(-MAX_RESULTS) })),
+
+  seedResult: (result) =>
+    set((state) =>
+      result.taskId != null && state.results.some((r) => r.taskId === result.taskId)
+        ? state
+        : {
+            results: [...state.results, result]
+              .sort((a, b) => a.finishedAt - b.finishedAt)
+              .slice(-MAX_RESULTS),
+          }
+    ),
 
   setPixelStatus: (pixelStatus) => set({ pixelStatus }),
 

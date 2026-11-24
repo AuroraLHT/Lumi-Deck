@@ -6,7 +6,7 @@ import { Spinner } from "@chakra-ui/react";
 
 import useDetectorNodeStore from "../../stores/nodes/detector";
 import useRheedNodeStore from "../../stores/nodes/rheed";
-import useLiveAnalysisStore from "../../stores/liveAnalysis";
+import useLiveAnalysisStore, { useAgentBoxLabels } from "../../stores/liveAnalysis";
 import useDetection from "../../hooks/useDetection";
 import useRegisteredBoxes from "../../hooks/useRegisteredBoxes";
 
@@ -33,6 +33,7 @@ const Detection = () => {
     (s) => s.setFocusedDetectionID
   );
   const { boxes: registeredBoxes } = useRegisteredBoxes();
+  const agentLabels = useAgentBoxLabels();
 
   const svgRef = useRef<SVGSVGElement>(null);
 
@@ -91,6 +92,8 @@ const Detection = () => {
           bbox={box.corners}
           isFocused={box.id === focusedDetectionID}
           isRunningSTFT={box.isRunningSTFT}
+          isAgent={box.isAgent}
+          label={agentLabels[box.id]}
           cropSetup={cropSetup}
           frameHeight={rheedNodeState.frame_dims[0]}
           frameWidth={rheedNodeState.frame_dims[1]}
@@ -99,6 +102,7 @@ const Detection = () => {
       )),
     [
       registeredBoxes,
+      agentLabels,
       focusedDetectionID,
       cropSetup,
       rheedNodeState,
