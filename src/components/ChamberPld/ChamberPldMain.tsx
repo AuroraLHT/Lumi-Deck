@@ -325,6 +325,15 @@ const MotionSection = memo(({ motion }: { motion?: PldMotion }) => (
       <Field label="Motor free">
         <BoolBadge value={motion?.motor_free} />
       </Field>
+      {motion?.sample_too_low && (
+        <Field label="Sample height">
+          <Tooltip label="The sample is below its height threshold: Mask1 moves and homing are refused until a person raises it">
+            <Badge colorScheme="red" variant="subtle" fontSize="0.65rem">
+              too low
+            </Badge>
+          </Tooltip>
+        </Field>
+      )}
       <Field label="Motor stop">
         {motion?.motors_stopped ? (
           <Tooltip label="Moves, homing, spin, twist and fires are refused until the motors are reset">

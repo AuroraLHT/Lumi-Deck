@@ -62,6 +62,12 @@ const MotionControls = () => {
           </HStack>
         </Field>
         <ReplyText reply={stopReply} />
+        {motion?.sample_too_low && (
+          <Text fontSize="xs" color="status.warn">
+            Sample too low (below its height threshold): Mask1 moves and homing are refused until it is raised by
+            hand.
+          </Text>
+        )}
         {(motion?.homing_needed ?? []).length > 0 && (
           <Text fontSize="xs" color="status.warn">
             Home before relying on the position: {motion!.homing_needed!.join(", ")} (stopped mid-move)

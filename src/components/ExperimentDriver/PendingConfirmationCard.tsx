@@ -8,8 +8,10 @@ import useFiducialMarkers from "../../hooks/useFiducialMarkers";
 import useFiducialRoleControl from "../../hooks/useFiducialRoleControl";
 import useExperimentDriverStore from "../../stores/experimentDriver";
 import useFiducialUIStore from "../../stores/fiducialUI";
+import useExperimentDriverNodeStore from "../../stores/nodes/experimentDriver";
 import { LaserTestPrompt } from "./LaserTest";
 import { MASK_CENTER_ROLE } from "./maskAlign";
+import { RheedSearchControls } from "./RheedSearch";
 
 type Call = ReturnType<typeof useDriverCall>;
 
@@ -239,6 +241,26 @@ const RheedGainPrompt = ({ call }: { call: Call }) => (
   </VStack>
 );
 
+/**
+ * `rheed_emission`: RHEED gun on stopped after filament and HV for a person to
+ * say when the beam has saturated. The steps come from the driver's live
+ * `rheed_search`, not the prompt's text; the prompt is only the gate.
+ *
+ * There is no plain Dismiss: the driver refuses `confirm` here, since it
+ * would leave the gun half on. The ways out are Stop here and RHEED off.
+ */
+const RheedEmissionPrompt = ({ pending, call }: { pending: PendingConfirmation; call: Call }) => {
+  const search = useExperimentDriverNodeStore((s) => s.state.rheed_search);
+  if (!search) {
+    return (
+      <Text fontSize="xs" whiteSpace="pre-wrap">
+        {pending.message}
+      </Text>
+    );
+  }
+  return <RheedSearchControls search={search} call={call} />;
+};
+
 const PixelCheckPrompt = ({ call }: { call: Call }) => {
   const status = useExperimentDriverStore((s) => s.pixelStatus);
   const setStatus = useExperimentDriverStore((s) => s.setPixelStatus);
@@ -309,6 +331,7 @@ const TITLES: Record<string, string> = {
   mask_center_alignment: "Manual mask-center alignment",
   mask_center_check: "Is the mask centered?",
   rheed_gain: "Tune RHEED gain",
+  rheed_emission: "RHEED emission: up or stop?",
   pixel_check: "Pixel check",
   laser_power: "Laser pulse energy",
   laser_test: "Daily laser test",
@@ -335,6 +358,9 @@ const PendingConfirmationCard = ({ pending }: { pending: PendingConfirmation }) 
       break;
     case "rheed_gain":
       body = <RheedGainPrompt call={call} />;
+      break;
+    case "rheed_emission":
+      body = <RheedEmissionPrompt pending={pending} call={call} />;
       break;
     case "pixel_check":
       body = <PixelCheckPrompt call={call} />;
@@ -365,15 +391,17 @@ const PendingConfirmationCard = ({ pending }: { pending: PendingConfirmation }) 
             {TITLES[pending.kind] ?? `Waiting: ${pending.kind}`}
           </Text>
         </HStack>
-        <Text fontSize="xs">{pending.message}</Text>
+        {/* rheed_emission's message ends with the step table, which its body shows live. */}
+        {pending.kind !== "rheed_emission" && <Text fontSize="xs">{pending.message}</Text>}
         {body}
         {/* The generic `confirm` clears any gate. Offered for the operator
           * flows so one started by mistake can be backed out of without
           * answering it -- "align by hand" would otherwise force a position
           * into the calibration. Not for `fiducial_role`, whose own cancel
-          * button is this same call, and not for unknown kinds, whose only
-          * button already is. */}
-        {pending.kind in TITLES && pending.kind !== "fiducial_role" && (
+          * button is this same call, not for `rheed_emission`, which the
+          * driver refuses to dismiss (its way out is RHEED off), and not
+          * for unknown kinds, whose only button already is. */}
+        {pending.kind in TITLES && pending.kind !== "fiducial_role" && pending.kind !== "rheed_emission" && (
           <HStack>
             <Button
               size="xs"

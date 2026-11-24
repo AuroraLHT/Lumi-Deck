@@ -10,6 +10,7 @@ import PreablationSection from "./Preablation";
 import SequencesSection from "./Sequences";
 import OperationConsole from "./OperationConsole";
 import PendingConfirmationCard from "./PendingConfirmationCard";
+import RheedSearchCard from "./RheedSearch";
 import StopDepositionButton from "./StopDepositionButton";
 import { AUTO_ALIGN_KIND } from "./maskAlign";
 
@@ -116,6 +117,7 @@ const ExperimentDriverMain = () => {
       )}
 
       {pending && <PendingConfirmationCard key={pending.id} pending={pending} />}
+      <RheedSearchCard />
 
       {task && (
         <HStack

@@ -1,7 +1,7 @@
 import { create } from "zustand";
 import { immer } from "zustand/middleware/immer";
 
-import { CurrentTask, PendingConfirmation, SequenceRun } from "../../generated/lumi";
+import { CurrentTask, PendingConfirmation, RheedSearch, SequenceRun } from "../../generated/lumi";
 import { Node, NodeState } from "./base";
 
 /**
@@ -38,6 +38,8 @@ export interface ExperimentDriverNodeState extends NodeState {
   laser_power_real: number | null;
   /** The last sequence run, live or ended, or null if none ran since the node started. */
   sequence: SequenceRun | null;
+  /** RHEED gun on's open emission search (any judge), or null when none is open. */
+  rheed_search: RheedSearch | null;
 }
 
 // `Node`, not `StreamNode`: the driver's `pending` channel is PUBSUB, like
@@ -63,6 +65,7 @@ const useExperimentDriverNodeStore = create<ExperimentDriverNode>()(
       laser_power_set: null,
       laser_power_real: null,
       sequence: null,
+      rheed_search: null,
     },
     setState: (newState) =>
       set((state) => {
