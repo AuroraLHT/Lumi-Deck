@@ -14,9 +14,16 @@ const STEP_MA = 50;
 interface Step {
   filamentMa: number;
   emissionUa: number | null;
-  rheedMean: number | null;
-  rheedP99: number | null;
-  rheedClipped: unknown;
+  /** The brightest pixels less the background: what the search compares. */
+  rheedSignal: number | null;
+  rheedBackground: number | null;
+  /** Frame-to-frame spread over the signal; a change under about twice this is not a change. */
+  rheedNoise: number | null;
+  rheedP999: number | null;
+  /** The image's peak over full scale (1 = at full scale). */
+  rheedHeadroom: number | null;
+  /** Pixels at full scale per frame. */
+  rheedClippedPx: number | null;
 }
 
 const num = (v: unknown) => (typeof v === "number" && Number.isFinite(v) ? v : null);
@@ -30,14 +37,26 @@ const readSteps = (search: RheedSearch): Step[] =>
       {
         filamentMa,
         emissionUa: num(s.emission_ua),
-        rheedMean: num(s.rheed_mean),
-        rheedP99: num(s.rheed_p99),
-        rheedClipped: s.rheed_clipped,
+        rheedSignal: num(s.rheed_signal),
+        rheedBackground: num(s.rheed_background),
+        rheedNoise: num(s.rheed_noise),
+        rheedP999: num(s.rheed_p999),
+        rheedHeadroom: num(s.rheed_headroom),
+        rheedClippedPx: num(s.rheed_clipped_px),
       },
     ];
   });
 
-const isClipped = (v: unknown) => (typeof v === "number" ? v > 0 : Boolean(v));
+/** Everything about the step's image the signal column leaves out. */
+const describeImage = (step: Step) =>
+  [
+    step.rheedBackground != null ? `background ${step.rheedBackground.toFixed(1)}` : null,
+    step.rheedNoise != null ? `noise ${(step.rheedNoise * 100).toFixed(1)}%` : null,
+    step.rheedP999 != null ? `p99.9 ${step.rheedP999.toFixed(1)}` : null,
+    step.rheedHeadroom != null ? `peak at ${Math.round(step.rheedHeadroom * 100)}% of full scale` : null,
+  ]
+    .filter(Boolean)
+    .join(" · ") || undefined;
 
 const JUDGE_LABEL: Record<string, string> = {
   agent: "the agent decides",
@@ -59,7 +78,7 @@ const JUDGE_LABEL: Record<string, string> = {
 export const RheedSearchControls = ({ search, call }: { search: RheedSearch; call: Call }) => {
   const steps = readSteps(search);
   const last = steps.length - 1;
-  const showMean = steps.some((s) => s.rheedMean != null);
+  const showSignal = steps.some((s) => s.rheedSignal != null);
   const canStop = search.judge !== "rule";
   const atMax = last >= 0 && search.filament_max_ma != null && steps[last].filamentMa + STEP_MA > search.filament_max_ma;
 
@@ -71,7 +90,7 @@ export const RheedSearchControls = ({ search, call }: { search: RheedSearch; cal
           <HStack fontSize="xs" color="text.muted" spacing={2}>
             <Text w="72px">Filament mA</Text>
             <Text w="76px">Emission µA</Text>
-            {showMean && <Text w="76px">RHEED mean</Text>}
+            {showSignal && <Text w="76px">RHEED signal</Text>}
           </HStack>
           {steps.map((step, i) => (
             <HStack
@@ -83,11 +102,11 @@ export const RheedSearchControls = ({ search, call }: { search: RheedSearch; cal
             >
               <Text w="72px">{step.filamentMa}</Text>
               <Text w="76px">{step.emissionUa == null ? "—" : step.emissionUa.toPrecision(4)}</Text>
-              {showMean && (
-                <HStack w="76px" spacing={1} title={step.rheedP99 != null ? `p99 ${step.rheedP99.toFixed(1)}` : undefined}>
-                  <Text>{step.rheedMean == null ? "—" : step.rheedMean.toFixed(1)}</Text>
-                  {isClipped(step.rheedClipped) && (
-                    <Badge colorScheme="orange" variant="subtle" fontSize="0.6rem" title={`clipped: ${String(step.rheedClipped)}`}>
+              {showSignal && (
+                <HStack w="76px" spacing={1} title={describeImage(step)}>
+                  <Text>{step.rheedSignal == null ? "—" : step.rheedSignal.toFixed(1)}</Text>
+                  {(step.rheedClippedPx ?? 0) > 0 && (
+                    <Badge colorScheme="orange" variant="subtle" fontSize="0.6rem" title={`${step.rheedClippedPx} pixels at full scale per frame`}>
                       clipped
                     </Badge>
                   )}
